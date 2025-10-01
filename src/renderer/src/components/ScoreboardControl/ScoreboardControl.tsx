@@ -4,40 +4,11 @@ import { CardContent } from "../ui/Card/CardContent";
 import { TeamControl } from "./TeamControl";
 import { TimerControl } from "./TimerControl";
 import { HalfControl } from "./HalfControl";
-import { useScoreboardData } from "../../hooks/useScoreboardData";
 import { CardTitle } from "../ui/Card/CardTitle";
+import { useScoreboardStore } from "@renderer/stores/scoreboardStore";
 
 export function ScoreboardControl(): JSX.Element {
-	const {
-		scoreboardData,
-		updateTeamScore,
-		updateTeamName,
-		updateTeamColor,
-		updateTimer,
-		updateHalf,
-		isLoading,
-		error,
-	} = useScoreboardData();
-
-	if (isLoading) {
-		return (
-			<Card>
-				<CardContent className="flex h-64 items-center justify-center">
-					<div>Loading scoreboard data...</div>
-				</CardContent>
-			</Card>
-		);
-	}
-
-	if (error) {
-		return (
-			<Card>
-				<CardContent className="flex h-64 items-center justify-center">
-					<div className="text-red-500">Error: {error}</div>
-				</CardContent>
-			</Card>
-		);
-	}
+	const store = useScoreboardStore();
 
 	return (
 		<Card className="flex flex-col gap-4">
@@ -45,25 +16,25 @@ export function ScoreboardControl(): JSX.Element {
 			<CardContent className="flex flex-col gap-4">
 				<div className="flex justify-between gap-4">
 					<TeamControl
-						score={scoreboardData.teamHomeScore}
+						score={store.teamHomeScore ?? 0}
 						title="Home"
-						teamName={scoreboardData.teamHomeName}
-						teamColor={scoreboardData.teamHomeColor}
-						onScoreChange={(score) => updateTeamScore("home", score)}
-						onNameChange={(name) => updateTeamName("home", name)}
-						onColorChange={(color) => updateTeamColor("home", color)}
+						teamName={store.teamHomeName}
+						teamColor={store.teamHomeColor}
+						onScoreChange={(score) => store.setTeamHomeScore(score)}
+						onNameChange={(name) => store.setTeamHomeName(name)}
+						onColorChange={(color) => store.setTeamHomeColor(color)}
 					/>
 					<TeamControl
-						score={scoreboardData.teamAwayScore}
+						score={store.teamAwayScore ?? 0}
 						title="Away"
-						teamName={scoreboardData.teamAwayName}
-						teamColor={scoreboardData.teamAwayColor}
-						onScoreChange={(score) => updateTeamScore("away", score)}
-						onNameChange={(name) => updateTeamName("away", name)}
-						onColorChange={(color) => updateTeamColor("away", color)}
+						teamName={store.teamAwayName}
+						teamColor={store.teamAwayColor}
+						onScoreChange={(score) => store.setTeamAwayScore(score)}
+						onNameChange={(name) => store.setTeamAwayName(name)}
+						onColorChange={(color) => store.setTeamAwayColor(color)}
 					/>
-					<TimerControl time={scoreboardData.timer} onTimeChange={updateTimer} />
-					<HalfControl half={scoreboardData.half} onHalfChange={updateHalf} />
+					<TimerControl time={store.timer ?? 0} onTimeChange={(time) => store.setTimer(time)} />
+					<HalfControl />
 				</div>
 			</CardContent>
 		</Card>

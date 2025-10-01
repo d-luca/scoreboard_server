@@ -1,8 +1,8 @@
 import { ScoreboardControl } from "@renderer/components/ScoreboardControl/ScoreboardControl";
-import { Card } from "@renderer/components/ui/Card/Card";
 import { JSX } from "react";
 import { ScoreboardFeedback } from "@renderer/components/ScoreboardFeedback/ScoreboardFeedback";
 import { CameraFeedback } from "@renderer/components/CameraFeedback/CameraFeedback";
+import { ScoreboardSettings } from "@renderer/components/ScoreboardSettings";
 
 export function ScoreboardMain(): JSX.Element {
 	return (
@@ -13,7 +13,7 @@ export function ScoreboardMain(): JSX.Element {
 			</div>
 			<div className="flex h-full w-1/2 flex-col gap-4">
 				<ScoreboardControl />
-				<Card className="h-full" />
+				<ScoreboardSettings />
 			</div>
 		</div>
 	);
