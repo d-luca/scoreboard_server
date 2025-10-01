@@ -1,0 +1,415 @@
+@import "tailwindcss";
+
+/* CSS Variables for Dark Theme */
+:root {
+	/* Primary Colors - Dark Blue Theme */
+	--color-primary-50: #eff6ff;
+	--color-primary-100: #dbeafe;
+	--color-primary-200: #bfdbfe;
+	--color-primary-300: #93c5fd;
+	--color-primary-400: #60a5fa;
+	--color-primary-500: #3b82f6;
+	--color-primary-600: #2563eb;
+	--color-primary-700: #1d4ed8;
+	--color-primary-800: #1e40af;
+	--color-primary-900: #1e3a8a;
+	--color-primary-950: #172554;
+
+	/* Secondary Colors - Gray */
+	--color-secondary-50: #f8fafc;
+	--color-secondary-100: #f1f5f9;
+	--color-secondary-200: #e2e8f0;
+	--color-secondary-300: #cbd5e1;
+	--color-secondary-400: #94a3b8;
+	--color-secondary-500: #64748b;
+	--color-secondary-600: #475569;
+	--color-secondary-700: #334155;
+	--color-secondary-800: #1e293b;
+	--color-secondary-900: #0f172a;
+	--color-secondary-950: #020617;
+
+	/* Tertiary Colors - Muted Orange/Amber */
+	--color-tertiary-50: #fefdf8;
+	--color-tertiary-100: #fef9c3;
+	--color-tertiary-200: #fef08a;
+	--color-tertiary-300: #fde047;
+	--color-tertiary-400: #facc15;
+	--color-tertiary-500: #eab308;
+	--color-tertiary-600: #ca8a04;
+	--color-tertiary-700: #a16207;
+	--color-tertiary-800: #854d0e;
+	--color-tertiary-900: #713f12;
+	--color-tertiary-950: #422006;
+
+	/* Success Colors */
+	--color-success-50: #f0fdf4;
+	--color-success-100: #dcfce7;
+	--color-success-200: #bbf7d0;
+	--color-success-300: #86efac;
+	--color-success-400: #4ade80;
+	--color-success-500: #22c55e;
+	--color-success-600: #16a34a;
+	--color-success-700: #15803d;
+	--color-success-800: #166534;
+	--color-success-900: #14532d;
+	--color-success-950: #052e16;
+
+	/* Warning Colors */
+	--color-warning-50: #fffbeb;
+	--color-warning-100: #fef3c7;
+	--color-warning-200: #fde68a;
+	--color-warning-300: #fcd34d;
+	--color-warning-400: #fbbf24;
+	--color-warning-500: #f59e0b;
+	--color-warning-600: #d97706;
+	--color-warning-700: #b45309;
+	--color-warning-800: #92400e;
+	--color-warning-900: #78350f;
+	--color-warning-950: #451a03;
+
+	/* Error Colors */
+	--color-error-50: #fef2f2;
+	--color-error-100: #fee2e2;
+	--color-error-200: #fecaca;
+	--color-error-300: #fca5a5;
+	--color-error-400: #f87171;
+	--color-error-500: #ef4444;
+	--color-error-600: #dc2626;
+	--color-error-700: #b91c1c;
+	--color-error-800: #991b1b;
+	--color-error-900: #7f1d1d;
+	--color-error-950: #450a0a;
+
+	/* Dark Theme Background Colors */
+	--color-background-primary: #0f172a; /* Darkest - main background */
+	--color-background-secondary: #1e293b; /* Cards, panels */
+	--color-background-tertiary: #334155; /* Elevated elements */
+	--color-background-quaternary: #475569; /* Hover states */
+
+	/* Dark Theme Surface Colors */
+	--color-surface-primary: #1e293b;
+	--color-surface-secondary: #334155;
+	--color-surface-tertiary: #475569;
+	--color-surface-elevated: #64748b;
+
+	/* Text Colors for Dark Theme */
+	--color-text-primary: #f8fafc; /* Primary text - white/light */
+	--color-text-secondary: #e2e8f0; /* Secondary text */
+	--color-text-tertiary: #cbd5e1; /* Muted text */
+	--color-text-quaternary: #94a3b8; /* Placeholder text */
+	--color-text-disabled: #64748b; /* Disabled text */
+
+	/* Border Colors */
+	--color-border-primary: #334155;
+	--color-border-secondary: #475569;
+	--color-border-tertiary: #64748b;
+
+	/* Shadow Colors */
+	--shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.2);
+	--shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.3), 0 2px 4px -2px rgb(0 0 0 / 0.3);
+	--shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.3), 0 4px 6px -4px rgb(0 0 0 / 0.3);
+	--shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.3), 0 8px 10px -6px rgb(0 0 0 / 0.3);
+}
+
+/* Tailwind 4 Theme Configuration */
+@theme {
+	/* Primary Colors */
+	--color-primary-50: #eff6ff;
+	--color-primary-100: #dbeafe;
+	--color-primary-200: #bfdbfe;
+	--color-primary-300: #93c5fd;
+	--color-primary-400: #60a5fa;
+	--color-primary-500: #3b82f6;
+	--color-primary-600: #2563eb;
+	--color-primary-700: #1d4ed8;
+	--color-primary-800: #1e40af;
+	--color-primary-900: #1e3a8a;
+	--color-primary-950: #172554;
+
+	/* Secondary Colors */
+	--color-secondary-50: #f8fafc;
+	--color-secondary-100: #f1f5f9;
+	--color-secondary-200: #e2e8f0;
+	--color-secondary-300: #cbd5e1;
+	--color-secondary-400: #94a3b8;
+	--color-secondary-500: #64748b;
+	--color-secondary-600: #475569;
+	--color-secondary-700: #334155;
+	--color-secondary-800: #1e293b;
+	--color-secondary-900: #0f172a;
+	--color-secondary-950: #020617;
+
+	/* Tertiary Colors */
+	--color-tertiary-50: #fefdf8;
+	--color-tertiary-100: #fef9c3;
+	--color-tertiary-200: #fef08a;
+	--color-tertiary-300: #fde047;
+	--color-tertiary-400: #facc15;
+	--color-tertiary-500: #eab308;
+	--color-tertiary-600: #ca8a04;
+	--color-tertiary-700: #a16207;
+	--color-tertiary-800: #854d0e;
+	--color-tertiary-900: #713f12;
+	--color-tertiary-950: #422006;
+
+	/* Success Colors */
+	--color-success-50: #f0fdf4;
+	--color-success-100: #dcfce7;
+	--color-success-200: #bbf7d0;
+	--color-success-300: #86efac;
+	--color-success-400: #4ade80;
+	--color-success-500: #22c55e;
+	--color-success-600: #16a34a;
+	--color-success-700: #15803d;
+	--color-success-800: #166534;
+	--color-success-900: #14532d;
+	--color-success-950: #052e16;
+
+	/* Warning Colors */
+	--color-warning-50: #fffbeb;
+	--color-warning-100: #fef3c7;
+	--color-warning-200: #fde68a;
+	--color-warning-300: #fcd34d;
+	--color-warning-400: #fbbf24;
+	--color-warning-500: #f59e0b;
+	--color-warning-600: #d97706;
+	--color-warning-700: #b45309;
+	--color-warning-800: #92400e;
+	--color-warning-900: #78350f;
+	--color-warning-950: #451a03;
+
+	/* Error Colors */
+	--color-error-50: #fef2f2;
+	--color-error-100: #fee2e2;
+	--color-error-200: #fecaca;
+	--color-error-300: #fca5a5;
+	--color-error-400: #f87171;
+	--color-error-500: #ef4444;
+	--color-error-600: #dc2626;
+	--color-error-700: #b91c1c;
+	--color-error-800: #991b1b;
+	--color-error-900: #7f1d1d;
+	--color-error-950: #450a0a;
+}
+
+/* Base Styles */
+body {
+	background-color: var(--color-background-primary);
+	color: var(--color-text-primary);
+	font-family:
+		-apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", "Oxygen", "Ubuntu", "Cantarell", "Fira Sans",
+		"Droid Sans", "Helvetica Neue", sans-serif;
+	-webkit-font-smoothing: antialiased;
+	-moz-osx-font-smoothing: grayscale;
+}
+
+/* Custom Utility Classes */
+.bg-app-primary {
+	background-color: var(--color-background-primary);
+}
+.bg-app-secondary {
+	background-color: var(--color-background-secondary);
+}
+.bg-app-tertiary {
+	background-color: var(--color-background-tertiary);
+}
+.bg-app-quaternary {
+	background-color: var(--color-background-quaternary);
+}
+
+.bg-surface-primary {
+	background-color: var(--color-surface-primary);
+}
+.bg-surface-secondary {
+	background-color: var(--color-surface-secondary);
+}
+.bg-surface-tertiary {
+	background-color: var(--color-surface-tertiary);
+}
+.bg-surface-elevated {
+	background-color: var(--color-surface-elevated);
+}
+
+.text-app-primary {
+	color: var(--color-text-primary);
+}
+.text-app-secondary {
+	color: var(--color-text-secondary);
+}
+.text-app-tertiary {
+	color: var(--color-text-tertiary);
+}
+.text-app-quaternary {
+	color: var(--color-text-quaternary);
+}
+.text-app-disabled {
+	color: var(--color-text-disabled);
+}
+
+.border-app-primary {
+	border-color: var(--color-border-primary);
+}
+.border-app-secondary {
+	border-color: var(--color-border-secondary);
+}
+.border-app-tertiary {
+	border-color: var(--color-border-tertiary);
+}
+
+/* Component Classes */
+.card {
+	background-color: var(--color-surface-primary);
+	border: 1px solid var(--color-border-primary);
+	border-radius: 0.5rem;
+	box-shadow: var(--shadow-md);
+}
+
+.card-elevated {
+	background-color: var(--color-surface-secondary);
+	border: 1px solid var(--color-border-secondary);
+	border-radius: 0.5rem;
+	box-shadow: var(--shadow-lg);
+}
+
+.btn-primary {
+	background-color: var(--color-primary-600);
+	color: white;
+	padding: 0.5rem 1rem;
+	border-radius: 0.375rem;
+	font-weight: 500;
+	transition: background-color 0.2s ease-in-out;
+	border: none;
+	cursor: pointer;
+}
+
+.btn-primary:hover {
+	background-color: var(--color-primary-700);
+}
+
+.btn-secondary {
+	background-color: var(--color-secondary-600);
+	color: white;
+	padding: 0.5rem 1rem;
+	border-radius: 0.375rem;
+	font-weight: 500;
+	transition: background-color 0.2s ease-in-out;
+	border: none;
+	cursor: pointer;
+}
+
+.btn-secondary:hover {
+	background-color: var(--color-secondary-700);
+}
+
+.btn-tertiary {
+	background-color: var(--color-tertiary-600);
+	color: white;
+	padding: 0.5rem 1rem;
+	border-radius: 0.375rem;
+	font-weight: 500;
+	transition: background-color 0.2s ease-in-out;
+	border: none;
+	cursor: pointer;
+}
+
+.btn-tertiary:hover {
+	background-color: var(--color-tertiary-700);
+}
+
+.btn-outline {
+	background-color: transparent;
+	border: 2px solid var(--color-primary-600);
+	color: var(--color-primary-400);
+	padding: 0.5rem 1rem;
+	border-radius: 0.375rem;
+	font-weight: 500;
+	transition: all 0.2s ease-in-out;
+	cursor: pointer;
+}
+
+.btn-outline:hover {
+	background-color: var(--color-primary-600);
+	color: white;
+}
+
+.btn-ghost {
+	background-color: transparent;
+	border: none;
+	color: var(--color-text-secondary);
+	padding: 0.5rem 1rem;
+	border-radius: 0.375rem;
+	font-weight: 500;
+	transition: all 0.2s ease-in-out;
+	cursor: pointer;
+}
+
+.btn-ghost:hover {
+	background-color: var(--color-surface-primary);
+	color: var(--color-text-primary);
+}
+
+/* Scoreboard Specific Classes */
+.scoreboard-panel {
+	background-color: var(--color-surface-primary);
+	border: 2px solid var(--color-primary-700);
+	border-radius: 0.75rem;
+	box-shadow: var(--shadow-xl);
+	padding: 1.5rem;
+}
+
+.team-score {
+	font-size: 3.75rem;
+	font-weight: 700;
+	color: var(--color-text-primary);
+	line-height: 1;
+}
+
+.team-name {
+	font-size: 1.5rem;
+	font-weight: 600;
+	color: var(--color-text-secondary);
+}
+
+.game-timer {
+	font-size: 2.25rem;
+	font-family: "Consolas", "Monaco", "Lucida Console", monospace;
+	font-weight: 700;
+	color: var(--color-tertiary-400);
+}
+
+/* Status Indicators */
+.status-active {
+	background-color: var(--color-success-600);
+	color: white;
+	padding: 0.25rem 0.75rem;
+	border-radius: 0.375rem;
+	font-size: 0.875rem;
+	font-weight: 500;
+}
+
+.status-warning {
+	background-color: var(--color-warning-600);
+	color: white;
+	padding: 0.25rem 0.75rem;
+	border-radius: 0.375rem;
+	font-size: 0.875rem;
+	font-weight: 500;
+}
+
+.status-error {
+	background-color: var(--color-error-600);
+	color: white;
+	padding: 0.25rem 0.75rem;
+	border-radius: 0.375rem;
+	font-size: 0.875rem;
+	font-weight: 500;
+}
+
+.status-inactive {
+	background-color: var(--color-surface-tertiary);
+	color: var(--color-text-tertiary);
+	padding: 0.25rem 0.75rem;
+	border-radius: 0.375rem;
+	font-size: 0.875rem;
+	font-weight: 500;
+}
