@@ -13,6 +13,15 @@ interface ScoreboardState extends ScoreboardProps {
 	setTeamHomeColor: (color?: string) => void;
 	setTeamAwayColor: (color?: string) => void;
 	increaseHalf: () => void;
+	decreaseHalf: () => void;
+	increaseTeamHomeScore: () => void;
+	decreaseTeamHomeScore: () => void;
+	increaseTeamAwayScore: () => void;
+	decreaseTeamAwayScore: () => void;
+	increaseTimerByOneSecond: () => void;
+	decreaseTimerByOneSecond: () => void;
+	increaseTimerByOneMinute: () => void;
+	decreaseTimerByOneMinute: () => void;
 
 	// Bulk update action
 	updateScoreboardData: (data: Partial<ScoreboardProps>) => void;
@@ -93,7 +102,6 @@ export const useScoreboardStore = create<ScoreboardState>((set, get) => ({
 		});
 		return set({ teamAwayColor });
 	},
-
 	increaseHalf: async () => {
 		const currentHalf = get().half ?? 1;
 		const newHalf = currentHalf + 1;
@@ -101,6 +109,78 @@ export const useScoreboardStore = create<ScoreboardState>((set, get) => ({
 			half: newHalf,
 		});
 		return set({ half: newHalf });
+	},
+	decreaseHalf: async () => {
+		const currentHalf = get().half ?? 1;
+		const newHalf = currentHalf > 1 ? currentHalf - 1 : 1;
+		await window.api.updateScoreboardData({
+			half: newHalf,
+		});
+		return set({ half: newHalf });
+	},
+	increaseTeamHomeScore: async () => {
+		const currentScore = get().teamHomeScore ?? 0;
+		const newScore = currentScore + 1;
+		await window.api.updateScoreboardData({
+			teamHomeScore: newScore,
+		});
+		return set({ teamHomeScore: newScore });
+	},
+	decreaseTeamHomeScore: async () => {
+		const currentScore = get().teamHomeScore ?? 0;
+		const newScore = currentScore > 0 ? currentScore - 1 : 0;
+		await window.api.updateScoreboardData({
+			teamHomeScore: newScore,
+		});
+		return set({ teamHomeScore: newScore });
+	},
+	increaseTeamAwayScore: async () => {
+		const currentScore = get().teamAwayScore ?? 0;
+		const newScore = currentScore + 1;
+		await window.api.updateScoreboardData({
+			teamAwayScore: newScore,
+		});
+		return set({ teamAwayScore: newScore });
+	},
+	decreaseTeamAwayScore: async () => {
+		const currentScore = get().teamAwayScore ?? 0;
+		const newScore = currentScore > 0 ? currentScore - 1 : 0;
+		await window.api.updateScoreboardData({
+			teamAwayScore: newScore,
+		});
+		return set({ teamAwayScore: newScore });
+	},
+	increaseTimerByOneSecond: async () => {
+		const currentTimer = get().timer ?? 0;
+		const newTimer = currentTimer + 1;
+		await window.api.updateScoreboardData({
+			timer: newTimer,
+		});
+		return set({ timer: newTimer });
+	},
+	decreaseTimerByOneSecond: async () => {
+		const currentTimer = get().timer ?? 0;
+		const newTimer = currentTimer > 0 ? currentTimer - 1 : 0;
+		await window.api.updateScoreboardData({
+			timer: newTimer,
+		});
+		return set({ timer: newTimer });
+	},
+	increaseTimerByOneMinute: async () => {
+		const currentTimer = get().timer ?? 0;
+		const newTimer = currentTimer + 60;
+		await window.api.updateScoreboardData({
+			timer: newTimer,
+		});
+		return set({ timer: newTimer });
+	},
+	decreaseTimerByOneMinute: async () => {
+		const currentTimer = get().timer ?? 0;
+		const newTimer = currentTimer >= 60 ? currentTimer - 60 : 0;
+		await window.api.updateScoreboardData({
+			timer: newTimer,
+		});
+		return set({ timer: newTimer });
 	},
 
 	// Bulk update

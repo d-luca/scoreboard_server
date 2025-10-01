@@ -18,22 +18,16 @@ export function ScoreboardControl(): JSX.Element {
 					<TeamControl
 						score={store.teamHomeScore ?? 0}
 						title="Home"
-						teamName={store.teamHomeName}
-						teamColor={store.teamHomeColor}
-						onScoreChange={(score) => store.setTeamHomeScore(score)}
-						onNameChange={(name) => store.setTeamHomeName(name)}
-						onColorChange={(color) => store.setTeamHomeColor(color)}
+						onDecreaseScore={store.decreaseTeamHomeScore}
+						onIncreaseScore={store.increaseTeamHomeScore}
 					/>
 					<TeamControl
 						score={store.teamAwayScore ?? 0}
 						title="Away"
-						teamName={store.teamAwayName}
-						teamColor={store.teamAwayColor}
-						onScoreChange={(score) => store.setTeamAwayScore(score)}
-						onNameChange={(name) => store.setTeamAwayName(name)}
-						onColorChange={(color) => store.setTeamAwayColor(color)}
+						onDecreaseScore={store.decreaseTeamAwayScore}
+						onIncreaseScore={store.increaseTeamAwayScore}
 					/>
-					<TimerControl time={store.timer ?? 0} onTimeChange={(time) => store.setTimer(time)} />
+					<TimerControl />
 					<HalfControl />
 				</div>
 			</CardContent>

@@ -5,10 +5,6 @@ import { useScoreboardStore } from "@renderer/stores/scoreboardStore";
 
 export function HalfControl(): JSX.Element {
 	const store = useScoreboardStore();
-	const handleHalfChange = (delta: number): void => {
-		const newHalf = Math.max(1, (store.half ?? 1) + delta);
-		store.setHalf(newHalf);
-	};
 
 	return (
 		<div className="flex flex-col items-center gap-4">
@@ -17,7 +13,7 @@ export function HalfControl(): JSX.Element {
 				<Button className="size-full" onClick={store.increaseHalf}>
 					+1
 				</Button>
-				<Button variant="destructive" className="size-full" onClick={() => handleHalfChange(-1)}>
+				<Button variant="destructive" className="size-full" onClick={store.decreaseHalf}>
 					-1
 				</Button>
 			</div>

@@ -1,17 +1,10 @@
 import { JSX } from "react";
 import { Button } from "../ui/Button/Button";
 import { ValueBox } from "../ui/ValueBox";
+import { useScoreboardStore } from "@renderer/stores/scoreboardStore";
 
-export type TimerControlProps = {
-	time: number;
-	onTimeChange?: (time: number) => void;
-};
-
-export function TimerControl({ time = 0, onTimeChange }: TimerControlProps): JSX.Element {
-	const handleTimeChange = (delta: number): void => {
-		const newTime = Math.max(0, time + delta);
-		onTimeChange?.(newTime);
-	};
+export function TimerControl(): JSX.Element {
+	const store = useScoreboardStore();
 
 	const formatTime = (seconds: number): string => {
 		const mins = Math.floor(seconds / 60);
@@ -21,23 +14,23 @@ export function TimerControl({ time = 0, onTimeChange }: TimerControlProps): JSX
 
 	return (
 		<div className="flex flex-col items-center gap-4">
-			<ValueBox value={formatTime(time)} title="Timer" />
+			<ValueBox value={formatTime(store.timer ?? 0)} title="Timer" />
 
 			{/* Time Adjustment Controls */}
 			<div className="flex flex-col gap-2">
 				<div className="flex w-full gap-2">
-					<Button className="w-full" onClick={() => handleTimeChange(1)}>
+					<Button className="w-full" onClick={store.increaseTimerByOneSecond}>
 						+1s
 					</Button>
-					<Button variant="destructive" className="w-full" onClick={() => handleTimeChange(-1)}>
+					<Button variant="destructive" className="w-full" onClick={store.decreaseTimerByOneSecond}>
 						-1s
 					</Button>
 				</div>
 				<div className="flex w-full gap-2">
-					<Button className="w-full" onClick={() => handleTimeChange(60)}>
+					<Button className="w-full" onClick={store.increaseTimerByOneMinute}>
 						+1m
 					</Button>
-					<Button variant="destructive" className="w-full" onClick={() => handleTimeChange(-60)}>
+					<Button variant="destructive" className="w-full" onClick={store.decreaseTimerByOneMinute}>
 						-1m
 					</Button>
 				</div>
