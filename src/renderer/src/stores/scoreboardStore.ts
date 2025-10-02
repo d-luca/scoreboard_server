@@ -1,7 +1,14 @@
 import { create } from "zustand";
 import { ScoreboardProps } from "@renderer/components/Scoreboard";
 
-interface ScoreboardState extends ScoreboardProps {
+interface ScoreboardStoreData extends ScoreboardProps {
+	// Additional states wrt ScoreboardProps
+	timerLoadout1?: number; // in seconds
+	timerLoadout2?: number; // in seconds
+	timerLoadout3?: number; // in seconds
+}
+
+interface ScoreboardState extends ScoreboardStoreData {
 	// Actions for updating the state
 	setEventLogo: (eventLogo?: string) => void;
 	setTeamHomeScore: (score: number) => void;
@@ -12,6 +19,7 @@ interface ScoreboardState extends ScoreboardProps {
 	setTeamAwayName: (name?: string) => void;
 	setTeamHomeColor: (color?: string) => void;
 	setTeamAwayColor: (color?: string) => void;
+	setTimerLoadout: ({ index, value }: { index: 1 | 2 | 3; value: number }) => void;
 	increaseHalf: () => void;
 	decreaseHalf: () => void;
 	increaseTeamHomeScore: () => void;
@@ -31,7 +39,7 @@ interface ScoreboardState extends ScoreboardProps {
 }
 
 // Default values for the scoreboard
-const defaultScoreboardData: ScoreboardProps = {
+const defaultScoreboardData: ScoreboardStoreData = {
 	eventLogo: undefined,
 	teamHomeName: "T-H",
 	teamAwayName: "T-A",
@@ -41,6 +49,9 @@ const defaultScoreboardData: ScoreboardProps = {
 	teamAwayScore: 0,
 	timer: 0,
 	half: 1,
+	timerLoadout1: 45 * 60,
+	timerLoadout2: 90 * 60,
+	timerLoadout3: 30 * 60,
 };
 
 export const useScoreboardStore = create<ScoreboardState>((set, get) => ({
@@ -101,6 +112,13 @@ export const useScoreboardStore = create<ScoreboardState>((set, get) => ({
 			teamAwayColor,
 		});
 		return set({ teamAwayColor });
+	},
+	setTimerLoadout: async ({ index, value }: { index: 1 | 2 | 3; value: number }) => {
+		const boundedIndex = Math.min(Math.max(index, 1), 3) as 1 | 2 | 3;
+		const key = `timerLoadout${boundedIndex}` as const;
+		const sanitizedValue = Number.isFinite(value) ? Math.max(0, Math.floor(value)) : 0;
+		const payload = { [key]: sanitizedValue } as Partial<ScoreboardProps>;
+		return set(payload as Partial<ScoreboardState>);
 	},
 	increaseHalf: async () => {
 		const currentHalf = get().half ?? 1;
@@ -207,6 +225,9 @@ export const useScoreboardData = (): {
 	teamAwayScore?: number;
 	timer?: number;
 	half?: number;
+	timerLoadout1?: number;
+	timerLoadout2?: number;
+	timerLoadout3?: number;
 } => {
 	const store = useScoreboardStore();
 	return {
@@ -219,6 +240,9 @@ export const useScoreboardData = (): {
 		teamAwayScore: store.teamAwayScore,
 		timer: store.timer,
 		half: store.half,
+		timerLoadout1: store.timerLoadout1,
+		timerLoadout2: store.timerLoadout2,
+		timerLoadout3: store.timerLoadout3,
 	};
 };
 
@@ -232,6 +256,7 @@ export const useScoreboardActions = (): {
 	setTeamAwayName: (name?: string) => void;
 	setTeamHomeColor: (color?: string) => void;
 	setTeamAwayColor: (color?: string) => void;
+	setTimerLoadout: ({ index, value }: { index: 1 | 2 | 3; value: number }) => void;
 	updateScoreboardData: (data: Partial<ScoreboardProps>) => void;
 	reset: () => void;
 } => {
@@ -246,6 +271,7 @@ export const useScoreboardActions = (): {
 		setTeamAwayName: store.setTeamAwayName,
 		setTeamHomeColor: store.setTeamHomeColor,
 		setTeamAwayColor: store.setTeamAwayColor,
+		setTimerLoadout: store.setTimerLoadout,
 		updateScoreboardData: store.updateScoreboardData,
 		reset: store.reset,
 	};
