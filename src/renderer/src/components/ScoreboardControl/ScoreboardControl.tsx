@@ -4,40 +4,20 @@ import { CardContent } from "../ui/Card/CardContent";
 import { TeamControl } from "./TeamControl";
 import { TimerControl } from "./TimerControl";
 import { HalfControl } from "./HalfControl";
-import { useScoreboardData } from "../../hooks/useScoreboardData";
 import { CardTitle } from "../ui/Card/CardTitle";
+import { useScoreboardStore } from "@renderer/stores/scoreboardStore";
+import { Button } from "../ui/Button/Button";
 
 export function ScoreboardControl(): JSX.Element {
-	const {
-		scoreboardData,
-		updateTeamScore,
-		updateTeamName,
-		updateTeamColor,
-		updateTimer,
-		updateHalf,
-		isLoading,
-		error,
-	} = useScoreboardData();
+	const store = useScoreboardStore();
 
-	if (isLoading) {
-		return (
-			<Card>
-				<CardContent className="flex h-64 items-center justify-center">
-					<div>Loading scoreboard data...</div>
-				</CardContent>
-			</Card>
-		);
-	}
+	const timerLoadoutButtons = [
+		{ label: "Loadout 1", value: store.timerLoadout1 ?? 0 },
+		{ label: "Loadout 2", value: store.timerLoadout2 ?? 0 },
+		{ label: "Loadout 3", value: store.timerLoadout3 ?? 0 },
+	];
 
-	if (error) {
-		return (
-			<Card>
-				<CardContent className="flex h-64 items-center justify-center">
-					<div className="text-red-500">Error: {error}</div>
-				</CardContent>
-			</Card>
-		);
-	}
+	// const isTimerLoadoutAvailable = timerLoadoutButtons.some((button) => button.value > 0);
 
 	return (
 		<Card className="flex flex-col gap-4">
@@ -45,25 +25,37 @@ export function ScoreboardControl(): JSX.Element {
 			<CardContent className="flex flex-col gap-4">
 				<div className="flex justify-between gap-4">
 					<TeamControl
-						score={scoreboardData.teamHomeScore}
+						score={store.teamHomeScore ?? 0}
 						title="Home"
-						teamName={scoreboardData.teamHomeName}
-						teamColor={scoreboardData.teamHomeColor}
-						onScoreChange={(score) => updateTeamScore("home", score)}
-						onNameChange={(name) => updateTeamName("home", name)}
-						onColorChange={(color) => updateTeamColor("home", color)}
+						onDecreaseScore={store.decreaseTeamHomeScore}
+						onIncreaseScore={store.increaseTeamHomeScore}
 					/>
 					<TeamControl
-						score={scoreboardData.teamAwayScore}
+						score={store.teamAwayScore ?? 0}
 						title="Away"
-						teamName={scoreboardData.teamAwayName}
-						teamColor={scoreboardData.teamAwayColor}
-						onScoreChange={(score) => updateTeamScore("away", score)}
-						onNameChange={(name) => updateTeamName("away", name)}
-						onColorChange={(color) => updateTeamColor("away", color)}
+						onDecreaseScore={store.decreaseTeamAwayScore}
+						onIncreaseScore={store.increaseTeamAwayScore}
 					/>
-					<TimerControl time={scoreboardData.timer} onTimeChange={updateTimer} />
-					<HalfControl half={scoreboardData.half} onHalfChange={updateHalf} />
+					<TimerControl />
+					<HalfControl />
+				</div>
+
+				<div className="grid grid-cols-3 gap-2" aria-label="Timer loadout shortcuts">
+					{timerLoadoutButtons.map(({ label, value }) => (
+						<Button
+							key={label}
+							variant="outline"
+							// disabled={!isTimerLoadoutAvailable}
+							className="whitespace-nowrap"
+							onClick={() => {
+								if (value >= 0) {
+									void store.setTimer(value);
+								}
+							}}
+						>
+							{label}
+						</Button>
+					))}
 				</div>
 			</CardContent>
 		</Card>

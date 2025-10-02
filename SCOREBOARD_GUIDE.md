@@ -30,16 +30,19 @@ pnpm install
 ### 2. Development
 
 **Standard Development** (uses built scoreboard component):
+
 ```bash
 pnpm run dev
 ```
 
 **Development with Auto-Rebuilding Scoreboard** (automatically rebuilds scoreboard when renderer components change):
+
 ```bash
 pnpm run dev:with-scoreboard
 ```
 
 **Manual Scoreboard Build** (when you make changes to scoreboard components):
+
 ```bash
 pnpm run build:scoreboard
 ```
@@ -86,35 +89,39 @@ The scoreboard view connects to the WebSocket server for real-time updates. When
 
 ```typescript
 interface ScoreboardData {
-    teamHomeName: string;      // Home team name
-    teamAwayName: string;      // Away team name
-    teamHomeScore: number;     // Home team score
-    teamAwayScore: number;     // Away team score
-    teamHomeColor: string;     // Home team color (hex)
-    teamAwayColor: string;     // Away team color (hex)
-    timer: number;             // Timer in seconds
-    half: number;              // Current half/period
-    eventLogo?: string;        // Optional event logo URL
+	teamHomeName: string; // Home team name
+	teamAwayName: string; // Away team name
+	teamHomeScore: number; // Home team score
+	teamAwayScore: number; // Away team score
+	teamHomeColor: string; // Home team color (hex)
+	teamAwayColor: string; // Away team color (hex)
+	timer: number; // Timer in seconds
+	half: number; // Current half/period
+	eventLogo?: string; // Optional event logo URL
 }
 ```
 
 ## Controls
 
 ### Team Controls
+
 - **Score**: Use +1/-1 buttons to adjust scores
 - **Team Name**: Click "Set Name" to edit team names
 - **Team Color**: Use color picker to set team colors
 
 ### Timer Controls
+
 - **Set Time**: Click "Set Time" to directly input time (MM:SS format)
 - **Adjust Time**: Use +1s/-1s and +1m/-1m buttons for fine adjustments
 
 ### Half Controls
+
 - **Half/Period**: Use +1/-1 buttons to change the current half or period
 
 ## Troubleshooting
 
 ### Port Already in Use
+
 If port 3001 is already in use, the server will fail to start. You can modify the port in `src/main/index.ts`:
 
 ```typescript
@@ -122,10 +129,13 @@ scoreboardServer = new ScoreboardServer(3002); // Change to different port
 ```
 
 ### CORS Issues
+
 The server is configured with permissive CORS headers to allow OBS Browser Source access. If you encounter issues, check that your OBS version supports the configured CORS settings.
 
 ### WebSocket Connection Issues
+
 If real-time updates aren't working:
+
 1. Check browser console for WebSocket errors
 2. Verify the server is running on the correct port
 3. Try refreshing the browser source in OBS
@@ -133,15 +143,19 @@ If real-time updates aren't working:
 ## Customization
 
 ### Styling
+
 The scoreboard appearance can be customized by modifying the CSS in `src/main/server.ts` in the `generateScoreboardHTML()` method.
 
 ### Additional Fields
+
 To add more data fields (e.g., timeouts, fouls), update:
+
 1. `ScoreboardData` interface in `src/types/scoreboard.ts`
 2. HTML template in `src/main/server.ts`
 3. Control components in `src/renderer/src/components/ScoreboardControl/`
 
 ### Different Sports
+
 The system is designed to be adaptable for different sports by modifying the data structure and controls as needed.
 
 ## Technical Details
