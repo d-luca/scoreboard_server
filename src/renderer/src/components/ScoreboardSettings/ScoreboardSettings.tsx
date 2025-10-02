@@ -132,11 +132,11 @@ export function ScoreboardSettings(): JSX.Element {
 				<div className="grid grid-cols-2 gap-4">
 					<div className="space-y-2">
 						<Label htmlFor="teamHomeColor">Team Home Color</Label>
-						<ColorPicker value={store.teamHomeColor} />
+						<ColorPicker value={store.teamHomeColor} onChange={store.setTeamHomeColor} />
 					</div>
 					<div className="space-y-2">
 						<Label htmlFor="teamAwayColor">Team Away Color</Label>
-						<ColorPicker value={store.teamAwayColor} />
+						<ColorPicker value={store.teamAwayColor} onChange={store.setTeamHomeColor} />
 					</div>
 				</div>
 
