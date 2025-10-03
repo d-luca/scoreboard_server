@@ -16,6 +16,7 @@ interface ScoreboardState extends ScoreboardStoreData {
 	setTeamAwayScore: (score: number) => void;
 	setTimer: (timer: number) => void;
 	setHalf: (half: number) => void;
+	setHalfPrefix: (prefix?: string) => void;
 	setTeamHomeName: (name?: string) => void;
 	setTeamAwayName: (name?: string) => void;
 	setTeamHomeColor: (color?: string) => void;
@@ -53,6 +54,7 @@ const defaultScoreboardData: ScoreboardStoreData = {
 	teamAwayScore: 0,
 	timer: 0,
 	half: 1,
+	halfPrefix: "PERIODO",
 	timerLoadout1: 45 * 60,
 	timerLoadout2: 90 * 60,
 	timerLoadout3: 30 * 60,
@@ -107,6 +109,12 @@ export const useScoreboardStore = create<ScoreboardState>((set, get) => ({
 			half,
 		});
 		return set({ half });
+	},
+	setHalfPrefix: async (halfPrefix) => {
+		await window.api.updateScoreboardData({
+			halfPrefix,
+		});
+		return set({ halfPrefix });
 	},
 	setTeamHomeName: async (teamHomeName) => {
 		await window.api.updateScoreboardData({
@@ -296,6 +304,7 @@ export const useScoreboardData = (): {
 	teamAwayScore?: number;
 	timer?: number;
 	half?: number;
+	halfPrefix?: string;
 	timerLoadout1?: number;
 	timerLoadout2?: number;
 	timerLoadout3?: number;
@@ -311,6 +320,7 @@ export const useScoreboardData = (): {
 		teamAwayScore: store.teamAwayScore,
 		timer: store.timer,
 		half: store.half,
+		halfPrefix: store.halfPrefix,
 		timerLoadout1: store.timerLoadout1,
 		timerLoadout2: store.timerLoadout2,
 		timerLoadout3: store.timerLoadout3,

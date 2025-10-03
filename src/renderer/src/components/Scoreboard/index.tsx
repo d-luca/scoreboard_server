@@ -11,6 +11,7 @@ export type ScoreboardProps = TeamsData & {
 	teamAwayScore?: number;
 	timer?: number;
 	half?: number;
+	halfPrefix?: string;
 };
 
 export function Scoreboard({
@@ -20,6 +21,7 @@ export function Scoreboard({
 	teamHomeColor,
 	teamHomeName,
 	half,
+	halfPrefix,
 	teamAwayScore,
 	teamHomeScore,
 	timer,
@@ -37,7 +39,7 @@ export function Scoreboard({
 			>
 				<Timer value={timer ?? 0} />
 				{/* <div className="flex h-full w-0.5 bg-border-app-primary" /> */}
-				<Half value={half ?? 1} />
+				<Half value={half ?? 1} prefix={halfPrefix} />
 			</div>
 			<TeamInfo
 				teamAwayName={teamAwayName ?? "T-A"}

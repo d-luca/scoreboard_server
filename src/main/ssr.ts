@@ -192,28 +192,28 @@ export function renderScoreboardHTML(data: ScoreboardData): string {
             }, 3000);
         };
 
-        function updateScoreboard(data) {
-            // Find elements and update them
-            const homeNameEl = document.querySelector('[data-home-name]');
-            const awayNameEl = document.querySelector('[data-away-name]');
-            const homeScoreEl = document.querySelector('[data-home-score]');
-            const awayScoreEl = document.querySelector('[data-away-score]');
-            const timerEl = document.querySelector('[data-timer]');
-            const halfEl = document.querySelector('[data-half]');
-            const homeColorEl = document.querySelector('[data-home-color]');
-            const awayColorEl = document.querySelector('[data-away-color]');
+		function updateScoreboard(data) {
+			// Find elements and update them
+			const homeNameEl = document.querySelector('[data-home-name]');
+			const awayNameEl = document.querySelector('[data-away-name]');
+			const homeScoreEl = document.querySelector('[data-home-score]');
+			const awayScoreEl = document.querySelector('[data-away-score]');
+			const timerEl = document.querySelector('[data-timer]');
+			const halfPrefixEl = document.querySelector('[data-half-prefix]');
+			const halfValueEl = document.querySelector('[data-half-value]');
+			const homeColorEl = document.querySelector('[data-home-color]');
+			const awayColorEl = document.querySelector('[data-away-color]');
 
-            if (homeNameEl) homeNameEl.textContent = data.teamHomeName;
-            if (awayNameEl) awayNameEl.textContent = data.teamAwayName;
-            if (homeScoreEl) homeScoreEl.textContent = data.teamHomeScore;
-            if (awayScoreEl) awayScoreEl.textContent = data.teamAwayScore;
-            if (timerEl) timerEl.textContent = formatTime(data.timer);
-            if (halfEl) halfEl.textContent = data.half;
-            if (homeColorEl) homeColorEl.style.backgroundColor = data.teamHomeColor;
-            if (awayColorEl) awayColorEl.style.backgroundColor = data.teamAwayColor;
-        }
-
-        function formatTime(seconds) {
+			if (homeNameEl) homeNameEl.textContent = data.teamHomeName;
+			if (awayNameEl) awayNameEl.textContent = data.teamAwayName;
+			if (homeScoreEl) homeScoreEl.textContent = data.teamHomeScore;
+			if (awayScoreEl) awayScoreEl.textContent = data.teamAwayScore;
+			if (timerEl) timerEl.textContent = formatTime(data.timer);
+			if (halfPrefixEl && data.halfPrefix !== undefined) halfPrefixEl.textContent = data.halfPrefix;
+			if (halfValueEl) halfValueEl.textContent = data.half;
+			if (homeColorEl) homeColorEl.style.backgroundColor = data.teamHomeColor;
+			if (awayColorEl) awayColorEl.style.backgroundColor = data.teamAwayColor;
+		}        function formatTime(seconds) {
             const mins = Math.floor(seconds / 60);
             const secs = seconds % 60;
             return mins.toString().padStart(2, '0') + ':' + secs.toString().padStart(2, '0');
