@@ -7,6 +7,7 @@ import { HalfControl } from "./HalfControl";
 import { CardTitle } from "../ui/Card/CardTitle";
 import { useScoreboardStore } from "@renderer/stores/scoreboardStore";
 import { Button } from "../ui/Button/Button";
+import { Scoreboard } from "../Scoreboard";
 
 export function ScoreboardControl(): JSX.Element {
 	const store = useScoreboardStore();
@@ -56,6 +57,10 @@ export function ScoreboardControl(): JSX.Element {
 							{label}
 						</Button>
 					))}
+				</div>
+
+				<div className="h-14 w-[560px]">
+					<Scoreboard />
 				</div>
 			</CardContent>
 		</Card>

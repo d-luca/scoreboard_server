@@ -162,6 +162,7 @@ export function renderScoreboardHTML(data: ScoreboardData): string {
             // justify-content: center;
             width: 100vw;
             height: 100vh;
+			padding: 10px;
         }
     </style>
 </head>

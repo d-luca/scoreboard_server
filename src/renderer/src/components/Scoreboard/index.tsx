@@ -25,8 +25,20 @@ export function Scoreboard({
 	timer,
 }: ScoreboardProps): JSX.Element {
 	return (
-		<div className="top-2 left-2 flex size-full items-center justify-between overflow-hidden rounded-md border-2 border-gray-800 bg-indigo-950 px-3 text-xl font-medium text-gray-200">
+		<div
+			className="flex size-full items-center justify-between overflow-hidden bg-white text-4xl font-bold text-indigo-950"
+			style={{ transform: "skewX(-15deg)" }}
+		>
 			{eventLogo && <EventLogo />}
+
+			<div
+				className="flex w-full flex-col items-center justify-center gap-0"
+				style={{ transform: "skewX(15deg)" }}
+			>
+				<Timer value={timer ?? 0} />
+				{/* <div className="flex h-full w-0.5 bg-border-app-primary" /> */}
+				<Half value={half ?? 1} />
+			</div>
 			<TeamInfo
 				teamAwayName={teamAwayName ?? "T-A"}
 				teamAwayScore={teamAwayScore ?? 0}
@@ -35,11 +47,6 @@ export function Scoreboard({
 				teamAwayColor={teamAwayColor ?? "#ff0000"}
 				teamHomeColor={teamHomeColor ?? "#00ff00"}
 			/>
-			<div className="flex h-full w-full justify-between gap-1 pl-2">
-				<Timer value={timer ?? 0} />
-				{/* <div className="flex h-full w-0.5 bg-border-app-primary" /> */}
-				<Half value={half ?? 1} />
-			</div>
 		</div>
 	);
 }
