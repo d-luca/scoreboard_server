@@ -6,6 +6,7 @@ interface ScoreboardStoreData extends ScoreboardProps {
 	timerLoadout1?: number; // in seconds
 	timerLoadout2?: number; // in seconds
 	timerLoadout3?: number; // in seconds
+	timerRunning?: boolean;
 }
 
 interface ScoreboardState extends ScoreboardStoreData {
@@ -30,6 +31,9 @@ interface ScoreboardState extends ScoreboardStoreData {
 	decreaseTimerByOneSecond: () => void;
 	increaseTimerByOneMinute: () => void;
 	decreaseTimerByOneMinute: () => void;
+	startTimer: () => void;
+	pauseTimer: () => void;
+	stopTimer: () => void;
 
 	// Bulk update action
 	updateScoreboardData: (data: Partial<ScoreboardProps>) => void;
@@ -52,6 +56,16 @@ const defaultScoreboardData: ScoreboardStoreData = {
 	timerLoadout1: 45 * 60,
 	timerLoadout2: 90 * 60,
 	timerLoadout3: 30 * 60,
+	timerRunning: false,
+};
+
+let timerInterval: ReturnType<typeof setInterval> | null = null;
+
+const clearTimerInterval = (): void => {
+	if (timerInterval !== null) {
+		clearInterval(timerInterval);
+		timerInterval = null;
+	}
 };
 
 export const useScoreboardStore = create<ScoreboardState>((set, get) => ({
@@ -78,10 +92,15 @@ export const useScoreboardStore = create<ScoreboardState>((set, get) => ({
 		return set({ teamAwayScore });
 	},
 	setTimer: async (timer) => {
+		const sanitizedTimer = Number.isFinite(timer) ? Math.max(0, Math.floor(timer)) : 0;
 		await window.api.updateScoreboardData({
-			timer,
+			timer: sanitizedTimer,
 		});
-		return set({ timer });
+		if (sanitizedTimer <= 0) {
+			clearTimerInterval();
+			return set({ timer: 0, timerRunning: false });
+		}
+		return set({ timer: sanitizedTimer });
 	},
 	setHalf: async (half) => {
 		await window.api.updateScoreboardData({
@@ -182,6 +201,10 @@ export const useScoreboardStore = create<ScoreboardState>((set, get) => ({
 		await window.api.updateScoreboardData({
 			timer: newTimer,
 		});
+		if (newTimer <= 0) {
+			clearTimerInterval();
+			return set({ timer: 0, timerRunning: false });
+		}
 		return set({ timer: newTimer });
 	},
 	increaseTimerByOneMinute: async () => {
@@ -198,7 +221,54 @@ export const useScoreboardStore = create<ScoreboardState>((set, get) => ({
 		await window.api.updateScoreboardData({
 			timer: newTimer,
 		});
+		if (newTimer <= 0) {
+			clearTimerInterval();
+			return set({ timer: 0, timerRunning: false });
+		}
 		return set({ timer: newTimer });
+	},
+	startTimer: () => {
+		if (get().timerRunning) {
+			return;
+		}
+		const currentTimer = get().timer ?? 0;
+		if (currentTimer <= 0) {
+			return;
+		}
+		clearTimerInterval();
+		set({ timerRunning: true });
+		timerInterval = setInterval(() => {
+			set((state) => {
+				const timerValue = state.timer ?? 0;
+				if (timerValue <= 0) {
+					clearTimerInterval();
+					return { timer: 0, timerRunning: false };
+				}
+				const newTimer = timerValue - 1;
+				void window.api.updateScoreboardData({
+					timer: newTimer,
+				});
+				if (newTimer <= 0) {
+					clearTimerInterval();
+					return { timer: newTimer, timerRunning: false };
+				}
+				return { timer: newTimer };
+			});
+		}, 1000);
+	},
+	pauseTimer: () => {
+		if (!get().timerRunning) {
+			return;
+		}
+		clearTimerInterval();
+		set({ timerRunning: false });
+	},
+	stopTimer: () => {
+		clearTimerInterval();
+		void window.api.updateScoreboardData({
+			timer: 0,
+		});
+		set({ timer: 0, timerRunning: false });
 	},
 
 	// Bulk update
@@ -209,6 +279,7 @@ export const useScoreboardStore = create<ScoreboardState>((set, get) => ({
 
 	// Reset to defaults
 	reset: async () => {
+		clearTimerInterval();
 		await window.api.updateScoreboardData(defaultScoreboardData);
 		return set(defaultScoreboardData);
 	},
@@ -258,6 +329,9 @@ export const useScoreboardActions = (): {
 	setTeamAwayColor: (color?: string) => void;
 	setTimerLoadout: ({ index, value }: { index: 1 | 2 | 3; value: number }) => void;
 	updateScoreboardData: (data: Partial<ScoreboardProps>) => void;
+	startTimer: () => void;
+	pauseTimer: () => void;
+	stopTimer: () => void;
 	reset: () => void;
 } => {
 	const store = useScoreboardStore();
@@ -273,6 +347,9 @@ export const useScoreboardActions = (): {
 		setTeamAwayColor: store.setTeamAwayColor,
 		setTimerLoadout: store.setTimerLoadout,
 		updateScoreboardData: store.updateScoreboardData,
+		startTimer: store.startTimer,
+		pauseTimer: store.pauseTimer,
+		stopTimer: store.stopTimer,
 		reset: store.reset,
 	};
 };
