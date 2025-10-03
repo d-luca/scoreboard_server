@@ -28,8 +28,8 @@ export function Scoreboard({
 }: ScoreboardProps): JSX.Element {
 	return (
 		<div
-			className="flex size-full items-center justify-between overflow-hidden bg-white text-4xl font-bold text-indigo-950"
-			style={{ transform: "skewX(-15deg)" }}
+			className="flex size-full items-center justify-between overflow-hidden bg-white text-4xl text-indigo-950"
+			style={{ transform: "skewX(-15deg)", fontFamily: "Anton" }}
 		>
 			{eventLogo && <EventLogo />}
 

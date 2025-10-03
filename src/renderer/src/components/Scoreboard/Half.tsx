@@ -7,7 +7,11 @@ type HalfProps = {
 
 export function Half({ value, prefix = "PERIODO" }: HalfProps): JSX.Element {
 	return (
-		<div className="flex items-center justify-center bg-white text-sm font-bold text-neutral-950" data-half>
+		<div
+			className="flex items-center justify-center bg-white text-sm font-bold text-neutral-950"
+			style={{ fontFamily: "Poppins", lineHeight: 1 }}
+			data-half
+		>
 			{prefix && (
 				<>
 					<span data-half-prefix>{prefix}</span>
