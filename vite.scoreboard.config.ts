@@ -20,12 +20,9 @@ export default defineConfig({
 			formats: ["cjs"], // CommonJS for Node.js compatibility
 		},
 		rollupOptions: {
-			external: ["react", "react-dom"],
+			// Don't externalize react/react-dom - bundle them in for SSR
+			// external: ["react", "react-dom"],
 			output: {
-				globals: {
-					react: "React",
-					"react-dom": "ReactDOM",
-				},
 				exports: "named",
 			},
 		},
