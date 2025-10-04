@@ -36,6 +36,16 @@ export function ScoreboardMain(): JSX.Element {
 		store.timer,
 	]);
 
+	useEffect(() => {
+		// Listen for scoreboard data updates from global hotkeys
+		const unsubscribe = window.api.onScoreboardDataUpdate((data) => {
+			store.updateScoreboardDataFromExternal(data);
+		});
+
+		return () => unsubscribe();
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, []);
+
 	return (
 		<div className="flex size-full gap-4">
 			<div className="flex h-full w-2/3 flex-col gap-4">
