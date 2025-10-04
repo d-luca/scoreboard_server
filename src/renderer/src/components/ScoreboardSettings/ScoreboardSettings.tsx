@@ -52,6 +52,10 @@ export function ScoreboardSettings(): JSX.Element {
 		store.setTeamAwayName(e.target.value);
 	};
 
+	const handleHalfPrefixChange = (e: ChangeEvent<HTMLInputElement>): void => {
+		store.setHalfPrefix(e.target.value);
+	};
+
 	const getTimerLoadoutValue = (index: TimerLoadoutIndex): number | undefined => {
 		switch (index) {
 			case 1:
@@ -126,6 +130,17 @@ export function ScoreboardSettings(): JSX.Element {
 							value={store.teamAwayName}
 						/>
 					</div>
+				</div>
+
+				{/* Half Settings */}
+				<div className="space-y-2">
+					<Label htmlFor="halfPrefix">Half Prefix</Label>
+					<Input
+						id="halfPrefix"
+						placeholder="PERIODO"
+						onChange={handleHalfPrefixChange}
+						value={store.halfPrefix}
+					/>
 				</div>
 
 				{/* Team Colors */}

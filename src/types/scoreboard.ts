@@ -7,6 +7,7 @@ export interface ScoreboardData {
 	teamAwayColor: string;
 	timer: number; // in seconds
 	half: number;
+	halfPrefix?: string;
 	eventLogo?: string;
 }
 

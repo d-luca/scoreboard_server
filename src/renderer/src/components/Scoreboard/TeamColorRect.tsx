@@ -7,5 +7,11 @@ type TeamColorReactProps = {
 };
 
 export function TeamColorRect({ color, ...dataProps }: TeamColorReactProps): JSX.Element {
-	return <div className="h-full w-2" style={{ backgroundColor: color ?? "#ffffff" }} {...dataProps} />;
+	return (
+		<div
+			className="h-full w-2"
+			style={{ backgroundColor: color ?? "#ffffff", transform: "skewX(-15deg)" }}
+			{...dataProps}
+		/>
+	);
 }
