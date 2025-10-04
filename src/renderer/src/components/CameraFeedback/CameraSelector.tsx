@@ -61,17 +61,18 @@ export function CameraSelector({ onCameraSelect, selectedDeviceId }: CameraSelec
 					}
 				}
 
-				setDevices(
-					videoDevices.map((device) => ({
-						deviceId: device.deviceId,
-						label: device.label || `Camera ${device.deviceId.slice(0, 8)}`,
-						kind: device.kind,
-					})),
-				);
+				const mappedDevices = videoDevices.map((device) => ({
+					deviceId: device.deviceId,
+					label: device.label || `Camera ${device.deviceId.slice(0, 8)}`,
+					kind: device.kind,
+				}));
 
-				// Auto-select first device if none selected
-				if (videoDevices.length > 0 && !selectedDeviceId) {
-					onCameraSelect(videoDevices[0].deviceId);
+				// Add "No Camera" option at the beginning
+				setDevices([{ deviceId: "none", label: "No Camera", kind: "videoinput" }, ...mappedDevices]);
+
+				// Auto-select "No Camera" if none selected
+				if (!selectedDeviceId) {
+					onCameraSelect("none");
 				}
 			} catch (err) {
 				const errorMessage = err instanceof Error ? err.message : "Unknown error";

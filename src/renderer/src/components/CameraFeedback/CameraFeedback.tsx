@@ -21,9 +21,11 @@ export function CameraFeedback(): JSX.Element {
 				<CameraSelector onCameraSelect={setSelectedCameraId} selectedDeviceId={selectedCameraId} />
 			</div>
 
-			<div className="flex size-full items-center justify-center">
-				<VideoFeed deviceId={selectedCameraId || null} className="rounded-lg" />
-			</div>
+			{selectedCameraId && selectedCameraId !== "none" && (
+				<div className="flex size-full items-center justify-center">
+					<VideoFeed deviceId={selectedCameraId} className="rounded-lg" />
+				</div>
+			)}
 		</Card>
 	);
 }
