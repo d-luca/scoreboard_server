@@ -4,9 +4,14 @@ import { ScoreboardFeedback } from "@renderer/components/ScoreboardFeedback/Scor
 import { CameraFeedback } from "@renderer/components/CameraFeedback/CameraFeedback";
 import { ScoreboardSettings } from "@renderer/components/ScoreboardSettings";
 import { useScoreboardStore } from "@renderer/stores/scoreboardStore";
+import { useKeyboardControls } from "@renderer/hooks/useKeyboardControls";
 
 export function ScoreboardMain(): JSX.Element {
 	const store = useScoreboardStore();
+
+	// Enable keyboard controls
+	useKeyboardControls();
+
 	useEffect(() => {
 		window.api.updateScoreboardData({
 			half: store.half,
@@ -33,11 +38,11 @@ export function ScoreboardMain(): JSX.Element {
 
 	return (
 		<div className="flex size-full gap-4">
-			<div className="flex size-full flex-col gap-4">
+			<div className="flex h-full w-2/3 flex-col gap-4">
 				<ScoreboardFeedback />
 				<CameraFeedback />
 			</div>
-			<div className="flex h-full w-1/2 flex-col gap-4">
+			<div className="flex h-full w-1/3 flex-col gap-4 overflow-hidden">
 				<ScoreboardControl />
 				<ScoreboardSettings />
 			</div>

@@ -7,10 +7,12 @@ import { HalfControl } from "./HalfControl";
 import { CardTitle } from "../ui/Card/CardTitle";
 import { useScoreboardStore } from "@renderer/stores/scoreboardStore";
 import { Button } from "../ui/Button/Button";
-import { Scoreboard } from "../Scoreboard";
+import { useHotkeyStore } from "@renderer/stores/hotkeyStore";
+import { HotkeyBadge } from "../ui/HotkeyBadge";
 
 export function ScoreboardControl(): JSX.Element {
 	const store = useScoreboardStore();
+	const { getHotkeyString } = useHotkeyStore();
 
 	const timerLoadoutButtons = [
 		{ label: "Loadout 1", value: store.timerLoadout1 ?? 0 },
@@ -21,19 +23,30 @@ export function ScoreboardControl(): JSX.Element {
 	// const isTimerLoadoutAvailable = timerLoadoutButtons.some((button) => button.value > 0);
 
 	return (
-		<Card className="flex flex-col gap-4">
-			<CardTitle>Scoreboard Controls</CardTitle>
-			<CardContent className="flex flex-col gap-4">
+		<Card className="flex w-full flex-col gap-4">
+			<div className="flex items-center justify-between">
+				<CardTitle>Scoreboard Controls</CardTitle>
+				<button
+					className="text-xs text-blue-600 hover:text-blue-800 hover:underline"
+					onClick={() => window.electron.ipcRenderer.send("open-hotkey-settings")}
+					title="Open Keyboard Shortcuts Settings (Ctrl+K)"
+				>
+					⌨️ Shortcuts
+				</button>
+			</div>
+			<CardContent className="flex w-full flex-col gap-4 overflow-hidden">
 				<div className="flex justify-between gap-4">
 					<TeamControl
 						score={store.teamHomeScore ?? 0}
 						title="Home"
+						teamType="home"
 						onDecreaseScore={store.decreaseTeamHomeScore}
 						onIncreaseScore={store.increaseTeamHomeScore}
 					/>
 					<TeamControl
 						score={store.teamAwayScore ?? 0}
 						title="Away"
+						teamType="away"
 						onDecreaseScore={store.decreaseTeamAwayScore}
 						onIncreaseScore={store.increaseTeamAwayScore}
 					/>
@@ -42,26 +55,35 @@ export function ScoreboardControl(): JSX.Element {
 				</div>
 
 				<div className="grid grid-cols-3 gap-2" aria-label="Timer loadout shortcuts">
-					{timerLoadoutButtons.map(({ label, value }) => (
+					{timerLoadoutButtons.map(({ label, value }, index) => (
 						<Button
 							key={label}
 							variant="outline"
-							// disabled={!isTimerLoadoutAvailable}
-							className="whitespace-nowrap"
+							className="flex flex-col items-center justify-center py-2 whitespace-nowrap"
 							onClick={() => {
 								if (value >= 0) {
 									void store.setTimer(value);
 								}
 							}}
+							title={`Hotkey: ${getHotkeyString(`timerLoadout${(index + 1) as 1 | 2 | 3}`)}`}
 						>
 							{label}
+							<HotkeyBadge hotkey={getHotkeyString(`timerLoadout${(index + 1) as 1 | 2 | 3}`)} />
 						</Button>
 					))}
 				</div>
 
-				<div className="h-14 w-[560px]">
-					<Scoreboard />
-				</div>
+				<Button
+					variant="destructive"
+					className="flex w-full flex-col items-center justify-center py-2"
+					onClick={() => {
+						void store.reset();
+					}}
+					title={`Hotkey: ${getHotkeyString("resetScoreboard")}`}
+				>
+					Reset Scoreboard
+					<HotkeyBadge hotkey={getHotkeyString("resetScoreboard")} />
+				</Button>
 			</CardContent>
 		</Card>
 	);

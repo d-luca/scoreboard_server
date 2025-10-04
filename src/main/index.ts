@@ -1,4 +1,4 @@
-import { app, shell, BrowserWindow, ipcMain } from "electron";
+import { app, shell, BrowserWindow, ipcMain, Menu } from "electron";
 import { join } from "path";
 import { electronApp, optimizer, is } from "@electron-toolkit/utils";
 import icon from "../../resources/icon.png?asset";
@@ -7,14 +7,16 @@ import { ScoreboardData } from "../types/scoreboard";
 
 // Global server instance
 let scoreboardServer: ScoreboardServer;
+let mainWindow: BrowserWindow | null = null;
+let hotkeySettingsWindow: BrowserWindow | null = null;
 
 function createWindow(): void {
 	// Create the browser window.
-	const mainWindow = new BrowserWindow({
+	mainWindow = new BrowserWindow({
 		width: 900,
 		height: 670,
 		show: false,
-		autoHideMenuBar: true,
+		autoHideMenuBar: false,
 		...(process.platform === "linux" ? { icon } : {}),
 		webPreferences: {
 			preload: join(__dirname, "../preload/index.js"),
@@ -25,7 +27,11 @@ function createWindow(): void {
 	});
 
 	mainWindow.on("ready-to-show", () => {
-		mainWindow.show();
+		mainWindow?.show();
+	});
+
+	mainWindow.on("closed", () => {
+		mainWindow = null;
 	});
 
 	mainWindow.webContents.setWindowOpenHandler((details) => {
@@ -50,6 +56,87 @@ function createWindow(): void {
 	} else {
 		mainWindow.loadFile(join(__dirname, "../renderer/index.html"));
 	}
+}
+
+function createHotkeySettingsWindow(): void {
+	// Don't create multiple instances
+	if (hotkeySettingsWindow) {
+		hotkeySettingsWindow.focus();
+		return;
+	}
+
+	hotkeySettingsWindow = new BrowserWindow({
+		width: 800,
+		height: 700,
+		show: false,
+		autoHideMenuBar: true,
+		parent: mainWindow || undefined,
+		modal: false,
+		...(process.platform === "linux" ? { icon } : {}),
+		webPreferences: {
+			preload: join(__dirname, "../preload/index.js"),
+			sandbox: false,
+			nodeIntegration: false,
+			contextIsolation: true,
+		},
+	});
+
+	hotkeySettingsWindow.on("ready-to-show", () => {
+		hotkeySettingsWindow?.show();
+	});
+
+	hotkeySettingsWindow.on("closed", () => {
+		hotkeySettingsWindow = null;
+	});
+
+	// Load the hotkey settings page
+	if (is.dev && process.env["ELECTRON_RENDERER_URL"]) {
+		hotkeySettingsWindow.loadURL(`${process.env["ELECTRON_RENDERER_URL"]}/hotkeys.html`);
+	} else {
+		hotkeySettingsWindow.loadFile(join(__dirname, "../renderer/hotkeys.html"));
+	}
+}
+
+function createMenu(): void {
+	const template: Electron.MenuItemConstructorOptions[] = [
+		{
+			label: "File",
+			submenu: [
+				{
+					role: "quit",
+				},
+			],
+		},
+		{
+			label: "Settings",
+			submenu: [
+				{
+					label: "Keyboard Shortcuts",
+					accelerator: "CmdOrCtrl+K",
+					click: () => {
+						createHotkeySettingsWindow();
+					},
+				},
+			],
+		},
+		{
+			label: "View",
+			submenu: [
+				{ role: "reload" },
+				{ role: "forceReload" },
+				{ role: "toggleDevTools" },
+				{ type: "separator" },
+				{ role: "resetZoom" },
+				{ role: "zoomIn" },
+				{ role: "zoomOut" },
+				{ type: "separator" },
+				{ role: "togglefullscreen" },
+			],
+		},
+	];
+
+	const menu = Menu.buildFromTemplate(template);
+	Menu.setApplicationMenu(menu);
 }
 
 // This method will be called when Electron has finished
@@ -90,6 +177,20 @@ app.whenReady().then(() => {
 	// IPC test
 	ipcMain.on("ping", () => console.log("pong"));
 
+	// IPC handler to open hotkey settings window
+	ipcMain.on("open-hotkey-settings", () => {
+		createHotkeySettingsWindow();
+	});
+
+	// IPC handler for hotkey synchronization
+	ipcMain.on("hotkey-changed", (_event, hotkeys: string) => {
+		// Broadcast to all windows
+		BrowserWindow.getAllWindows().forEach((window) => {
+			window.webContents.send("hotkey-update", hotkeys);
+		});
+	});
+
+	createMenu();
 	createWindow();
 
 	app.on("activate", function () {

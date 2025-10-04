@@ -8,6 +8,13 @@ const api = {
 	// Scoreboard API
 	getScoreboardData: () => ipcRenderer.invoke("get-scoreboard-data"),
 	updateScoreboardData: (data: Partial<ScoreboardData>) => ipcRenderer.invoke("update-scoreboard-data", data),
+	// Hotkey synchronization
+	onHotkeyUpdate: (callback: (hotkeys: string) => void) => {
+		const subscription = (_event: Electron.IpcRendererEvent, hotkeys: string): void => callback(hotkeys);
+		ipcRenderer.on("hotkey-update", subscription);
+		return () => ipcRenderer.removeListener("hotkey-update", subscription);
+	},
+	notifyHotkeyUpdate: (hotkeys: string) => ipcRenderer.send("hotkey-changed", hotkeys),
 };
 
 // Use `contextBridge` APIs to expose Electron APIs to

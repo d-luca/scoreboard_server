@@ -3,8 +3,8 @@
 
 /* Anton Font */
 @font-face {
-	font-family: 'Anton';
-	src: url('./assets/Anton-Regular.ttf') format('truetype');
+	font-family: "Anton";
+	src: url("./assets/Anton-Regular.ttf") format("truetype");
 	font-weight: 400;
 	font-style: normal;
 	font-display: swap;
@@ -12,48 +12,48 @@
 
 /* Poppins Font */
 @font-face {
-	font-family: 'Poppins';
-	src: url('./assets/Poppins-Regular.ttf') format('truetype');
+	font-family: "Poppins";
+	src: url("./assets/Poppins-Regular.ttf") format("truetype");
 	font-weight: 400;
 	font-style: normal;
 	font-display: swap;
 }
 
 @font-face {
-	font-family: 'Poppins';
-	src: url('./assets/Poppins-Medium.ttf') format('truetype');
+	font-family: "Poppins";
+	src: url("./assets/Poppins-Medium.ttf") format("truetype");
 	font-weight: 500;
 	font-style: normal;
 	font-display: swap;
 }
 
 @font-face {
-	font-family: 'Poppins';
-	src: url('./assets/Poppins-SemiBold.ttf') format('truetype');
+	font-family: "Poppins";
+	src: url("./assets/Poppins-SemiBold.ttf") format("truetype");
 	font-weight: 600;
 	font-style: normal;
 	font-display: swap;
 }
 
 @font-face {
-	font-family: 'Poppins';
-	src: url('./assets/Poppins-Bold.ttf') format('truetype');
+	font-family: "Poppins";
+	src: url("./assets/Poppins-Bold.ttf") format("truetype");
 	font-weight: 700;
 	font-style: normal;
 	font-display: swap;
 }
 
 @font-face {
-	font-family: 'Poppins';
-	src: url('./assets/Poppins-ExtraBold.ttf') format('truetype');
+	font-family: "Poppins";
+	src: url("./assets/Poppins-ExtraBold.ttf") format("truetype");
 	font-weight: 800;
 	font-style: normal;
 	font-display: swap;
 }
 
 @font-face {
-	font-family: 'Poppins';
-	src: url('./assets/Poppins-Black.ttf') format('truetype');
+	font-family: "Poppins";
+	src: url("./assets/Poppins-Black.ttf") format("truetype");
 	font-weight: 900;
 	font-style: normal;
 	font-display: swap;
@@ -61,5 +61,5 @@
 
 /* Apply Poppins font to scoreboard */
 body {
-	font-family: 'Poppins', sans-serif;
+	font-family: "Poppins", sans-serif;
 }
