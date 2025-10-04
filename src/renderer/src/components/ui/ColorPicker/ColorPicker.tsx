@@ -9,14 +9,11 @@ interface ColorPickerProps {
 }
 
 const defaultPresetColors = [
-	"#ff0000", // Red
+	"#ffffff", // White
+	"#000000", // Black
+	"#ffcc00", // Gold/Yellow
 	"#0066cc", // Blue
 	"#00cc00", // Green
-	"#ff6600", // Orange
-	"#9900cc", // Purple
-	"#ffcc00", // Gold/Yellow
-	"#cc0066", // Pink/Magenta
-	"#666666", // Gray
 ];
 
 export function ColorPicker({
@@ -41,10 +38,10 @@ export function ColorPicker({
 						key={color}
 						type="button"
 						className={cn(
-							"h-10 w-10 rounded-lg border-2 ring-2 transition-all hover:scale-105 focus:ring-blue-500 focus:ring-offset-1 focus:outline-none",
+							"h-10 w-10 rounded-lg ring-2 transition-all hover:scale-105 focus:ring-blue-500 focus:ring-offset-1 focus:outline-none",
 							selectedColor === color
-								? "border-gray-800 shadow-lg ring-2 ring-blue-500 ring-offset-1"
-								: "border-gray-300 shadow-sm hover:border-gray-500",
+								? "shadow-lg ring-2 ring-blue-500 ring-offset-1"
+								: "shadow-sm hover:border-gray-500",
 						)}
 						style={{ backgroundColor: color }}
 						onClick={() => handleColorChange(color)}
