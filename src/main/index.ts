@@ -280,8 +280,8 @@ function createOverlayPreviewWindow(): void {
 	const { width } = primaryDisplay.workAreaSize;
 
 	overlayPreviewWindow = new BrowserWindow({
-		width: 1200,
-		height: 150,
+		width: 600,
+		height: 80,
 		x: Math.floor((width - 1200) / 2),
 		y: 50,
 		show: false,
@@ -332,10 +332,10 @@ function createOverlayControlWindow(): void {
 	const { width, height } = primaryDisplay.workAreaSize;
 
 	overlayControlWindow = new BrowserWindow({
-		width: 400,
-		height: 600,
-		x: width - 420,
-		y: height - 620,
+		width: 1000,
+		height: 500,
+		x: width - 1000,
+		y: height - 500,
 		show: false,
 		frame: false,
 		transparent: true,
