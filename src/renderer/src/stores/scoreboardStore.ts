@@ -38,6 +38,8 @@ interface ScoreboardState extends ScoreboardStoreData {
 
 	// Bulk update action
 	updateScoreboardData: (data: Partial<ScoreboardProps>) => void;
+	// Bulk update from external source (doesn't call API)
+	updateScoreboardDataFromExternal: (data: Partial<ScoreboardProps>) => void;
 
 	// Reset to defaults
 	reset: () => void;
@@ -282,6 +284,11 @@ export const useScoreboardStore = create<ScoreboardState>((set, get) => ({
 	// Bulk update
 	updateScoreboardData: async (data) => {
 		await window.api.updateScoreboardData(data);
+		return set((state) => ({ ...state, ...data }));
+	},
+
+	// Bulk update from external source (like IPC) - doesn't call API
+	updateScoreboardDataFromExternal: (data) => {
 		return set((state) => ({ ...state, ...data }));
 	},
 

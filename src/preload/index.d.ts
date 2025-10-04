@@ -6,6 +6,14 @@ interface ScoreboardAPI {
 	updateScoreboardData: (data: Partial<ScoreboardData>) => Promise<ScoreboardData>;
 	onHotkeyUpdate: (callback: (hotkeys: string) => void) => () => void;
 	notifyHotkeyUpdate: (hotkeys: string) => void;
+	toggleOverlayMode: () => void;
+	enableOverlayMode: () => void;
+	disableOverlayMode: () => void;
+	onGlobalHotkeyAction: (callback: (action: string) => void) => () => void;
+	onScoreboardDataUpdate: (callback: (data: Partial<ScoreboardData>) => void) => () => void;
+	onOverlayWindowsClosed: (callback: () => void) => () => void;
+	onOverlayWindowsOpened: (callback: () => void) => () => void;
+	onResetOverlayState: (callback: () => void) => () => void;
 }
 
 declare global {
