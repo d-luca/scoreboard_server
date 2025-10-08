@@ -257,15 +257,16 @@ export function renderScoreboardHTML(data: ScoreboardData): string {
 			const homeColorEl = document.querySelector('[data-home-color]');
 			const awayColorEl = document.querySelector('[data-away-color]');
 
-			if (homeNameEl) homeNameEl.textContent = data.teamHomeName;
-			if (awayNameEl) awayNameEl.textContent = data.teamAwayName;
-			if (homeScoreEl) homeScoreEl.textContent = data.teamHomeScore;
-			if (awayScoreEl) awayScoreEl.textContent = data.teamAwayScore;
-			if (timerEl) timerEl.textContent = formatTime(data.timer);
+			// Only update fields that are explicitly defined in the data
+			if (homeNameEl && data.teamHomeName !== undefined) homeNameEl.textContent = data.teamHomeName;
+			if (awayNameEl && data.teamAwayName !== undefined) awayNameEl.textContent = data.teamAwayName;
+			if (homeScoreEl && data.teamHomeScore !== undefined) homeScoreEl.textContent = data.teamHomeScore;
+			if (awayScoreEl && data.teamAwayScore !== undefined) awayScoreEl.textContent = data.teamAwayScore;
+			if (timerEl && data.timer !== undefined) timerEl.textContent = formatTime(data.timer);
 			if (halfPrefixEl && data.halfPrefix !== undefined) halfPrefixEl.textContent = data.halfPrefix;
-			if (halfValueEl) halfValueEl.textContent = data.half;
-			if (homeColorEl) homeColorEl.style.backgroundColor = data.teamHomeColor;
-			if (awayColorEl) awayColorEl.style.backgroundColor = data.teamAwayColor;
+			if (halfValueEl && data.half !== undefined) halfValueEl.textContent = data.half;
+			if (homeColorEl && data.teamHomeColor !== undefined) homeColorEl.style.backgroundColor = data.teamHomeColor;
+			if (awayColorEl && data.teamAwayColor !== undefined) awayColorEl.style.backgroundColor = data.teamAwayColor;
 		}        function formatTime(seconds) {
             const mins = Math.floor(seconds / 60);
             const secs = seconds % 60;

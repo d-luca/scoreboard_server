@@ -486,7 +486,14 @@ app.whenReady().then(() => {
 
 	ipcMain.handle("update-scoreboard-data", (_event, data: Partial<ScoreboardData>) => {
 		scoreboardServer.updateScoreboardData(data);
-		return scoreboardServer.getCurrentData();
+		const fullData = scoreboardServer.getCurrentData();
+
+		// Broadcast to all Electron windows so they stay in sync
+		BrowserWindow.getAllWindows().forEach((window) => {
+			window.webContents.send("scoreboard-data-update", fullData);
+		});
+
+		return fullData;
 	});
 
 	// IPC test

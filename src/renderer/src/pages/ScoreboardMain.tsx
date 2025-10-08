@@ -13,31 +13,19 @@ export function ScoreboardMain(): JSX.Element {
 	useKeyboardControls();
 
 	useEffect(() => {
-		window.api.updateScoreboardData({
-			half: store.half,
-			timer: store.timer,
-			teamHomeName: store.teamHomeName,
-			teamAwayName: store.teamAwayName,
-			teamHomeScore: store.teamHomeScore,
-			teamAwayScore: store.teamAwayScore,
-			teamHomeColor: store.teamHomeColor,
-			teamAwayColor: store.teamAwayColor,
-			eventLogo: store.eventLogo,
-		});
-	}, [
-		store.eventLogo,
-		store.half,
-		store.teamAwayColor,
-		store.teamAwayName,
-		store.teamAwayScore,
-		store.teamHomeColor,
-		store.teamHomeName,
-		store.teamHomeScore,
-		store.timer,
-	]);
+		// Load current scoreboard data from server when window opens
+		const loadInitialData = async (): Promise<void> => {
+			try {
+				const currentData = await window.api.getScoreboardData();
+				store.updateScoreboardDataFromExternal(currentData);
+			} catch (error) {
+				console.error("Failed to load initial scoreboard data:", error);
+			}
+		};
 
-	useEffect(() => {
-		// Listen for scoreboard data updates from global hotkeys
+		void loadInitialData();
+
+		// Listen for scoreboard data updates from other windows
 		const unsubscribe = window.api.onScoreboardDataUpdate((data) => {
 			store.updateScoreboardDataFromExternal(data);
 		});

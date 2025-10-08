@@ -8,6 +8,18 @@ export function OverlayControl(): React.JSX.Element {
 	const store = useScoreboardStore();
 
 	useEffect(() => {
+		// Load current scoreboard data from server when overlay opens
+		const loadInitialData = async (): Promise<void> => {
+			try {
+				const currentData = await window.api.getScoreboardData();
+				store.updateScoreboardDataFromExternal(currentData);
+			} catch (error) {
+				console.error("Failed to load initial scoreboard data:", error);
+			}
+		};
+
+		void loadInitialData();
+
 		// Listen for global hotkey actions from main process
 		const unsubscribeHotkey = window.api.onGlobalHotkeyAction((action: string) => {
 			switch (action) {

@@ -247,6 +247,8 @@ export const useScoreboardStore = create<ScoreboardState>((set, get) => ({
 		}
 		clearTimerInterval();
 		set({ timerRunning: true });
+		// Broadcast that timer is running to all windows
+		void window.api.updateScoreboardData({ timer: currentTimer });
 		timerInterval = setInterval(() => {
 			set((state) => {
 				const timerValue = state.timer ?? 0;
@@ -272,6 +274,8 @@ export const useScoreboardStore = create<ScoreboardState>((set, get) => ({
 		}
 		clearTimerInterval();
 		set({ timerRunning: false });
+		// Broadcast current timer value to sync with other windows
+		void window.api.updateScoreboardData({ timer: get().timer ?? 0 });
 	},
 	stopTimer: () => {
 		clearTimerInterval();
@@ -289,6 +293,28 @@ export const useScoreboardStore = create<ScoreboardState>((set, get) => ({
 
 	// Bulk update from external source (like IPC) - doesn't call API
 	updateScoreboardDataFromExternal: (data) => {
+		const currentState = get();
+
+		// If we receive a timer update from external source while our local timer is running
+		if (data.timer !== undefined && currentState.timerRunning) {
+			const currentTimer = currentState.timer ?? 0;
+			const expectedTimer = currentTimer - 1;
+
+			// Check if this looks like it came from another window's timer
+			// If the timer value is way off from our countdown, another window is controlling it
+			const timeDiff = Math.abs(data.timer - expectedTimer);
+
+			// Only stop our timer if the external value differs by more than 2 seconds
+			// (to account for timing variations and avoid stopping on our own updates)
+			if (timeDiff > 2) {
+				console.log("External timer control detected, stopping local timer");
+				clearTimerInterval();
+				return set((state) => ({ ...state, ...data, timerRunning: false }));
+			}
+			// If it's close to our expected value, just update the state without stopping timer
+			return set((state) => ({ ...state, ...data }));
+		}
+
 		return set((state) => ({ ...state, ...data }));
 	},
 
