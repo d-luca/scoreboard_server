@@ -8,7 +8,6 @@ import { ScoreboardData } from "../types/scoreboard";
 // Global server instance
 let scoreboardServer: ScoreboardServer;
 let mainWindow: BrowserWindow | null = null;
-let hotkeySettingsWindow: BrowserWindow | null = null;
 let overlayPreviewWindow: BrowserWindow | null = null;
 let overlayControlWindow: BrowserWindow | null = null;
 
@@ -186,6 +185,7 @@ function createWindow(): void {
 	});
 
 	mainWindow.on("ready-to-show", () => {
+		mainWindow?.maximize();
 		mainWindow?.show();
 	});
 
@@ -228,45 +228,6 @@ function createWindow(): void {
 		mainWindow.loadURL(process.env["ELECTRON_RENDERER_URL"]);
 	} else {
 		mainWindow.loadFile(join(__dirname, "../renderer/index.html"));
-	}
-}
-
-function createHotkeySettingsWindow(): void {
-	// Don't create multiple instances
-	if (hotkeySettingsWindow) {
-		hotkeySettingsWindow.focus();
-		return;
-	}
-
-	hotkeySettingsWindow = new BrowserWindow({
-		width: 800,
-		height: 700,
-		show: false,
-		autoHideMenuBar: true,
-		parent: mainWindow || undefined,
-		modal: false,
-		...(process.platform === "linux" ? { icon } : {}),
-		webPreferences: {
-			preload: join(__dirname, "../preload/index.js"),
-			sandbox: false,
-			nodeIntegration: false,
-			contextIsolation: true,
-		},
-	});
-
-	hotkeySettingsWindow.on("ready-to-show", () => {
-		hotkeySettingsWindow?.show();
-	});
-
-	hotkeySettingsWindow.on("closed", () => {
-		hotkeySettingsWindow = null;
-	});
-
-	// Load the hotkey settings page
-	if (is.dev && process.env["ELECTRON_RENDERER_URL"]) {
-		hotkeySettingsWindow.loadURL(`${process.env["ELECTRON_RENDERER_URL"]}/hotkeys.html`);
-	} else {
-		hotkeySettingsWindow.loadFile(join(__dirname, "../renderer/hotkeys.html"));
 	}
 }
 
@@ -394,18 +355,6 @@ function createMenu(): void {
 			],
 		},
 		{
-			label: "Settings",
-			submenu: [
-				{
-					label: "Keyboard Shortcuts",
-					accelerator: "CmdOrCtrl+K",
-					click: () => {
-						createHotkeySettingsWindow();
-					},
-				},
-			],
-		},
-		{
 			label: "Overlay",
 			submenu: [
 				{
@@ -498,11 +447,6 @@ app.whenReady().then(() => {
 
 	// IPC test
 	ipcMain.on("ping", () => console.log("pong"));
-
-	// IPC handler to open hotkey settings window
-	ipcMain.on("open-hotkey-settings", () => {
-		createHotkeySettingsWindow();
-	});
 
 	// IPC handler for hotkey synchronization
 	ipcMain.on("hotkey-changed", (_event, hotkeys: string) => {

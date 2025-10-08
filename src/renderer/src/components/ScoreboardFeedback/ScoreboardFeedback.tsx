@@ -9,7 +9,7 @@ export function ScoreboardFeedback(): JSX.Element {
 	return (
 		<Card className="border-app-primary flex flex-col gap-4 border">
 			<CardTitle>Scoreboard Feed</CardTitle>
-			<CardContent className="flex w-full justify-between gap-2">
+			<CardContent className="flex w-full flex-col justify-between gap-2">
 				<ScoreboardFeedbackUrlMessage />
 				<ScoreboardFeedbackIframe />
 			</CardContent>

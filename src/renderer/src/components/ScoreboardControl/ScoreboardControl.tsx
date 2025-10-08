@@ -24,16 +24,8 @@ export function ScoreboardControl(): JSX.Element {
 
 	return (
 		<Card className="flex w-full flex-col gap-4">
-			<div className="flex items-center justify-between">
-				<CardTitle>Scoreboard Controls</CardTitle>
-				<button
-					className="text-xs text-blue-600 hover:text-blue-800 hover:underline"
-					onClick={() => window.electron.ipcRenderer.send("open-hotkey-settings")}
-					title="Open Keyboard Shortcuts Settings (Ctrl+K)"
-				>
-					⌨️ Shortcuts
-				</button>
-			</div>
+			<CardTitle>Scoreboard Controls</CardTitle>
+
 			<CardContent className="flex w-full flex-col gap-4 overflow-hidden">
 				<div className="flex justify-between gap-4">
 					<TeamControl

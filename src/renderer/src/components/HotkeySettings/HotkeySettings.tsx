@@ -27,9 +27,9 @@ export function HotkeySettings(): JSX.Element {
 	} as const;
 
 	return (
-		<Card className="flex flex-col gap-4">
+		<Card className="flex h-full flex-col gap-4 overflow-hidden">
 			<CardTitle>Keyboard Shortcuts</CardTitle>
-			<CardContent className="flex flex-col gap-4">
+			<CardContent className="flex h-full flex-col gap-4 overflow-hidden">
 				<div className="flex items-center justify-between gap-4">
 					<div className="flex items-center gap-2">
 						<span className="text-sm font-medium">Hotkeys Enabled</span>
@@ -42,7 +42,7 @@ export function HotkeySettings(): JSX.Element {
 					</Button>
 				</div>
 
-				<div className="max-h-96 space-y-4 overflow-y-auto">
+				<div className="h-full space-y-4 overflow-y-auto">
 					{Object.entries(hotkeyGroups).map(([groupName, actions]) => (
 						<div key={groupName} className="space-y-2">
 							<h4 className="text-sm font-semibold text-gray-700">{groupName}</h4>
