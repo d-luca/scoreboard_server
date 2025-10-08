@@ -1,7 +1,7 @@
 {
 	"name": "scoreboard_server",
-	"version": "0.1.1",
-	"description": "An Electron application with React and TypeScript",
+	"version": "0.1.2",
+	"description": "A real-time scoreboard server for OBS Studio streaming with WebSocket support, customizable team management, and live game timer control",
 	"main": "./out/main/index.js",
 	"author": "Luca Davi",
 	"homepage": "https://github.com/d-luca/scoreboard_server",
