@@ -293,10 +293,10 @@ function createOverlayControlWindow(): void {
 	const { width, height } = primaryDisplay.workAreaSize;
 
 	overlayControlWindow = new BrowserWindow({
-		width: 1000,
-		height: 500,
-		x: width - 1000,
-		y: height - 500,
+		width: 600,
+		height: 400,
+		x: width - 600,
+		y: height - 400,
 		show: false,
 		frame: false,
 		transparent: true,

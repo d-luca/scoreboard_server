@@ -1,8 +1,8 @@
 import React, { useEffect } from "react";
 import ReactDOM from "react-dom/client";
-import { ScoreboardControl } from "./components/ScoreboardControl/ScoreboardControl";
 import { useScoreboardStore } from "./stores/scoreboardStore";
 import "./global.css";
+import { ScoreboardOverlayControl } from "./components/ScoreboardControl/ScoreboardOverlayControl";
 
 export function OverlayControl(): React.JSX.Element {
 	const store = useScoreboardStore();
@@ -62,17 +62,17 @@ export function OverlayControl(): React.JSX.Element {
 	}, [store]);
 
 	return (
-		<div className="flex h-screen w-screen flex-col bg-transparent">
+		<div className="flex h-screen w-screen flex-col">
 			{/* Draggable title bar */}
 			<div
 				style={{ WebkitAppRegion: "drag" } as React.CSSProperties}
-				className="flex h-8 w-full cursor-move items-center justify-center bg-black/20 backdrop-blur-sm"
+				className="flex h-8 w-full cursor-move items-center justify-center bg-gray-800/90 backdrop-blur-sm"
 			>
-				<span className="text-xs font-semibold text-white/60">🎮 Control Panel - Drag to move</span>
+				<span className="text-xs font-semibold text-white/80">🎮 Control Panel - Drag to move</span>
 			</div>
 			{/* Content area */}
-			<div className="flex flex-1 items-center justify-center p-4">
-				<ScoreboardControl />
+			<div className="flex flex-1 items-start justify-center p-2">
+				<ScoreboardOverlayControl />
 			</div>
 		</div>
 	);
