@@ -31,14 +31,6 @@ export function TeamControl({
 			{/* Score Controls */}
 			<div className="flex size-full gap-2">
 				<Button
-					className="flex size-full flex-col items-center justify-center"
-					onClick={onIncreaseScore}
-					title={`Hotkey: ${getHotkeyString(increaseAction)}`}
-				>
-					+1
-					<HotkeyBadge hotkey={getHotkeyString(increaseAction)} />
-				</Button>
-				<Button
 					variant="destructive"
 					className="flex size-full w-full flex-col items-center justify-center"
 					onClick={onDecreaseScore}
@@ -46,6 +38,14 @@ export function TeamControl({
 				>
 					-1
 					<HotkeyBadge hotkey={getHotkeyString(decreaseAction)} />
+				</Button>
+				<Button
+					className="flex size-full flex-col items-center justify-center"
+					onClick={onIncreaseScore}
+					title={`Hotkey: ${getHotkeyString(increaseAction)}`}
+				>
+					+1
+					<HotkeyBadge hotkey={getHotkeyString(increaseAction)} />
 				</Button>
 			</div>
 		</div>

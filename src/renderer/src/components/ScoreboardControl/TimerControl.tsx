@@ -24,25 +24,13 @@ export function TimerControl(): JSX.Element {
 		}
 	};
 
-	// const timerStatus = store.timerRunning
-	// 	? { label: "Running", color: "bg-green-500" }
-	// 	: timerValue > 0
-	// 		? { label: "Paused", color: "bg-yellow-500" }
-	// 		: { label: "Stopped", color: "bg-gray-400" };
-
 	return (
 		<div className="flex flex-col items-center gap-4">
-			<div className="relative">
-				<ValueBox value={formatTime(store.timer ?? 0)} title="Timer" />
-			</div>
-			{/* <div className="text-muted-foreground flex items-center gap-2 text-sm" aria-live="polite">
-				<span className={`h-2.5 w-2.5 rounded-full ${timerStatus.color}`} aria-hidden="true" />
-				<span>{timerStatus.label}</span>
-			</div> */}
+			<ValueBox value={formatTime(store.timer ?? 0)} title="Timer" />
 
 			<div className="flex w-full gap-2">
 				<Button
-					className="flex w-full flex-col items-center justify-center p-0 px-2"
+					className="flex w-1/2 flex-col items-center justify-center p-0 px-2"
 					onClick={handleToggleTimer}
 					disabled={!store.timerRunning && timerValue === 0}
 					size="lg"
@@ -59,7 +47,7 @@ export function TimerControl(): JSX.Element {
 				</Button>
 				<Button
 					variant="destructive"
-					className="flex w-full flex-col items-center justify-center p-0 px-2"
+					className="flex w-1/2 flex-col items-center justify-center p-0 px-2"
 					onClick={store.stopTimer}
 					disabled={!store.timerRunning && (store.timer ?? 0) === 0}
 					title={`Hotkey: ${getHotkeyString("stopTimer")}`}
@@ -74,17 +62,8 @@ export function TimerControl(): JSX.Element {
 			<div className="flex w-full flex-col gap-2">
 				<div className="flex w-full gap-2">
 					<Button
-						className="flex w-full flex-col items-center justify-center p-0 px-2"
-						onClick={store.increaseTimerByOneSecond}
-						title={`Hotkey: ${getHotkeyString("increaseTimerSecond")}`}
-						size="lg"
-					>
-						+1s
-						<HotkeyBadge hotkey={getHotkeyString("increaseTimerSecond")} />
-					</Button>
-					<Button
 						variant="destructive"
-						className="flex w-full flex-col items-center justify-center p-0 px-2"
+						className="flex w-1/2 flex-col items-center justify-center p-0 px-2"
 						onClick={store.decreaseTimerByOneSecond}
 						title={`Hotkey: ${getHotkeyString("decreaseTimerSecond")}`}
 						size="lg"
@@ -92,26 +71,35 @@ export function TimerControl(): JSX.Element {
 						-1s
 						<HotkeyBadge hotkey={getHotkeyString("decreaseTimerSecond")} />
 					</Button>
+					<Button
+						className="flex w-1/2 flex-col items-center justify-center p-0 px-2"
+						onClick={store.increaseTimerByOneSecond}
+						title={`Hotkey: ${getHotkeyString("increaseTimerSecond")}`}
+						size="lg"
+					>
+						+1s
+						<HotkeyBadge hotkey={getHotkeyString("increaseTimerSecond")} />
+					</Button>
 				</div>
 				<div className="flex w-full gap-2">
 					<Button
-						className="flex w-full flex-col items-center justify-center p-0 px-2"
-						onClick={store.increaseTimerByOneMinute}
-						title={`Hotkey: ${getHotkeyString("increaseTimerMinute")}`}
-						size="lg"
-					>
-						+1m
-						<HotkeyBadge hotkey={getHotkeyString("increaseTimerMinute")} />
-					</Button>
-					<Button
 						variant="destructive"
-						className="flex w-full flex-col items-center justify-center p-0 px-2"
+						className="flex w-1/2 flex-col items-center justify-center p-0 px-2"
 						onClick={store.decreaseTimerByOneMinute}
 						title={`Hotkey: ${getHotkeyString("decreaseTimerMinute")}`}
 						size="lg"
 					>
 						-1m
 						<HotkeyBadge hotkey={getHotkeyString("decreaseTimerMinute")} />
+					</Button>
+					<Button
+						className="flex w-1/2 flex-col items-center justify-center p-0 px-2"
+						onClick={store.increaseTimerByOneMinute}
+						title={`Hotkey: ${getHotkeyString("increaseTimerMinute")}`}
+						size="lg"
+					>
+						+1m
+						<HotkeyBadge hotkey={getHotkeyString("increaseTimerMinute")} />
 					</Button>
 				</div>
 			</div>
