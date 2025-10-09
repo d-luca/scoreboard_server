@@ -9,6 +9,23 @@ import { HotkeyRecorder } from "./HotkeyRecorder";
 export function HotkeySettings(): JSX.Element {
 	const { hotkeys, enabled, toggleEnabled, resetHotkeys, getHotkeyString } = useHotkeyStore();
 	const [editingAction, setEditingAction] = useState<HotkeyAction | null>(null);
+	const [wasEnabledBeforeEdit, setWasEnabledBeforeEdit] = useState<boolean>(false);
+
+	const startEditing = (action: HotkeyAction): void => {
+		if (enabled) {
+			setWasEnabledBeforeEdit(true);
+			toggleEnabled();
+		}
+		setEditingAction(action);
+	};
+
+	const finishEditing = (): void => {
+		setEditingAction(null);
+		if (wasEnabledBeforeEdit) {
+			toggleEnabled();
+			setWasEnabledBeforeEdit(false);
+		}
+	};
 
 	const hotkeyGroups = {
 		Score: ["increaseHomeScore", "decreaseHomeScore", "increaseAwayScore", "decreaseAwayScore"],
@@ -45,7 +62,7 @@ export function HotkeySettings(): JSX.Element {
 				<div className="h-full space-y-4 overflow-y-auto">
 					{Object.entries(hotkeyGroups).map(([groupName, actions]) => (
 						<div key={groupName} className="space-y-2">
-							<h4 className="text-sm font-semibold text-gray-700">{groupName}</h4>
+							<h4 className="text-app-secondary text-sm font-semibold">{groupName}</h4>
 							<div className="space-y-1">
 								{actions.map((action) => {
 									const typedAction = action as HotkeyAction;
@@ -61,8 +78,8 @@ export function HotkeySettings(): JSX.Element {
 											{isEditing ? (
 												<HotkeyRecorder
 													action={typedAction}
-													onCancel={() => setEditingAction(null)}
-													onComplete={() => setEditingAction(null)}
+													onCancel={finishEditing}
+													onComplete={finishEditing}
 													autoStart={true}
 												/>
 											) : (
@@ -73,22 +90,10 @@ export function HotkeySettings(): JSX.Element {
 													<Button
 														variant="outline"
 														size="sm"
-														onClick={() => setEditingAction(typedAction)}
+														onClick={() => startEditing(typedAction)}
 														disabled={!hotkey.enabled}
 													>
 														Change
-													</Button>
-													<Button
-														variant="outline"
-														size="sm"
-														onClick={() => {
-															useHotkeyStore.getState().setHotkey(typedAction, {
-																...hotkey,
-																enabled: !hotkey.enabled,
-															});
-														}}
-													>
-														{hotkey.enabled ? "Disable" : "Enable"}
 													</Button>
 												</>
 											)}
@@ -98,14 +103,6 @@ export function HotkeySettings(): JSX.Element {
 							</div>
 						</div>
 					))}
-				</div>
-
-				<div className="border-primary-700 bg-primary-900/30 rounded-md border p-4">
-					<p className="text-primary-300 font-medium">Note:</p>
-					<p className="text-app-secondary mt-1.5 text-xs">
-						Hotkeys will not work when typing in input fields. Make sure hotkeys are enabled and you&apos;re
-						not editing a field.
-					</p>
 				</div>
 			</CardContent>
 		</Card>
