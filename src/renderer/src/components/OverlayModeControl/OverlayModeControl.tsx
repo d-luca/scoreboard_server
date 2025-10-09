@@ -4,9 +4,11 @@ import { CardContent } from "../ui/Card/CardContent";
 import { CardTitle } from "../ui/Card/CardTitle";
 import { Button } from "../ui/Button/Button";
 import { useOverlayStore } from "@renderer/stores/overlayStore";
+import { useHotkeyStore } from "@renderer/stores/hotkeyStore";
 
 export function OverlayModeControl(): JSX.Element {
 	const { enabled, toggleOverlay, setOverlay } = useOverlayStore();
+	const { enabled: hotkeyEnabled } = useHotkeyStore();
 
 	useEffect(() => {
 		// Listen for overlay windows being closed
@@ -35,7 +37,7 @@ export function OverlayModeControl(): JSX.Element {
 		if (enabled) {
 			window.api.disableOverlayMode();
 		} else {
-			window.api.enableOverlayMode();
+			window.api.enableOverlayMode(hotkeyEnabled);
 		}
 		toggleOverlay();
 	};

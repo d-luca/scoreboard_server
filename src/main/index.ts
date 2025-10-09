@@ -237,13 +237,10 @@ function createOverlayPreviewWindow(): void {
 		return;
 	}
 
-	const primaryDisplay = screen.getPrimaryDisplay();
-	const { width } = primaryDisplay.workAreaSize;
-
 	overlayPreviewWindow = new BrowserWindow({
 		width: 600,
 		height: 80,
-		x: Math.floor((width - 1200) / 2),
+		x: 50,
 		y: 50,
 		show: false,
 		frame: false,
@@ -293,10 +290,10 @@ function createOverlayControlWindow(): void {
 	const { width, height } = primaryDisplay.workAreaSize;
 
 	overlayControlWindow = new BrowserWindow({
-		width: 600,
-		height: 400,
-		x: width - 600,
-		y: height - 400,
+		width: 500,
+		height: 200,
+		x: width - 550,
+		y: height - 250,
 		show: false,
 		frame: false,
 		transparent: true,
@@ -370,13 +367,13 @@ function createMenu(): void {
 								mainWindow.webContents.send("overlay-windows-closed");
 							}
 						} else {
-							// Opening overlay mode
-							registerGlobalHotkeys();
+							// Opening overlay mode - we'll register hotkeys after checking enabled state
 							createOverlayPreviewWindow();
 							createOverlayControlWindow();
-							// Notify main window to update state
+							// Notify main window to update state and request hotkey enabled status
 							if (mainWindow) {
 								mainWindow.webContents.send("overlay-windows-opened");
+								mainWindow.webContents.send("request-hotkey-enabled-state");
 							}
 						}
 					},
@@ -456,21 +453,47 @@ app.whenReady().then(() => {
 		});
 	});
 
+	// IPC handler for hotkey enabled state changes
+	ipcMain.on("hotkey-enabled-changed", (_event, enabled: boolean) => {
+		if (enabled) {
+			// Only register if overlay windows are open
+			if (overlayPreviewWindow || overlayControlWindow) {
+				registerGlobalHotkeys();
+			}
+		} else {
+			unregisterGlobalHotkeys();
+		}
+		// Broadcast to all windows
+		BrowserWindow.getAllWindows().forEach((window) => {
+			window.webContents.send("hotkey-enabled-update", enabled);
+		});
+	});
+
+	// IPC handler to get hotkey enabled state
+	ipcMain.handle("get-hotkey-enabled", () => {
+		// We'll store this state; for now assume enabled by default
+		return true;
+	});
+
 	// IPC handlers for overlay mode
-	ipcMain.on("toggle-overlay-mode", () => {
+	ipcMain.on("toggle-overlay-mode", (_event, hotkeyEnabled: boolean) => {
 		if (overlayPreviewWindow || overlayControlWindow) {
 			unregisterGlobalHotkeys();
 			closeOverlayWindows();
 		} else {
-			registerGlobalHotkeys();
+			if (hotkeyEnabled) {
+				registerGlobalHotkeys();
+			}
 			createOverlayPreviewWindow();
 			createOverlayControlWindow();
 		}
 	});
 
-	ipcMain.on("enable-overlay-mode", () => {
+	ipcMain.on("enable-overlay-mode", (_event, hotkeyEnabled: boolean) => {
 		if (!overlayPreviewWindow && !overlayControlWindow) {
-			registerGlobalHotkeys();
+			if (hotkeyEnabled) {
+				registerGlobalHotkeys();
+			}
 			createOverlayPreviewWindow();
 			createOverlayControlWindow();
 		}
