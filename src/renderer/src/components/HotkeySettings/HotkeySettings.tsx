@@ -6,6 +6,22 @@ import { Button } from "../ui/Button/Button";
 import { useHotkeyStore, hotkeyActionLabels, type HotkeyAction } from "@renderer/stores/hotkeyStore";
 import { HotkeyRecorder } from "./HotkeyRecorder";
 
+const hotkeyGroups = {
+	Score: ["increaseHomeScore", "decreaseHomeScore", "increaseAwayScore", "decreaseAwayScore"],
+	Half: ["increaseHalf", "decreaseHalf"],
+	Timer: [
+		"startTimer",
+		"pauseTimer",
+		"stopTimer",
+		"increaseTimerSecond",
+		"decreaseTimerSecond",
+		"increaseTimerMinute",
+		"decreaseTimerMinute",
+	],
+	Loadouts: ["timerLoadout1", "timerLoadout2", "timerLoadout3"],
+	Other: ["resetScoreboard"],
+} as const;
+
 export function HotkeySettings(): JSX.Element {
 	const { hotkeys, enabled, toggleEnabled, resetHotkeys, getHotkeyString } = useHotkeyStore();
 	const [editingAction, setEditingAction] = useState<HotkeyAction | null>(null);
@@ -26,22 +42,6 @@ export function HotkeySettings(): JSX.Element {
 			setWasEnabledBeforeEdit(false);
 		}
 	};
-
-	const hotkeyGroups = {
-		Score: ["increaseHomeScore", "decreaseHomeScore", "increaseAwayScore", "decreaseAwayScore"],
-		Half: ["increaseHalf", "decreaseHalf"],
-		Timer: [
-			"startTimer",
-			"pauseTimer",
-			"stopTimer",
-			"increaseTimerSecond",
-			"decreaseTimerSecond",
-			"increaseTimerMinute",
-			"decreaseTimerMinute",
-		],
-		Loadouts: ["timerLoadout1", "timerLoadout2", "timerLoadout3"],
-		Other: ["resetScoreboard"],
-	} as const;
 
 	return (
 		<Card className="flex h-full flex-col gap-4 overflow-hidden">

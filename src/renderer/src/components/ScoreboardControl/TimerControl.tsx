@@ -4,16 +4,11 @@ import { ValueBox } from "../ui/ValueBox";
 import { useScoreboardStore } from "@renderer/stores/scoreboardStore";
 import { useHotkeyStore } from "@renderer/stores/hotkeyStore";
 import { HotkeyBadge } from "../ui/HotkeyBadge";
+import { formatTime } from "@renderer/utils/formatTime";
 
 export function TimerControl(): JSX.Element {
 	const store = useScoreboardStore();
 	const { getHotkeyString } = useHotkeyStore();
-
-	const formatTime = (seconds: number): string => {
-		const mins = Math.floor(seconds / 60);
-		const secs = seconds % 60;
-		return `${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
-	};
 
 	const timerValue = store.timer ?? 0;
 	const handleToggleTimer = (): void => {

@@ -2,7 +2,7 @@ import React, { useEffect } from "react";
 import ReactDOM from "react-dom/client";
 import { useScoreboardStore } from "./stores/scoreboardStore";
 import "./global.css";
-import { ScoreboardOverlayControl } from "./components/ScoreboardControl/ScoreboardOverlayControl";
+import { ScoreboardOverlayControl } from "./components/ScoreboardControl";
 
 export function OverlayControl(): React.JSX.Element {
 	const store = useScoreboardStore();

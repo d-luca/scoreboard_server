@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import { ScoreboardProps } from "@renderer/components/Scoreboard";
+import { ScoreboardProps } from "@renderer/components/Scoreboard/Scoreboard";
 
 interface ScoreboardStoreData extends ScoreboardProps {
 	// Additional states wrt ScoreboardProps

@@ -2,14 +2,14 @@ import { ChangeEvent, JSX, useEffect, useState } from "react";
 import { Card } from "../ui/Card/Card";
 import { CardTitle } from "../ui/Card/CardTitle";
 import { CardContent } from "../ui/Card/CardContent";
-import { Input } from "../ui/Input";
-import { Label } from "../ui/Label";
-import { ColorPicker } from "../ui/ColorPicker";
-import { Button } from "../ui/Button/Button";
 import { useScoreboardStore } from "@renderer/stores/scoreboardStore";
 import { useOverlayStore } from "@renderer/stores/overlayStore";
 import { useHotkeyStore } from "@renderer/stores/hotkeyStore";
 import { formatSecondsToClock, parseMinutesSeconds, sanitizeTimerInput } from "./utils";
+import { OverlayModeToggle } from "./OverlayModeToggle";
+import { TeamSettings } from "./TeamSettings";
+import { TeamColorSettings } from "./TeamColorSettings";
+import { TimerLoadoutSettings } from "./TimerLoadoutSettings";
 
 type TimerLoadoutIndex = 1 | 2 | 3;
 type TimerLoadoutState = Record<TimerLoadoutIndex, string>;
@@ -133,101 +133,38 @@ export function ScoreboardSettings(): JSX.Element {
 		setTimerLoadoutInputs((previous) => ({ ...previous, [index]: formatSecondsToClock(parsed) }));
 	};
 
-	const timerLoadoutConfig: Array<{
-		index: TimerLoadoutIndex;
-		label: string;
-		placeholder: string;
-	}> = [
-		{ index: 1, label: "Loadout 1 (MM:SS)", placeholder: "45:00" },
-		{ index: 2, label: "Loadout 2 (MM:SS)", placeholder: "90:00" },
-		{ index: 3, label: "Loadout 3 (MM:SS)", placeholder: "30:00" },
-	];
-
 	return (
 		<Card className="border-app-primary flex h-1/2 w-full flex-col gap-4 overflow-hidden border">
 			<CardTitle>Scoreboard Settings</CardTitle>
 			<CardContent className="flex size-full flex-col justify-between gap-4 overflow-auto">
 				{/* Overlay Mode Toggle */}
-				<div className="space-y-2">
-					<div className="flex items-center justify-between gap-4">
-						<div className="flex flex-col gap-1">
-							<Label>Overlay Mode</Label>
-							<span className="text-xs text-gray-500">
-								Opens separate windows for scoreboard preview and controls with global hotkeys
-							</span>
-						</div>
-						<Button variant={overlayEnabled ? "default" : "outline"} size="sm" onClick={handleOverlayToggle}>
-							{overlayEnabled ? "ON" : "OFF"}
-						</Button>
-					</div>
-				</div>
+				<OverlayModeToggle enabled={overlayEnabled} onToggle={handleOverlayToggle} />
 
 				{/* Team Settings */}
-				<div className="grid grid-cols-3 gap-4">
-					<div className="space-y-2">
-						<Label htmlFor="teamHomeName">Team Home Name</Label>
-						<Input
-							id="teamHomeName"
-							placeholder="Home Team"
-							onChange={handleTeamHomeNameChange}
-							value={store.teamHomeName}
-						/>
-					</div>
-					<div className="space-y-2">
-						<Label htmlFor="teamAwayName">Team Away Name</Label>
-						<Input
-							id="teamAwayName"
-							placeholder="Away Team"
-							onChange={handleTeamAwayNameChange}
-							value={store.teamAwayName}
-						/>
-					</div>
-					{/* Half Settings */}
-					<div className="space-y-2">
-						<Label htmlFor="halfPrefix">Half Prefix</Label>
-						<Input
-							id="halfPrefix"
-							placeholder="PERIODO"
-							onChange={handleHalfPrefixChange}
-							value={store.halfPrefix}
-						/>
-					</div>
-				</div>
+				<TeamSettings
+					teamHomeName={store.teamHomeName}
+					teamAwayName={store.teamAwayName}
+					halfPrefix={store.halfPrefix}
+					onTeamHomeNameChange={handleTeamHomeNameChange}
+					onTeamAwayNameChange={handleTeamAwayNameChange}
+					onHalfPrefixChange={handleHalfPrefixChange}
+				/>
 
 				{/* Team Colors */}
-				<div className="grid grid-cols-2 gap-4">
-					<div className="space-y-2">
-						<Label htmlFor="teamHomeColor">Team Home Color</Label>
-						<ColorPicker value={store.teamHomeColor} onChange={store.setTeamHomeColor} />
-					</div>
-					<div className="space-y-2">
-						<Label htmlFor="teamAwayColor">Team Away Color</Label>
-						<ColorPicker value={store.teamAwayColor} onChange={store.setTeamAwayColor} />
-					</div>
-				</div>
+				<TeamColorSettings
+					teamHomeColor={store.teamHomeColor}
+					teamAwayColor={store.teamAwayColor}
+					onTeamHomeColorChange={store.setTeamHomeColor}
+					onTeamAwayColorChange={store.setTeamAwayColor}
+				/>
 
 				{/* Timer Loadouts */}
-				<div className="space-y-4">
-					<Label>Timer Loadouts</Label>
-					<div className="grid grid-cols-3 gap-4">
-						{timerLoadoutConfig.map(({ index, label, placeholder }) => (
-							<div key={index} className="space-y-2">
-								<Label htmlFor={`timerLoadout${index}`}>{label}</Label>
-								<Input
-									id={`timerLoadout${index}`}
-									type="text"
-									inputMode="numeric"
-									placeholder={placeholder}
-									value={timerLoadoutInputs[index]}
-									pattern="^\\d{1,3}(:[0-5]\\d)?$"
-									onFocus={handleLoadoutFocus(index)}
-									onBlur={handleLoadoutBlur(index)}
-									onChange={handleLoadoutChange(index)}
-								/>
-							</div>
-						))}
-					</div>
-				</div>
+				<TimerLoadoutSettings
+					loadoutInputs={timerLoadoutInputs}
+					onLoadoutChange={handleLoadoutChange}
+					onLoadoutFocus={handleLoadoutFocus}
+					onLoadoutBlur={handleLoadoutBlur}
+				/>
 			</CardContent>
 		</Card>
 	);

@@ -20,8 +20,6 @@ export function ScoreboardControl(): JSX.Element {
 		{ label: "Loadout 3", value: store.timerLoadout3 ?? 0 },
 	];
 
-	// const isTimerLoadoutAvailable = timerLoadoutButtons.some((button) => button.value > 0);
-
 	return (
 		<Card className="flex h-1/2 w-full flex-col gap-4 overflow-hidden">
 			<CardTitle>Scoreboard Controls</CardTitle>

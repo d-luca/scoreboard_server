@@ -1,10 +1,10 @@
-import { ScoreboardControl } from "@renderer/components/ScoreboardControl/ScoreboardControl";
 import { JSX, useEffect } from "react";
-import { ScoreboardFeedback } from "@renderer/components/ScoreboardFeedback/ScoreboardFeedback";
 import { ScoreboardSettings } from "@renderer/components/ScoreboardSettings";
 import { useScoreboardStore } from "@renderer/stores/scoreboardStore";
 import { useKeyboardControls } from "@renderer/hooks/useKeyboardControls";
 import { HotkeySettings } from "@renderer/components/HotkeySettings";
+import { ScoreboardControl } from "@renderer/components/ScoreboardControl";
+import { ScoreboardFeedback } from "@renderer/components/ScoreboardFeedback";
 
 export function ScoreboardMain(): JSX.Element {
 	const store = useScoreboardStore();
