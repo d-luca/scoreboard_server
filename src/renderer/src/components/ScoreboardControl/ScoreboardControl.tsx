@@ -23,7 +23,7 @@ export function ScoreboardControl(): JSX.Element {
 	// const isTimerLoadoutAvailable = timerLoadoutButtons.some((button) => button.value > 0);
 
 	return (
-		<Card className="flex size-full flex-col gap-4 overflow-hidden">
+		<Card className="flex h-1/2 w-full flex-col gap-4 overflow-hidden">
 			<CardTitle>Scoreboard Controls</CardTitle>
 
 			<CardContent className="flex size-full flex-col justify-between gap-4 overflow-auto">

@@ -107,11 +107,11 @@ export function ScoreboardSettings(): JSX.Element {
 	];
 
 	return (
-		<Card className="border-app-primary flex flex-col gap-4 border">
+		<Card className="border-app-primary flex h-1/2 w-full flex-col gap-4 overflow-hidden border">
 			<CardTitle>Scoreboard Settings</CardTitle>
-			<CardContent className="flex flex-col gap-6">
+			<CardContent className="flex size-full flex-col justify-between gap-4 overflow-auto">
 				{/* Team Settings */}
-				<div className="grid grid-cols-2 gap-4">
+				<div className="grid grid-cols-3 gap-4">
 					<div className="space-y-2">
 						<Label htmlFor="teamHomeName">Team Home Name</Label>
 						<Input
@@ -130,17 +130,16 @@ export function ScoreboardSettings(): JSX.Element {
 							value={store.teamAwayName}
 						/>
 					</div>
-				</div>
-
-				{/* Half Settings */}
-				<div className="space-y-2">
-					<Label htmlFor="halfPrefix">Half Prefix</Label>
-					<Input
-						id="halfPrefix"
-						placeholder="PERIODO"
-						onChange={handleHalfPrefixChange}
-						value={store.halfPrefix}
-					/>
+					{/* Half Settings */}
+					<div className="space-y-2">
+						<Label htmlFor="halfPrefix">Half Prefix</Label>
+						<Input
+							id="halfPrefix"
+							placeholder="PERIODO"
+							onChange={handleHalfPrefixChange}
+							value={store.halfPrefix}
+						/>
+					</div>
 				</div>
 
 				{/* Team Colors */}
@@ -157,7 +156,7 @@ export function ScoreboardSettings(): JSX.Element {
 
 				{/* Timer Loadouts */}
 				<div className="space-y-4">
-					<h4 className="text-sm font-medium text-gray-900">Timer Loadouts</h4>
+					<Label>Timer Loadouts</Label>
 					<div className="grid grid-cols-3 gap-4">
 						{timerLoadoutConfig.map(({ index, label, placeholder }) => (
 							<div key={index} className="space-y-2">

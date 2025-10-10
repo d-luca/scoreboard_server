@@ -59,7 +59,7 @@ export function ColorPicker({
 					onChange={(e) => handleColorChange(e.target.value)}
 					className="h-8 w-16 cursor-pointer rounded border border-gray-300"
 				/>
-				<span className="text-xs text-gray-500">Custom color</span>
+				<span className="text-app-quaternary text-xs">Custom color</span>
 			</div>
 		</div>
 	);
