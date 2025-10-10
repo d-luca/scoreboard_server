@@ -5,7 +5,10 @@ import { CardContent } from "../ui/Card/CardContent";
 import { Input } from "../ui/Input";
 import { Label } from "../ui/Label";
 import { ColorPicker } from "../ui/ColorPicker";
+import { Button } from "../ui/Button/Button";
 import { useScoreboardStore } from "@renderer/stores/scoreboardStore";
+import { useOverlayStore } from "@renderer/stores/overlayStore";
+import { useHotkeyStore } from "@renderer/stores/hotkeyStore";
 import { formatSecondsToClock, parseMinutesSeconds, sanitizeTimerInput } from "./utils";
 
 type TimerLoadoutIndex = 1 | 2 | 3;
@@ -13,6 +16,8 @@ type TimerLoadoutState = Record<TimerLoadoutIndex, string>;
 
 export function ScoreboardSettings(): JSX.Element {
 	const store = useScoreboardStore();
+	const { enabled: overlayEnabled, toggleOverlay, setOverlay } = useOverlayStore();
+	const { enabled: hotkeyEnabled } = useHotkeyStore();
 
 	const [activeLoadout, setActiveLoadout] = useState<TimerLoadoutIndex | null>(null);
 	const [timerLoadoutInputs, setTimerLoadoutInputs] = useState<TimerLoadoutState>(() => ({
@@ -20,6 +25,29 @@ export function ScoreboardSettings(): JSX.Element {
 		2: formatSecondsToClock(store.timerLoadout2),
 		3: formatSecondsToClock(store.timerLoadout3),
 	}));
+
+	useEffect(() => {
+		// Listen for overlay windows being closed
+		const unsubscribeClosed = window.api.onOverlayWindowsClosed(() => {
+			setOverlay(false);
+		});
+
+		// Listen for overlay windows being opened (from menu)
+		const unsubscribeOpened = window.api.onOverlayWindowsOpened(() => {
+			setOverlay(true);
+		});
+
+		// Listen for reset overlay state on app startup
+		const unsubscribeReset = window.api.onResetOverlayState(() => {
+			setOverlay(false);
+		});
+
+		return () => {
+			unsubscribeClosed();
+			unsubscribeOpened();
+			unsubscribeReset();
+		};
+	}, [setOverlay]);
 
 	useEffect(() => {
 		const formatted: TimerLoadoutState = {
@@ -54,6 +82,15 @@ export function ScoreboardSettings(): JSX.Element {
 
 	const handleHalfPrefixChange = (e: ChangeEvent<HTMLInputElement>): void => {
 		store.setHalfPrefix(e.target.value);
+	};
+
+	const handleOverlayToggle = (): void => {
+		if (overlayEnabled) {
+			window.api.disableOverlayMode();
+		} else {
+			window.api.enableOverlayMode(hotkeyEnabled);
+		}
+		toggleOverlay();
 	};
 
 	const getTimerLoadoutValue = (index: TimerLoadoutIndex): number | undefined => {
@@ -110,6 +147,21 @@ export function ScoreboardSettings(): JSX.Element {
 		<Card className="border-app-primary flex h-1/2 w-full flex-col gap-4 overflow-hidden border">
 			<CardTitle>Scoreboard Settings</CardTitle>
 			<CardContent className="flex size-full flex-col justify-between gap-4 overflow-auto">
+				{/* Overlay Mode Toggle */}
+				<div className="space-y-2">
+					<div className="flex items-center justify-between gap-4">
+						<div className="flex flex-col gap-1">
+							<Label>Overlay Mode</Label>
+							<span className="text-xs text-gray-500">
+								Opens separate windows for scoreboard preview and controls with global hotkeys
+							</span>
+						</div>
+						<Button variant={overlayEnabled ? "default" : "outline"} size="sm" onClick={handleOverlayToggle}>
+							{overlayEnabled ? "ON" : "OFF"}
+						</Button>
+					</div>
+				</div>
+
 				{/* Team Settings */}
 				<div className="grid grid-cols-3 gap-4">
 					<div className="space-y-2">

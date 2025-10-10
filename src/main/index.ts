@@ -1,4 +1,4 @@
-import { app, shell, BrowserWindow, ipcMain, Menu, globalShortcut, screen } from "electron";
+import { app, shell, BrowserWindow, ipcMain, globalShortcut, screen } from "electron";
 import { join } from "path";
 import { electronApp, optimizer, is } from "@electron-toolkit/utils";
 import icon from "../../resources/icon.png?asset";
@@ -174,7 +174,7 @@ function createWindow(): void {
 		width: 900,
 		height: 670,
 		show: false,
-		autoHideMenuBar: false,
+		autoHideMenuBar: true,
 		...(process.platform === "linux" ? { icon } : {}),
 		webPreferences: {
 			preload: join(__dirname, "../preload/index.js"),
@@ -341,65 +341,6 @@ function closeOverlayWindows(): void {
 	}
 }
 
-function createMenu(): void {
-	const template: Electron.MenuItemConstructorOptions[] = [
-		{
-			label: "File",
-			submenu: [
-				{
-					role: "quit",
-				},
-			],
-		},
-		{
-			label: "Overlay",
-			submenu: [
-				{
-					label: "Toggle Overlay Mode",
-					accelerator: "CmdOrCtrl+Shift+O",
-					click: () => {
-						if (overlayPreviewWindow || overlayControlWindow) {
-							// Closing overlay mode
-							unregisterGlobalHotkeys();
-							closeOverlayWindows();
-							// Notify main window to update state
-							if (mainWindow) {
-								mainWindow.webContents.send("overlay-windows-closed");
-							}
-						} else {
-							// Opening overlay mode - we'll register hotkeys after checking enabled state
-							createOverlayPreviewWindow();
-							createOverlayControlWindow();
-							// Notify main window to update state and request hotkey enabled status
-							if (mainWindow) {
-								mainWindow.webContents.send("overlay-windows-opened");
-								mainWindow.webContents.send("request-hotkey-enabled-state");
-							}
-						}
-					},
-				},
-			],
-		},
-		{
-			label: "View",
-			submenu: [
-				{ role: "reload" },
-				{ role: "forceReload" },
-				{ role: "toggleDevTools" },
-				{ type: "separator" },
-				{ role: "resetZoom" },
-				{ role: "zoomIn" },
-				{ role: "zoomOut" },
-				{ type: "separator" },
-				{ role: "togglefullscreen" },
-			],
-		},
-	];
-
-	const menu = Menu.buildFromTemplate(template);
-	Menu.setApplicationMenu(menu);
-}
-
 // This method will be called when Electron has finished
 // initialization and is ready to create browser windows.
 // Some APIs can only be used after this event occurs.
@@ -506,7 +447,6 @@ app.whenReady().then(() => {
 		}
 	});
 
-	createMenu();
 	createWindow();
 
 	app.on("activate", function () {
