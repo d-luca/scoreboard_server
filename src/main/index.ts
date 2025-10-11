@@ -1,4 +1,4 @@
-import { app, shell, BrowserWindow, ipcMain, Menu, globalShortcut, screen } from "electron";
+import { app, shell, BrowserWindow, ipcMain, globalShortcut, screen } from "electron";
 import { join } from "path";
 import { electronApp, optimizer, is } from "@electron-toolkit/utils";
 import icon from "../../resources/icon.png?asset";
@@ -8,7 +8,6 @@ import { ScoreboardData } from "../types/scoreboard";
 // Global server instance
 let scoreboardServer: ScoreboardServer;
 let mainWindow: BrowserWindow | null = null;
-let hotkeySettingsWindow: BrowserWindow | null = null;
 let overlayPreviewWindow: BrowserWindow | null = null;
 let overlayControlWindow: BrowserWindow | null = null;
 
@@ -175,7 +174,7 @@ function createWindow(): void {
 		width: 900,
 		height: 670,
 		show: false,
-		autoHideMenuBar: false,
+		autoHideMenuBar: true,
 		...(process.platform === "linux" ? { icon } : {}),
 		webPreferences: {
 			preload: join(__dirname, "../preload/index.js"),
@@ -186,6 +185,7 @@ function createWindow(): void {
 	});
 
 	mainWindow.on("ready-to-show", () => {
+		mainWindow?.maximize();
 		mainWindow?.show();
 	});
 
@@ -231,58 +231,16 @@ function createWindow(): void {
 	}
 }
 
-function createHotkeySettingsWindow(): void {
-	// Don't create multiple instances
-	if (hotkeySettingsWindow) {
-		hotkeySettingsWindow.focus();
-		return;
-	}
-
-	hotkeySettingsWindow = new BrowserWindow({
-		width: 800,
-		height: 700,
-		show: false,
-		autoHideMenuBar: true,
-		parent: mainWindow || undefined,
-		modal: false,
-		...(process.platform === "linux" ? { icon } : {}),
-		webPreferences: {
-			preload: join(__dirname, "../preload/index.js"),
-			sandbox: false,
-			nodeIntegration: false,
-			contextIsolation: true,
-		},
-	});
-
-	hotkeySettingsWindow.on("ready-to-show", () => {
-		hotkeySettingsWindow?.show();
-	});
-
-	hotkeySettingsWindow.on("closed", () => {
-		hotkeySettingsWindow = null;
-	});
-
-	// Load the hotkey settings page
-	if (is.dev && process.env["ELECTRON_RENDERER_URL"]) {
-		hotkeySettingsWindow.loadURL(`${process.env["ELECTRON_RENDERER_URL"]}/hotkeys.html`);
-	} else {
-		hotkeySettingsWindow.loadFile(join(__dirname, "../renderer/hotkeys.html"));
-	}
-}
-
 function createOverlayPreviewWindow(): void {
 	if (overlayPreviewWindow) {
 		overlayPreviewWindow.focus();
 		return;
 	}
 
-	const primaryDisplay = screen.getPrimaryDisplay();
-	const { width } = primaryDisplay.workAreaSize;
-
 	overlayPreviewWindow = new BrowserWindow({
 		width: 600,
 		height: 80,
-		x: Math.floor((width - 1200) / 2),
+		x: 50,
 		y: 50,
 		show: false,
 		frame: false,
@@ -332,10 +290,10 @@ function createOverlayControlWindow(): void {
 	const { width, height } = primaryDisplay.workAreaSize;
 
 	overlayControlWindow = new BrowserWindow({
-		width: 1000,
-		height: 500,
-		x: width - 1000,
-		y: height - 500,
+		width: 500,
+		height: 200,
+		x: width - 550,
+		y: height - 250,
 		show: false,
 		frame: false,
 		transparent: true,
@@ -383,77 +341,6 @@ function closeOverlayWindows(): void {
 	}
 }
 
-function createMenu(): void {
-	const template: Electron.MenuItemConstructorOptions[] = [
-		{
-			label: "File",
-			submenu: [
-				{
-					role: "quit",
-				},
-			],
-		},
-		{
-			label: "Settings",
-			submenu: [
-				{
-					label: "Keyboard Shortcuts",
-					accelerator: "CmdOrCtrl+K",
-					click: () => {
-						createHotkeySettingsWindow();
-					},
-				},
-			],
-		},
-		{
-			label: "Overlay",
-			submenu: [
-				{
-					label: "Toggle Overlay Mode",
-					accelerator: "CmdOrCtrl+Shift+O",
-					click: () => {
-						if (overlayPreviewWindow || overlayControlWindow) {
-							// Closing overlay mode
-							unregisterGlobalHotkeys();
-							closeOverlayWindows();
-							// Notify main window to update state
-							if (mainWindow) {
-								mainWindow.webContents.send("overlay-windows-closed");
-							}
-						} else {
-							// Opening overlay mode
-							registerGlobalHotkeys();
-							createOverlayPreviewWindow();
-							createOverlayControlWindow();
-							// Notify main window to update state
-							if (mainWindow) {
-								mainWindow.webContents.send("overlay-windows-opened");
-							}
-						}
-					},
-				},
-			],
-		},
-		{
-			label: "View",
-			submenu: [
-				{ role: "reload" },
-				{ role: "forceReload" },
-				{ role: "toggleDevTools" },
-				{ type: "separator" },
-				{ role: "resetZoom" },
-				{ role: "zoomIn" },
-				{ role: "zoomOut" },
-				{ type: "separator" },
-				{ role: "togglefullscreen" },
-			],
-		},
-	];
-
-	const menu = Menu.buildFromTemplate(template);
-	Menu.setApplicationMenu(menu);
-}
-
 // This method will be called when Electron has finished
 // initialization and is ready to create browser windows.
 // Some APIs can only be used after this event occurs.
@@ -499,11 +386,6 @@ app.whenReady().then(() => {
 	// IPC test
 	ipcMain.on("ping", () => console.log("pong"));
 
-	// IPC handler to open hotkey settings window
-	ipcMain.on("open-hotkey-settings", () => {
-		createHotkeySettingsWindow();
-	});
-
 	// IPC handler for hotkey synchronization
 	ipcMain.on("hotkey-changed", (_event, hotkeys: string) => {
 		// Broadcast to all windows
@@ -512,21 +394,47 @@ app.whenReady().then(() => {
 		});
 	});
 
+	// IPC handler for hotkey enabled state changes
+	ipcMain.on("hotkey-enabled-changed", (_event, enabled: boolean) => {
+		if (enabled) {
+			// Only register if overlay windows are open
+			if (overlayPreviewWindow || overlayControlWindow) {
+				registerGlobalHotkeys();
+			}
+		} else {
+			unregisterGlobalHotkeys();
+		}
+		// Broadcast to all windows
+		BrowserWindow.getAllWindows().forEach((window) => {
+			window.webContents.send("hotkey-enabled-update", enabled);
+		});
+	});
+
+	// IPC handler to get hotkey enabled state
+	ipcMain.handle("get-hotkey-enabled", () => {
+		// We'll store this state; for now assume enabled by default
+		return true;
+	});
+
 	// IPC handlers for overlay mode
-	ipcMain.on("toggle-overlay-mode", () => {
+	ipcMain.on("toggle-overlay-mode", (_event, hotkeyEnabled: boolean) => {
 		if (overlayPreviewWindow || overlayControlWindow) {
 			unregisterGlobalHotkeys();
 			closeOverlayWindows();
 		} else {
-			registerGlobalHotkeys();
+			if (hotkeyEnabled) {
+				registerGlobalHotkeys();
+			}
 			createOverlayPreviewWindow();
 			createOverlayControlWindow();
 		}
 	});
 
-	ipcMain.on("enable-overlay-mode", () => {
+	ipcMain.on("enable-overlay-mode", (_event, hotkeyEnabled: boolean) => {
 		if (!overlayPreviewWindow && !overlayControlWindow) {
-			registerGlobalHotkeys();
+			if (hotkeyEnabled) {
+				registerGlobalHotkeys();
+			}
 			createOverlayPreviewWindow();
 			createOverlayControlWindow();
 		}
@@ -539,7 +447,6 @@ app.whenReady().then(() => {
 		}
 	});
 
-	createMenu();
 	createWindow();
 
 	app.on("activate", function () {

@@ -15,9 +15,21 @@ const api = {
 		return () => ipcRenderer.removeListener("hotkey-update", subscription);
 	},
 	notifyHotkeyUpdate: (hotkeys: string) => ipcRenderer.send("hotkey-changed", hotkeys),
+	notifyHotkeyEnabledChange: (enabled: boolean) => ipcRenderer.send("hotkey-enabled-changed", enabled),
+	getHotkeyEnabled: () => ipcRenderer.invoke("get-hotkey-enabled"),
+	onHotkeyEnabledUpdate: (callback: (enabled: boolean) => void) => {
+		const subscription = (_event: Electron.IpcRendererEvent, enabled: boolean): void => callback(enabled);
+		ipcRenderer.on("hotkey-enabled-update", subscription);
+		return () => ipcRenderer.removeListener("hotkey-enabled-update", subscription);
+	},
+	onRequestHotkeyEnabledState: (callback: () => void) => {
+		const subscription = (): void => callback();
+		ipcRenderer.on("request-hotkey-enabled-state", subscription);
+		return () => ipcRenderer.removeListener("request-hotkey-enabled-state", subscription);
+	},
 	// Overlay mode
-	toggleOverlayMode: () => ipcRenderer.send("toggle-overlay-mode"),
-	enableOverlayMode: () => ipcRenderer.send("enable-overlay-mode"),
+	toggleOverlayMode: (hotkeyEnabled: boolean) => ipcRenderer.send("toggle-overlay-mode", hotkeyEnabled),
+	enableOverlayMode: (hotkeyEnabled: boolean) => ipcRenderer.send("enable-overlay-mode", hotkeyEnabled),
 	disableOverlayMode: () => ipcRenderer.send("disable-overlay-mode"),
 	onGlobalHotkeyAction: (callback: (action: string) => void) => {
 		const subscription = (_event: Electron.IpcRendererEvent, action: string): void => callback(action);

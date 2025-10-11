@@ -89,9 +89,22 @@ export const useHotkeyStore = create<HotkeyState>()(
 				}
 			},
 
-			toggleEnabled: () => set((state) => ({ enabled: !state.enabled })),
+			toggleEnabled: () => {
+				const newEnabled = !get().enabled;
+				set({ enabled: newEnabled });
+				// Notify main process about the change
+				if (typeof window !== "undefined" && window.api) {
+					window.api.notifyHotkeyEnabledChange(newEnabled);
+				}
+			},
 
-			setEnabled: (enabled) => set({ enabled }),
+			setEnabled: (enabled) => {
+				set({ enabled });
+				// Notify main process about the change
+				if (typeof window !== "undefined" && window.api) {
+					window.api.notifyHotkeyEnabledChange(enabled);
+				}
+			},
 
 			getHotkeyString: (action) => {
 				const hotkey = get().hotkeys[action];
@@ -128,6 +141,17 @@ if (typeof window !== "undefined" && window.api) {
 		} catch (error) {
 			console.error("Failed to parse hotkey update:", error);
 		}
+	});
+
+	// Setup listener for hotkey enabled state updates
+	window.api.onHotkeyEnabledUpdate((enabled: boolean) => {
+		useHotkeyStore.setState({ enabled });
+	});
+
+	// Setup listener for hotkey enabled state requests
+	window.api.onRequestHotkeyEnabledState(() => {
+		const enabled = useHotkeyStore.getState().enabled;
+		window.api.notifyHotkeyEnabledChange(enabled);
 	});
 }
 

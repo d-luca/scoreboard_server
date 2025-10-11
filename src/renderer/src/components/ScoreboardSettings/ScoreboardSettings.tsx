@@ -2,17 +2,22 @@ import { ChangeEvent, JSX, useEffect, useState } from "react";
 import { Card } from "../ui/Card/Card";
 import { CardTitle } from "../ui/Card/CardTitle";
 import { CardContent } from "../ui/Card/CardContent";
-import { Input } from "../ui/Input";
-import { Label } from "../ui/Label";
-import { ColorPicker } from "../ui/ColorPicker";
 import { useScoreboardStore } from "@renderer/stores/scoreboardStore";
+import { useOverlayStore } from "@renderer/stores/overlayStore";
+import { useHotkeyStore } from "@renderer/stores/hotkeyStore";
 import { formatSecondsToClock, parseMinutesSeconds, sanitizeTimerInput } from "./utils";
+import { OverlayModeToggle } from "./OverlayModeToggle";
+import { TeamSettings } from "./TeamSettings";
+import { TeamColorSettings } from "./TeamColorSettings";
+import { TimerLoadoutSettings } from "./TimerLoadoutSettings";
 
 type TimerLoadoutIndex = 1 | 2 | 3;
 type TimerLoadoutState = Record<TimerLoadoutIndex, string>;
 
 export function ScoreboardSettings(): JSX.Element {
 	const store = useScoreboardStore();
+	const { enabled: overlayEnabled, toggleOverlay, setOverlay } = useOverlayStore();
+	const { enabled: hotkeyEnabled } = useHotkeyStore();
 
 	const [activeLoadout, setActiveLoadout] = useState<TimerLoadoutIndex | null>(null);
 	const [timerLoadoutInputs, setTimerLoadoutInputs] = useState<TimerLoadoutState>(() => ({
@@ -20,6 +25,29 @@ export function ScoreboardSettings(): JSX.Element {
 		2: formatSecondsToClock(store.timerLoadout2),
 		3: formatSecondsToClock(store.timerLoadout3),
 	}));
+
+	useEffect(() => {
+		// Listen for overlay windows being closed
+		const unsubscribeClosed = window.api.onOverlayWindowsClosed(() => {
+			setOverlay(false);
+		});
+
+		// Listen for overlay windows being opened (from menu)
+		const unsubscribeOpened = window.api.onOverlayWindowsOpened(() => {
+			setOverlay(true);
+		});
+
+		// Listen for reset overlay state on app startup
+		const unsubscribeReset = window.api.onResetOverlayState(() => {
+			setOverlay(false);
+		});
+
+		return () => {
+			unsubscribeClosed();
+			unsubscribeOpened();
+			unsubscribeReset();
+		};
+	}, [setOverlay]);
 
 	useEffect(() => {
 		const formatted: TimerLoadoutState = {
@@ -54,6 +82,15 @@ export function ScoreboardSettings(): JSX.Element {
 
 	const handleHalfPrefixChange = (e: ChangeEvent<HTMLInputElement>): void => {
 		store.setHalfPrefix(e.target.value);
+	};
+
+	const handleOverlayToggle = (): void => {
+		if (overlayEnabled) {
+			window.api.disableOverlayMode();
+		} else {
+			window.api.enableOverlayMode(hotkeyEnabled);
+		}
+		toggleOverlay();
 	};
 
 	const getTimerLoadoutValue = (index: TimerLoadoutIndex): number | undefined => {
@@ -96,87 +133,38 @@ export function ScoreboardSettings(): JSX.Element {
 		setTimerLoadoutInputs((previous) => ({ ...previous, [index]: formatSecondsToClock(parsed) }));
 	};
 
-	const timerLoadoutConfig: Array<{
-		index: TimerLoadoutIndex;
-		label: string;
-		placeholder: string;
-	}> = [
-		{ index: 1, label: "Loadout 1 (MM:SS)", placeholder: "45:00" },
-		{ index: 2, label: "Loadout 2 (MM:SS)", placeholder: "90:00" },
-		{ index: 3, label: "Loadout 3 (MM:SS)", placeholder: "30:00" },
-	];
-
 	return (
-		<Card className="border-app-primary flex flex-col gap-4 border">
+		<Card className="border-app-primary flex h-1/2 w-full flex-col gap-4 overflow-hidden border">
 			<CardTitle>Scoreboard Settings</CardTitle>
-			<CardContent className="flex flex-col gap-6">
-				{/* Team Settings */}
-				<div className="grid grid-cols-2 gap-4">
-					<div className="space-y-2">
-						<Label htmlFor="teamHomeName">Team Home Name</Label>
-						<Input
-							id="teamHomeName"
-							placeholder="Home Team"
-							onChange={handleTeamHomeNameChange}
-							value={store.teamHomeName}
-						/>
-					</div>
-					<div className="space-y-2">
-						<Label htmlFor="teamAwayName">Team Away Name</Label>
-						<Input
-							id="teamAwayName"
-							placeholder="Away Team"
-							onChange={handleTeamAwayNameChange}
-							value={store.teamAwayName}
-						/>
-					</div>
-				</div>
+			<CardContent className="flex size-full flex-col justify-between gap-4 overflow-auto">
+				{/* Overlay Mode Toggle */}
+				<OverlayModeToggle enabled={overlayEnabled} onToggle={handleOverlayToggle} />
 
-				{/* Half Settings */}
-				<div className="space-y-2">
-					<Label htmlFor="halfPrefix">Half Prefix</Label>
-					<Input
-						id="halfPrefix"
-						placeholder="PERIODO"
-						onChange={handleHalfPrefixChange}
-						value={store.halfPrefix}
-					/>
-				</div>
+				{/* Team Settings */}
+				<TeamSettings
+					teamHomeName={store.teamHomeName}
+					teamAwayName={store.teamAwayName}
+					halfPrefix={store.halfPrefix}
+					onTeamHomeNameChange={handleTeamHomeNameChange}
+					onTeamAwayNameChange={handleTeamAwayNameChange}
+					onHalfPrefixChange={handleHalfPrefixChange}
+				/>
 
 				{/* Team Colors */}
-				<div className="grid grid-cols-2 gap-4">
-					<div className="space-y-2">
-						<Label htmlFor="teamHomeColor">Team Home Color</Label>
-						<ColorPicker value={store.teamHomeColor} onChange={store.setTeamHomeColor} />
-					</div>
-					<div className="space-y-2">
-						<Label htmlFor="teamAwayColor">Team Away Color</Label>
-						<ColorPicker value={store.teamAwayColor} onChange={store.setTeamAwayColor} />
-					</div>
-				</div>
+				<TeamColorSettings
+					teamHomeColor={store.teamHomeColor}
+					teamAwayColor={store.teamAwayColor}
+					onTeamHomeColorChange={store.setTeamHomeColor}
+					onTeamAwayColorChange={store.setTeamAwayColor}
+				/>
 
 				{/* Timer Loadouts */}
-				<div className="space-y-4">
-					<h4 className="text-sm font-medium text-gray-900">Timer Loadouts</h4>
-					<div className="grid grid-cols-3 gap-4">
-						{timerLoadoutConfig.map(({ index, label, placeholder }) => (
-							<div key={index} className="space-y-2">
-								<Label htmlFor={`timerLoadout${index}`}>{label}</Label>
-								<Input
-									id={`timerLoadout${index}`}
-									type="text"
-									inputMode="numeric"
-									placeholder={placeholder}
-									value={timerLoadoutInputs[index]}
-									pattern="^\\d{1,3}(:[0-5]\\d)?$"
-									onFocus={handleLoadoutFocus(index)}
-									onBlur={handleLoadoutBlur(index)}
-									onChange={handleLoadoutChange(index)}
-								/>
-							</div>
-						))}
-					</div>
-				</div>
+				<TimerLoadoutSettings
+					loadoutInputs={timerLoadoutInputs}
+					onLoadoutChange={handleLoadoutChange}
+					onLoadoutFocus={handleLoadoutFocus}
+					onLoadoutBlur={handleLoadoutBlur}
+				/>
 			</CardContent>
 		</Card>
 	);

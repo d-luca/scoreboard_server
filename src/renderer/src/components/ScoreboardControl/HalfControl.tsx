@@ -14,14 +14,6 @@ export function HalfControl(): JSX.Element {
 			<ValueBox value={store.half ?? 1} title="Half" />
 			<div className="flex size-full gap-2">
 				<Button
-					className="flex size-full flex-col items-center justify-center"
-					onClick={store.increaseHalf}
-					title={`Hotkey: ${getHotkeyString("increaseHalf")}`}
-				>
-					+1
-					<HotkeyBadge hotkey={getHotkeyString("increaseHalf")} />
-				</Button>
-				<Button
 					variant="destructive"
 					className="flex size-full flex-col items-center justify-center"
 					onClick={store.decreaseHalf}
@@ -29,6 +21,14 @@ export function HalfControl(): JSX.Element {
 				>
 					-1
 					<HotkeyBadge hotkey={getHotkeyString("decreaseHalf")} />
+				</Button>
+				<Button
+					className="flex size-full flex-col items-center justify-center"
+					onClick={store.increaseHalf}
+					title={`Hotkey: ${getHotkeyString("increaseHalf")}`}
+				>
+					+1
+					<HotkeyBadge hotkey={getHotkeyString("increaseHalf")} />
 				</Button>
 			</div>
 		</div>

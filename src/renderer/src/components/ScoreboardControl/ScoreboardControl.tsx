@@ -20,22 +20,12 @@ export function ScoreboardControl(): JSX.Element {
 		{ label: "Loadout 3", value: store.timerLoadout3 ?? 0 },
 	];
 
-	// const isTimerLoadoutAvailable = timerLoadoutButtons.some((button) => button.value > 0);
-
 	return (
-		<Card className="flex w-full flex-col gap-4">
-			<div className="flex items-center justify-between">
-				<CardTitle>Scoreboard Controls</CardTitle>
-				<button
-					className="text-xs text-blue-600 hover:text-blue-800 hover:underline"
-					onClick={() => window.electron.ipcRenderer.send("open-hotkey-settings")}
-					title="Open Keyboard Shortcuts Settings (Ctrl+K)"
-				>
-					⌨️ Shortcuts
-				</button>
-			</div>
-			<CardContent className="flex w-full flex-col gap-4 overflow-hidden">
-				<div className="flex justify-between gap-4">
+		<Card className="flex h-1/2 w-full flex-col gap-4 overflow-hidden">
+			<CardTitle>Scoreboard Controls</CardTitle>
+
+			<CardContent className="flex size-full flex-col justify-between gap-4 overflow-auto">
+				<div className="flex w-full justify-between gap-4">
 					<TeamControl
 						score={store.teamHomeScore ?? 0}
 						title="Home"
@@ -54,7 +44,7 @@ export function ScoreboardControl(): JSX.Element {
 					<HalfControl />
 				</div>
 
-				<div className="grid grid-cols-3 gap-2" aria-label="Timer loadout shortcuts">
+				<div className="grid w-full grid-cols-3 gap-2" aria-label="Timer loadout shortcuts">
 					{timerLoadoutButtons.map(({ label, value }, index) => (
 						<Button
 							key={label}

@@ -1,10 +1,10 @@
-import { ScoreboardControl } from "@renderer/components/ScoreboardControl/ScoreboardControl";
 import { JSX, useEffect } from "react";
-import { ScoreboardFeedback } from "@renderer/components/ScoreboardFeedback/ScoreboardFeedback";
-import { CameraFeedback } from "@renderer/components/CameraFeedback/CameraFeedback";
 import { ScoreboardSettings } from "@renderer/components/ScoreboardSettings";
 import { useScoreboardStore } from "@renderer/stores/scoreboardStore";
 import { useKeyboardControls } from "@renderer/hooks/useKeyboardControls";
+import { HotkeySettings } from "@renderer/components/HotkeySettings";
+import { ScoreboardControl } from "@renderer/components/ScoreboardControl";
+import { ScoreboardFeedback } from "@renderer/components/ScoreboardFeedback";
 
 export function ScoreboardMain(): JSX.Element {
 	const store = useScoreboardStore();
@@ -36,11 +36,11 @@ export function ScoreboardMain(): JSX.Element {
 
 	return (
 		<div className="flex size-full gap-4">
-			<div className="flex h-full w-2/3 flex-col gap-4">
+			<div className="flex h-full w-full flex-col gap-4">
 				<ScoreboardFeedback />
-				<CameraFeedback />
+				<HotkeySettings />
 			</div>
-			<div className="flex h-full w-1/3 flex-col gap-4 overflow-hidden">
+			<div className="flex h-full w-full flex-col gap-4 overflow-hidden">
 				<ScoreboardControl />
 				<ScoreboardSettings />
 			</div>

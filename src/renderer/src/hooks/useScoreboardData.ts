@@ -12,14 +12,27 @@ const initialScoreboardData: ScoreboardData = {
 	half: 1,
 };
 
-export function useScoreboardData() {
+type useScoreboardDataReturn = {
+	scoreboardData: ScoreboardData;
+	isLoading: boolean;
+	error: string | null;
+	updateScoreboardData: (updates: Partial<ScoreboardData>) => Promise<void>;
+	updateTeamScore: (team: "home" | "away", score: number) => void;
+	updateTeamName: (team: "home" | "away", name: string) => void;
+	updateTeamColor: (team: "home" | "away", color: string) => void;
+	updateTimer: (timer: number) => void;
+	updateHalf: (half: number) => void;
+	resetScoreboard: () => void;
+};
+
+export function useScoreboardData(): useScoreboardDataReturn {
 	const [scoreboardData, setScoreboardData] = useState<ScoreboardData>(initialScoreboardData);
 	const [isLoading, setIsLoading] = useState(true);
 	const [error, setError] = useState<string | null>(null);
 
 	// Load initial data
 	useEffect(() => {
-		const loadData = async () => {
+		const loadData = async (): Promise<void> => {
 			try {
 				setIsLoading(true);
 				const data = await window.api.getScoreboardData();
