@@ -48,8 +48,8 @@ interface ScoreboardState extends ScoreboardStoreData {
 // Default values for the scoreboard
 const defaultScoreboardData: ScoreboardStoreData = {
 	eventLogo: undefined,
-	teamHomeName: "T-H",
-	teamAwayName: "T-A",
+	teamHomeName: "HOME",
+	teamAwayName: "AWAY",
 	teamHomeColor: "#00ff00",
 	teamAwayColor: "#ff0000",
 	teamHomeScore: 0,
@@ -57,9 +57,9 @@ const defaultScoreboardData: ScoreboardStoreData = {
 	timer: 0,
 	half: 1,
 	halfPrefix: "PERIODO",
-	timerLoadout1: 45 * 60,
-	timerLoadout2: 90 * 60,
-	timerLoadout3: 30 * 60,
+	timerLoadout1: 15 * 60,
+	timerLoadout2: 45 * 60,
+	timerLoadout3: 20 * 60,
 	timerRunning: false,
 };
 
