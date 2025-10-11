@@ -1,10 +1,10 @@
 {
 	"name": "scoreboard_server",
-	"version": "1.0.0",
-	"description": "An Electron application with React and TypeScript",
+	"version": "0.2.0",
+	"description": "A real-time scoreboard server for OBS Studio streaming with WebSocket support, customizable team management, and live game timer control",
 	"main": "./out/main/index.js",
-	"author": "example.com",
-	"homepage": "https://electron-vite.org",
+	"author": "Luca Davi",
+	"homepage": "https://github.com/d-luca/scoreboard_server",
 	"scripts": {
 		"format": "prettier --write .",
 		"lint": "eslint --cache .",
@@ -13,15 +13,15 @@
 		"typecheck": "npm run typecheck:node && npm run typecheck:web",
 		"start": "electron-vite preview",
 		"dev": "electron-vite dev",
-		"build": "npm run typecheck && electron-vite build",
+		"build": "npm run typecheck && npm run build:scoreboard && electron-vite build",
 		"build:scoreboard": "vite build --config vite.scoreboard.config.ts",
 		"build:scoreboard:watch": "vite build --config vite.scoreboard.config.ts --watch",
 		"dev:with-scoreboard": "concurrently \"npm run build:scoreboard:watch\" \"npm run dev\" --names \"SCOREBOARD,ELECTRON\" --prefix-colors \"blue,green\"",
 		"postinstall": "electron-builder install-app-deps",
 		"build:unpack": "npm run build && electron-builder --dir",
 		"build:win": "npm run build && electron-builder --win",
-		"build:mac": "electron-vite build && electron-builder --mac",
-		"build:linux": "electron-vite build && electron-builder --linux"
+		"build:mac": "npm run build && electron-builder --mac",
+		"build:linux": "npm run build && electron-builder --linux"
 	},
 	"dependencies": {
 		"@electron-toolkit/preload": "^3.0.2",
@@ -38,7 +38,8 @@
 		"express": "^5.1.0",
 		"glob": "^11.0.3",
 		"tailwind-merge": "^3.3.1",
-		"ws": "^8.18.3"
+		"ws": "^8.18.3",
+		"zustand": "^5.0.8"
 	},
 	"devDependencies": {
 		"@electron-toolkit/eslint-config-prettier": "^3.0.0",

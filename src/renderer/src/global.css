@@ -1,5 +1,63 @@
 @import "tailwindcss";
 
+/* Anton Font */
+@font-face {
+	font-family: "Anton";
+	src: url("./assets/Anton-Regular.ttf") format("truetype");
+	font-weight: 400;
+	font-style: normal;
+	font-display: swap;
+}
+
+/* Poppins Font */
+@font-face {
+	font-family: "Poppins";
+	src: url("./assets/Poppins-Regular.ttf") format("truetype");
+	font-weight: 400;
+	font-style: normal;
+	font-display: swap;
+}
+
+@font-face {
+	font-family: "Poppins";
+	src: url("./assets/Poppins-Medium.ttf") format("truetype");
+	font-weight: 500;
+	font-style: normal;
+	font-display: swap;
+}
+
+@font-face {
+	font-family: "Poppins";
+	src: url("./assets/Poppins-SemiBold.ttf") format("truetype");
+	font-weight: 600;
+	font-style: normal;
+	font-display: swap;
+}
+
+@font-face {
+	font-family: "Poppins";
+	src: url("./assets/Poppins-Bold.ttf") format("truetype");
+	font-weight: 700;
+	font-style: normal;
+	font-display: swap;
+}
+
+@font-face {
+	font-family: "Poppins";
+	src: url("./assets/Poppins-ExtraBold.ttf") format("truetype");
+	font-weight: 800;
+	font-style: normal;
+	font-display: swap;
+}
+
+@font-face {
+	font-family: "Poppins";
+	src: url("./assets/Poppins-Black.ttf") format("truetype");
+	font-weight: 900;
+	font-style: normal;
+	font-display: swap;
+}
+
 /* CSS Variables for Dark Theme */
 :root {
 	/* Primary Colors - Dark Blue Theme */
@@ -355,6 +413,7 @@ body {
 	border-radius: 0.75rem;
 	box-shadow: var(--shadow-xl);
 	padding: 1.5rem;
+	font-family: "Poppins", sans-serif;
 }
 
 .team-score {
@@ -362,17 +421,19 @@ body {
 	font-weight: 700;
 	color: var(--color-text-primary);
 	line-height: 1;
+	font-family: "Poppins", sans-serif;
 }
 
 .team-name {
 	font-size: 1.5rem;
 	font-weight: 600;
 	color: var(--color-text-secondary);
+	font-family: "Poppins", sans-serif;
 }
 
 .game-timer {
 	font-size: 2.25rem;
-	font-family: "Consolas", "Monaco", "Lucida Console", monospace;
+	font-family: "Poppins", sans-serif;
 	font-weight: 700;
 	color: var(--color-tertiary-400);
 }

@@ -1,20 +1,37 @@
 import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { readFileSync, existsSync } from "fs";
+import { readFileSync, existsSync, writeFileSync } from "fs";
 import { join } from "path";
 import { glob } from "glob";
 import { ScoreboardData } from "../types/scoreboard";
 
 let compiledCSS: string | null = null;
 
+// Helper function to log debug info to a file
+function debugLog(message: string): void {
+	try {
+		const logPath = join(process.cwd(), "scoreboard-debug.log");
+		const timestamp = new Date().toISOString();
+		writeFileSync(logPath, `[${timestamp}] ${message}\n`, { flag: "a" });
+		console.log(message);
+	} catch {
+		console.log(message);
+	}
+}
+
 // Load compiled Tailwind CSS
 function loadCompiledCSS(): string {
 	if (compiledCSS) return compiledCSS;
 
+	// Get the app base path - works for both dev and packaged app
+	const appBasePath = process.env.NODE_ENV === "development" ? process.cwd() : process.resourcesPath;
+
 	// Try to find the compiled CSS file from built scoreboard first
 	const scoreboardCssPaths = [
-		join(process.cwd(), "dist/scoreboard-ssr/style.css"),
-		join(process.cwd(), "dist/scoreboard-ssr/*.css"),
+		join(appBasePath, "dist/scoreboard-ssr/style.css"),
+		join(appBasePath, "dist/scoreboard-ssr/*.css"),
+		join(appBasePath, "app.asar.unpacked/dist/scoreboard-ssr/style.css"),
+		join(appBasePath, "app.asar.unpacked/dist/scoreboard-ssr/*.css"),
 	];
 
 	// Try scoreboard-specific CSS first
@@ -110,22 +127,58 @@ function loadCompiledCSS(): string {
 
 // Load built scoreboard component
 function loadScoreboardComponent(): React.ComponentType<ScoreboardData> {
-	try {
-		// Try to load the built component first
-		const builtComponentPath = join(process.cwd(), "dist/scoreboard-ssr/scoreboard-ssr.js");
-		if (existsSync(builtComponentPath)) {
-			console.log("Loading built scoreboard component from:", builtComponentPath);
-			// Clear require cache to ensure fresh component on each load
-			delete (require.cache as any)[require.resolve(builtComponentPath)];
-			// eslint-disable-next-line @typescript-eslint/no-var-requires
-			const { Scoreboard } = require(builtComponentPath);
-			return Scoreboard as React.ComponentType<ScoreboardData>;
+	// Get the app base path - works for both dev and packaged app
+	const isDev = process.env.NODE_ENV === "development";
+
+	debugLog("=== Loading scoreboard component ===");
+	debugLog(`- isDev: ${isDev}`);
+	debugLog(`- __dirname: ${__dirname}`);
+	debugLog(`- process.cwd(): ${process.cwd()}`);
+	debugLog(`- process.resourcesPath: ${process.resourcesPath}`);
+
+	// Try multiple possible paths for the component
+	const componentPaths = isDev
+		? [
+				// Development paths
+				join(process.cwd(), "dist/scoreboard-ssr/scoreboard-ssr.js"),
+			]
+		: [
+				// Production paths - when running from inside asar
+				// __dirname is like: C:\...\resources\app.asar\out\main
+				// Replace app.asar with app.asar.unpacked and navigate to dist
+				join(
+					__dirname.replace("app.asar", "app.asar.unpacked"),
+					"../../dist/scoreboard-ssr/scoreboard-ssr.js",
+				),
+				// Alternative using process.resourcesPath
+				join(process.resourcesPath || "", "app.asar.unpacked/dist/scoreboard-ssr/scoreboard-ssr.js"),
+				// Another fallback going up from __dirname
+				join(__dirname, "../../../app.asar.unpacked/dist/scoreboard-ssr/scoreboard-ssr.js"),
+			];
+
+	debugLog(`- Trying ${componentPaths.length} component paths`);
+
+	for (const componentPath of componentPaths) {
+		try {
+			debugLog(`- Checking path: ${componentPath}`);
+			const exists = existsSync(componentPath);
+			debugLog(`- Path exists: ${exists}`);
+			if (exists) {
+				debugLog(`✓ Loading built scoreboard component from: ${componentPath}`);
+				// Clear require cache to ensure fresh component on each load
+				delete (require.cache as Record<string, NodeModule>)[require.resolve(componentPath)];
+				// eslint-disable-next-line @typescript-eslint/no-require-imports
+				const { Scoreboard } = require(componentPath);
+				return Scoreboard as React.ComponentType<ScoreboardData>;
+			}
+		} catch (error) {
+			debugLog(`✗ Failed to load scoreboard component from ${componentPath}: ${error}`);
 		}
-	} catch (error) {
-		console.warn("Failed to load built scoreboard component:", error);
 	}
 
 	// If we reach here, no component could be loaded
+	debugLog("✗ No scoreboard component found in any of the attempted paths");
+	debugLog(`✗ All attempted paths: ${JSON.stringify(componentPaths, null, 2)}`);
 	throw new Error("No scoreboard component available. Please run 'pnpm run build:scoreboard' first.");
 }
 
@@ -162,6 +215,7 @@ export function renderScoreboardHTML(data: ScoreboardData): string {
             // justify-content: center;
             width: 100vw;
             height: 100vh;
+			padding: 10px;
         }
     </style>
 </head>
@@ -191,28 +245,29 @@ export function renderScoreboardHTML(data: ScoreboardData): string {
             }, 3000);
         };
 
-        function updateScoreboard(data) {
-            // Find elements and update them
-            const homeNameEl = document.querySelector('[data-home-name]');
-            const awayNameEl = document.querySelector('[data-away-name]');
-            const homeScoreEl = document.querySelector('[data-home-score]');
-            const awayScoreEl = document.querySelector('[data-away-score]');
-            const timerEl = document.querySelector('[data-timer]');
-            const halfEl = document.querySelector('[data-half]');
-            const homeColorEl = document.querySelector('[data-home-color]');
-            const awayColorEl = document.querySelector('[data-away-color]');
+		function updateScoreboard(data) {
+			// Find elements and update them
+			const homeNameEl = document.querySelector('[data-home-name]');
+			const awayNameEl = document.querySelector('[data-away-name]');
+			const homeScoreEl = document.querySelector('[data-home-score]');
+			const awayScoreEl = document.querySelector('[data-away-score]');
+			const timerEl = document.querySelector('[data-timer]');
+			const halfPrefixEl = document.querySelector('[data-half-prefix]');
+			const halfValueEl = document.querySelector('[data-half-value]');
+			const homeColorEl = document.querySelector('[data-home-color]');
+			const awayColorEl = document.querySelector('[data-away-color]');
 
-            if (homeNameEl) homeNameEl.textContent = data.teamHomeName;
-            if (awayNameEl) awayNameEl.textContent = data.teamAwayName;
-            if (homeScoreEl) homeScoreEl.textContent = data.teamHomeScore;
-            if (awayScoreEl) awayScoreEl.textContent = data.teamAwayScore;
-            if (timerEl) timerEl.textContent = formatTime(data.timer);
-            if (halfEl) halfEl.textContent = data.half;
-            if (homeColorEl) homeColorEl.style.backgroundColor = data.teamHomeColor;
-            if (awayColorEl) awayColorEl.style.backgroundColor = data.teamAwayColor;
-        }
-
-        function formatTime(seconds) {
+			// Only update fields that are explicitly defined in the data
+			if (homeNameEl && data.teamHomeName !== undefined) homeNameEl.textContent = data.teamHomeName;
+			if (awayNameEl && data.teamAwayName !== undefined) awayNameEl.textContent = data.teamAwayName;
+			if (homeScoreEl && data.teamHomeScore !== undefined) homeScoreEl.textContent = data.teamHomeScore;
+			if (awayScoreEl && data.teamAwayScore !== undefined) awayScoreEl.textContent = data.teamAwayScore;
+			if (timerEl && data.timer !== undefined) timerEl.textContent = formatTime(data.timer);
+			if (halfPrefixEl && data.halfPrefix !== undefined) halfPrefixEl.textContent = data.halfPrefix;
+			if (halfValueEl && data.half !== undefined) halfValueEl.textContent = data.half;
+			if (homeColorEl && data.teamHomeColor !== undefined) homeColorEl.style.backgroundColor = data.teamHomeColor;
+			if (awayColorEl && data.teamAwayColor !== undefined) awayColorEl.style.backgroundColor = data.teamAwayColor;
+		}        function formatTime(seconds) {
             const mins = Math.floor(seconds / 60);
             const secs = seconds % 60;
             return mins.toString().padStart(2, '0') + ':' + secs.toString().padStart(2, '0');

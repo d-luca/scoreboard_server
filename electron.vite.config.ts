@@ -17,5 +17,14 @@ export default defineConfig({
 			},
 		},
 		plugins: [react(), tailwindcss()],
+		build: {
+			rollupOptions: {
+				input: {
+					index: resolve(__dirname, "src/renderer/index.html"),
+					"overlay-preview": resolve(__dirname, "src/renderer/overlay-preview.html"),
+					"overlay-control": resolve(__dirname, "src/renderer/overlay-control.html"),
+				},
+			},
+		},
 	},
 });

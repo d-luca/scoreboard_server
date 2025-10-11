@@ -20,24 +20,42 @@ export function TeamInfo({
 	teamHomeColor,
 }: TeamInfoProps): JSX.Element {
 	return (
-		<div className="flex h-full gap-3 px-1 font-bold">
-			<div className="flex items-center justify-between gap-2">
+		<div className="flex h-full gap-3 bg-indigo-950 text-nowrap">
+			<div className="flex items-center justify-between gap-2" style={{ transform: "skewX(15deg)" }}>
 				<TeamColorRect color={teamHomeColor} data-home-color />
-				<div className="flex w-16 items-center justify-center tracking-wider" data-home-name>
+				<div
+					className="flex w-28 items-center justify-center tracking-wide text-white"
+					style={{ fontFamily: "Anton" }}
+					data-home-name
+				>
 					{teamHomeName}
 				</div>
 			</div>{" "}
-			<div className="flex items-center bg-white py-1 text-2xl text-neutral-950">
-				<div className="flex w-12 items-center justify-center bg-white" data-home-score>
+			<div className="flex items-center bg-white" style={{ fontFamily: "Anton" }}>
+				<div
+					className="flex h-full w-16 items-center justify-center"
+					style={{ transform: "skewX(15deg)" }}
+					data-home-score
+				>
 					{teamHomeScore}
 				</div>
-				<VerticalDivider />
-				<div className="flex w-12 items-center justify-center bg-white" data-away-score>
+				<div className="h-2/3">
+					<VerticalDivider />
+				</div>
+				<div
+					className="flex h-full w-16 items-center justify-center"
+					style={{ transform: "skewX(15deg)" }}
+					data-away-score
+				>
 					{teamAwayScore}
 				</div>
 			</div>{" "}
-			<div className="flex items-center justify-between gap-2">
-				<div className="flex w-16 items-center justify-center tracking-wider" data-away-name>
+			<div className="flex items-center justify-between gap-2" style={{ transform: "skewX(15deg)" }}>
+				<div
+					className="flex w-28 items-center justify-center tracking-wide text-white"
+					style={{ fontFamily: "Anton" }}
+					data-away-name
+				>
 					{teamAwayName}
 				</div>
 				<TeamColorRect color={teamAwayColor} data-away-color />

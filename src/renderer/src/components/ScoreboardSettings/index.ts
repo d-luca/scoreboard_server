@@ -1,0 +1,1 @@
+export { ScoreboardSettings } from "./ScoreboardSettings";
