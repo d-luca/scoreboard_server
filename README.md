@@ -1,3 +1,4 @@
+
 # Scoreboard Server
 
 <div align="center">
@@ -63,6 +64,18 @@ A professional real-time scoreboard application for live streaming and sports br
 
 The OBS Studio interface shown in the screenshot is for demonstration purposes only. Scoreboard Server does not include, modify, or distribute any OBS Studio code or assets. The OBS Studio view is used solely to illustrate how Scoreboard Server can be integrated as a browser source in streaming setups. All rights to OBS Studio belong to their respective owners.
 </details>
+
+---
+
+## 🔍 Zooming In and Out
+
+Scoreboard Server supports zooming the interface for better visibility or to fit your screen:
+
+1. Press the <kbd>Alt</kbd> key to reveal the application menu at the top of the window.
+2. Click on the <strong>View</strong> menu.
+3. Select <strong>Zoom In</strong> or <strong>Zoom Out</strong> to adjust the interface size.
+
+This feature is available on all platforms and works in both the main window and overlay windows. Use it to make the scoreboard easier to read or to fit your workflow.
 
 ---
 
