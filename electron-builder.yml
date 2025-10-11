@@ -1,5 +1,5 @@
-appId: com.electron.app
-productName: scoreboard_server
+appId: com.github.d-luca.scoreboard-server
+productName: Scoreboard Server
 directories:
   buildResources: build
 files:
@@ -18,7 +18,7 @@ asarUnpack:
   - resources/**
   - dist/scoreboard-ssr/**
 win:
-  executableName: scoreboard_server
+  executableName: Scoreboard Server
 nsis:
   artifactName: ${name}-${version}-setup.${ext}
   shortcutName: ${productName}
