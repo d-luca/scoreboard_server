@@ -21,7 +21,6 @@ export default defineConfig({
 			rollupOptions: {
 				input: {
 					index: resolve(__dirname, "src/renderer/index.html"),
-					hotkeys: resolve(__dirname, "src/renderer/hotkeys.html"),
 					"overlay-preview": resolve(__dirname, "src/renderer/overlay-preview.html"),
 					"overlay-control": resolve(__dirname, "src/renderer/overlay-control.html"),
 				},
