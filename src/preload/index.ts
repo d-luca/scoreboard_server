@@ -17,6 +17,11 @@ const api = {
 	notifyHotkeyUpdate: (hotkeys: string) => ipcRenderer.send("hotkey-changed", hotkeys),
 	notifyHotkeyEnabledChange: (enabled: boolean) => ipcRenderer.send("hotkey-enabled-changed", enabled),
 	getHotkeyEnabled: () => ipcRenderer.invoke("get-hotkey-enabled"),
+	onRequestHotkeys: (callback: () => void) => {
+		const subscription = (): void => callback();
+		ipcRenderer.on("request-hotkeys", subscription);
+		return () => ipcRenderer.removeListener("request-hotkeys", subscription);
+	},
 	onHotkeyEnabledUpdate: (callback: (enabled: boolean) => void) => {
 		const subscription = (_event: Electron.IpcRendererEvent, enabled: boolean): void => callback(enabled);
 		ipcRenderer.on("hotkey-enabled-update", subscription);

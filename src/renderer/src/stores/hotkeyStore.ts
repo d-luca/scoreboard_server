@@ -153,6 +153,12 @@ if (typeof window !== "undefined" && window.api) {
 		const enabled = useHotkeyStore.getState().enabled;
 		window.api.notifyHotkeyEnabledChange(enabled);
 	});
+
+	// Setup listener for hotkey configuration requests
+	window.api.onRequestHotkeys(() => {
+		const hotkeys = useHotkeyStore.getState().hotkeys;
+		window.api.notifyHotkeyUpdate(JSON.stringify(hotkeys));
+	});
 }
 
 // Helper function to check if a keyboard event matches a hotkey mapping
