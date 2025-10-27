@@ -11,6 +11,30 @@ let mainWindow: BrowserWindow | null = null;
 let overlayPreviewWindow: BrowserWindow | null = null;
 let overlayControlWindow: BrowserWindow | null = null;
 
+// Store current hotkey configuration
+let currentHotkeys: Record<
+	string,
+	{ key: string; enabled: boolean; ctrlKey?: boolean; altKey?: boolean; shiftKey?: boolean }
+> = {
+	increaseHomeScore: { key: "q", enabled: true },
+	decreaseHomeScore: { key: "a", enabled: true },
+	increaseAwayScore: { key: "e", enabled: true },
+	decreaseAwayScore: { key: "d", enabled: true },
+	increaseHalf: { key: "]", enabled: true },
+	decreaseHalf: { key: "[", enabled: true },
+	startTimer: { key: " ", enabled: true },
+	pauseTimer: { key: "p", enabled: true },
+	stopTimer: { key: "s", enabled: true },
+	increaseTimerSecond: { key: "ArrowUp", enabled: true },
+	decreaseTimerSecond: { key: "ArrowDown", enabled: true },
+	increaseTimerMinute: { key: "ArrowUp", shiftKey: true, enabled: true },
+	decreaseTimerMinute: { key: "ArrowDown", shiftKey: true, enabled: true },
+	timerLoadout1: { key: "1", ctrlKey: true, enabled: true },
+	timerLoadout2: { key: "2", ctrlKey: true, enabled: true },
+	timerLoadout3: { key: "3", ctrlKey: true, enabled: true },
+	resetScoreboard: { key: "r", ctrlKey: true, shiftKey: true, enabled: true },
+};
+
 // Map to convert hotkey format to Electron accelerator format
 function convertToAccelerator(key: string, ctrlKey?: boolean, altKey?: boolean, shiftKey?: boolean): string {
 	const modifiers: string[] = [];
@@ -109,31 +133,7 @@ function executeHotkeyAction(action: string): void {
 // Register global hotkeys
 function registerGlobalHotkeys(): void {
 	try {
-		// Get hotkeys from localStorage (we'll use default ones for now)
-		const defaultHotkeys: Record<
-			string,
-			{ key: string; enabled: boolean; ctrlKey?: boolean; altKey?: boolean; shiftKey?: boolean }
-		> = {
-			increaseHomeScore: { key: "q", enabled: true },
-			decreaseHomeScore: { key: "a", enabled: true },
-			increaseAwayScore: { key: "e", enabled: true },
-			decreaseAwayScore: { key: "d", enabled: true },
-			increaseHalf: { key: "]", enabled: true },
-			decreaseHalf: { key: "[", enabled: true },
-			startTimer: { key: " ", enabled: true },
-			pauseTimer: { key: "p", enabled: true },
-			stopTimer: { key: "s", enabled: true },
-			increaseTimerSecond: { key: "ArrowUp", enabled: true },
-			decreaseTimerSecond: { key: "ArrowDown", enabled: true },
-			increaseTimerMinute: { key: "ArrowUp", shiftKey: true, enabled: true },
-			decreaseTimerMinute: { key: "ArrowDown", shiftKey: true, enabled: true },
-			timerLoadout1: { key: "1", ctrlKey: true, enabled: true },
-			timerLoadout2: { key: "2", ctrlKey: true, enabled: true },
-			timerLoadout3: { key: "3", ctrlKey: true, enabled: true },
-			resetScoreboard: { key: "r", ctrlKey: true, shiftKey: true, enabled: true },
-		};
-
-		Object.entries(defaultHotkeys).forEach(([action, mapping]) => {
+		Object.entries(currentHotkeys).forEach(([action, mapping]) => {
 			if (!mapping.enabled) return;
 
 			const accelerator = convertToAccelerator(
@@ -388,6 +388,24 @@ app.whenReady().then(() => {
 
 	// IPC handler for hotkey synchronization
 	ipcMain.on("hotkey-changed", (_event, hotkeys: string) => {
+		try {
+			// Parse the hotkeys and update current configuration
+			const parsedHotkeys = JSON.parse(hotkeys) as Record<
+				string,
+				{ key: string; enabled: boolean; ctrlKey?: boolean; altKey?: boolean; shiftKey?: boolean }
+			>;
+			currentHotkeys = parsedHotkeys;
+
+			// If overlay mode is active and hotkeys are enabled, re-register global shortcuts
+			if (overlayPreviewWindow || overlayControlWindow) {
+				unregisterGlobalHotkeys();
+				registerGlobalHotkeys();
+				console.log("Global hotkeys updated");
+			}
+		} catch (error) {
+			console.error("Failed to parse hotkeys:", error);
+		}
+
 		// Broadcast to all windows
 		BrowserWindow.getAllWindows().forEach((window) => {
 			window.webContents.send("hotkey-update", hotkeys);
@@ -422,21 +440,35 @@ app.whenReady().then(() => {
 			unregisterGlobalHotkeys();
 			closeOverlayWindows();
 		} else {
-			if (hotkeyEnabled) {
-				registerGlobalHotkeys();
+			// Request current hotkeys from main window before registering
+			if (mainWindow) {
+				mainWindow.webContents.send("request-hotkeys");
 			}
-			createOverlayPreviewWindow();
-			createOverlayControlWindow();
+			// Small delay to let the hotkeys be sent before registering
+			setTimeout(() => {
+				if (hotkeyEnabled) {
+					registerGlobalHotkeys();
+				}
+				createOverlayPreviewWindow();
+				createOverlayControlWindow();
+			}, 50);
 		}
 	});
 
 	ipcMain.on("enable-overlay-mode", (_event, hotkeyEnabled: boolean) => {
 		if (!overlayPreviewWindow && !overlayControlWindow) {
-			if (hotkeyEnabled) {
-				registerGlobalHotkeys();
+			// Request current hotkeys from main window before registering
+			if (mainWindow) {
+				mainWindow.webContents.send("request-hotkeys");
 			}
-			createOverlayPreviewWindow();
-			createOverlayControlWindow();
+			// Small delay to let the hotkeys be sent before registering
+			setTimeout(() => {
+				if (hotkeyEnabled) {
+					registerGlobalHotkeys();
+				}
+				createOverlayPreviewWindow();
+				createOverlayControlWindow();
+			}, 50);
 		}
 	});
 

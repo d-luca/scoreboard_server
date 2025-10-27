@@ -10,6 +10,7 @@ interface ScoreboardAPI {
 	getHotkeyEnabled: () => Promise<boolean>;
 	onHotkeyEnabledUpdate: (callback: (enabled: boolean) => void) => () => void;
 	onRequestHotkeyEnabledState: (callback: () => void) => () => void;
+	onRequestHotkeys: (callback: () => void) => () => void;
 	toggleOverlayMode: (hotkeyEnabled: boolean) => void;
 	enableOverlayMode: (hotkeyEnabled: boolean) => void;
 	disableOverlayMode: () => void;
