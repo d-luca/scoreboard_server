@@ -55,6 +55,17 @@ export class ScoreboardServer {
 			res.json(this.currentData);
 		});
 
+		// API endpoint to get a specific property from scoreboard data
+		this.app.get("/api/scoreboard/:property", (req, res) => {
+			const property = req.params.property as keyof ScoreboardData;
+
+			if (property in this.currentData) {
+				res.send(String(this.currentData[property]));
+			} else {
+				res.status(404).send("Property not found");
+			}
+		});
+
 		// API endpoint to update scoreboard data
 		this.app.post("/api/scoreboard", (req, res) => {
 			this.updateScoreboardData(req.body);
