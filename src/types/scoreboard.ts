@@ -15,3 +15,44 @@ export interface GameState extends ScoreboardData {
 	isTimerRunning: boolean;
 	lastUpdated: number;
 }
+
+// Recording types
+
+// Single snapshot of scoreboard state
+export interface ScoreboardSnapshot {
+	timestamp: number; // Unix timestamp (ms) when snapshot was taken
+	relativeTime: number; // Seconds since recording started (0, 1, 2, ...)
+	teamHomeName: string;
+	teamAwayName: string;
+	teamHomeColor: string;
+	teamAwayColor: string;
+	teamHomeScore: number;
+	teamAwayScore: number;
+	timer: number; // Timer value in seconds
+	half: number;
+	halfPrefix: string;
+}
+
+// Full recording file structure
+export interface ScoreboardRecording {
+	version: string; // Schema version for future compatibility
+	metadata: {
+		recordingId: string; // UUID for unique identification
+		startedAt: string; // ISO date string
+		endedAt: string; // ISO date string (filled when recording stops)
+		homeName: string;
+		awayName: string;
+		totalSnapshots: number;
+	};
+	snapshots: ScoreboardSnapshot[];
+}
+
+// Recording status for UI state management
+export interface RecordingStatus {
+	isRecording: boolean;
+	recordingId?: string;
+	filePath?: string;
+	snapshotCount: number;
+	startTime?: number; // Unix timestamp (ms)
+	duration: number; // Seconds
+}

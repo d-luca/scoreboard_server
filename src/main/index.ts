@@ -1,12 +1,16 @@
-import { app, shell, BrowserWindow, ipcMain, globalShortcut, screen } from "electron";
+import { app, shell, BrowserWindow, ipcMain, globalShortcut, screen, dialog } from "electron";
 import { join } from "path";
 import { electronApp, optimizer, is } from "@electron-toolkit/utils";
 import icon from "../../resources/icon.png?asset";
 import { ScoreboardServer } from "./server";
-import { ScoreboardData } from "../types/scoreboard";
+import { ScoreboardData, ScoreboardSnapshot } from "../types/scoreboard";
+import { RecordingService } from "./services/recordingServiceTemp";
+import { SettingsService } from "./services/settingsServiceTemp";
 
 // Global server instance
 let scoreboardServer: ScoreboardServer;
+let recordingService: RecordingService;
+let settingsService: SettingsService;
 let mainWindow: BrowserWindow | null = null;
 let overlayPreviewWindow: BrowserWindow | null = null;
 let overlayControlWindow: BrowserWindow | null = null;
@@ -355,8 +359,21 @@ app.whenReady().then(() => {
 		optimizer.watchWindowShortcuts(window);
 	});
 
-	// Initialize scoreboard server
+	// Initialize services
 	scoreboardServer = new ScoreboardServer(3001);
+	recordingService = new RecordingService();
+	settingsService = new SettingsService();
+
+	// Load settings
+	settingsService
+		.load()
+		.then(() => {
+			console.log("Settings loaded successfully");
+		})
+		.catch((error) => {
+			console.error("Failed to load settings:", error);
+		});
+
 	scoreboardServer
 		.start()
 		.then(() => {
@@ -385,6 +402,53 @@ app.whenReady().then(() => {
 
 	// IPC test
 	ipcMain.on("ping", () => console.log("pong"));
+
+	// IPC handlers for recording
+	ipcMain.handle("recording:start", async (_event, config: { homeName: string; awayName: string }) => {
+		const outputDir = await settingsService.getRecordingOutputDir();
+		return recordingService.startRecording(outputDir, config.homeName, config.awayName);
+	});
+
+	ipcMain.handle("recording:write-snapshot", async (_event, snapshot: ScoreboardSnapshot) => {
+		return recordingService.writeSnapshot(snapshot);
+	});
+
+	ipcMain.handle("recording:stop", async () => {
+		return recordingService.stopRecording();
+	});
+
+	ipcMain.handle("recording:get-status", async () => {
+		return recordingService.getStatus();
+	});
+
+	// IPC handlers for settings
+	ipcMain.handle("settings:get-recording-output-dir", async () => {
+		return settingsService.getRecordingOutputDir();
+	});
+
+	ipcMain.handle("settings:set-recording-output-dir", async (_event, path: string) => {
+		try {
+			await settingsService.setRecordingOutputDir(path);
+			return { success: true };
+		} catch (error) {
+			return {
+				success: false,
+				error: error instanceof Error ? error.message : String(error),
+			};
+		}
+	});
+
+	ipcMain.handle("settings:select-recording-output-dir", async () => {
+		const result = await dialog.showOpenDialog({
+			properties: ["openDirectory", "createDirectory"],
+			title: "Select Recording Output Directory",
+		});
+
+		return {
+			canceled: result.canceled,
+			path: result.filePaths[0],
+		};
+	});
 
 	// IPC handler for hotkey synchronization
 	ipcMain.on("hotkey-changed", (_event, hotkeys: string) => {

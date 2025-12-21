@@ -1,13 +1,26 @@
 import { contextBridge, ipcRenderer } from "electron";
 import { electronAPI } from "@electron-toolkit/preload";
 
-import { ScoreboardData } from "../types/scoreboard";
+import { ScoreboardData, ScoreboardSnapshot } from "../types/scoreboard";
 
 // Custom APIs for renderer
 const api = {
 	// Scoreboard API
 	getScoreboardData: () => ipcRenderer.invoke("get-scoreboard-data"),
 	updateScoreboardData: (data: Partial<ScoreboardData>) => ipcRenderer.invoke("update-scoreboard-data", data),
+
+	// Recording API
+	startRecording: (config: { homeName: string; awayName: string }) =>
+		ipcRenderer.invoke("recording:start", config),
+	writeSnapshot: (snapshot: ScoreboardSnapshot) => ipcRenderer.invoke("recording:write-snapshot", snapshot),
+	stopRecording: () => ipcRenderer.invoke("recording:stop"),
+	getRecordingStatus: () => ipcRenderer.invoke("recording:get-status"),
+
+	// Settings API
+	getRecordingOutputDir: () => ipcRenderer.invoke("settings:get-recording-output-dir"),
+	setRecordingOutputDir: (path: string) => ipcRenderer.invoke("settings:set-recording-output-dir", path),
+	selectRecordingOutputDir: () => ipcRenderer.invoke("settings:select-recording-output-dir"),
+
 	// Hotkey synchronization
 	onHotkeyUpdate: (callback: (hotkeys: string) => void) => {
 		const subscription = (_event: Electron.IpcRendererEvent, hotkeys: string): void => callback(hotkeys);
