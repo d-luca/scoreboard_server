@@ -60,7 +60,10 @@ export class ScoreboardServer {
 			}
 
 			// Format timer value for display
-			const formatValue = (prop: keyof ScoreboardData, value: any): string => {
+			const formatValue = (
+				prop: keyof ScoreboardData,
+				value: ScoreboardData[keyof ScoreboardData],
+			): string => {
 				if (prop === "timer" && typeof value === "number") {
 					const mins = Math.floor(value / 60);
 					const secs = value % 60;

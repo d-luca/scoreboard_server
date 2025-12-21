@@ -7,6 +7,7 @@ import { Scoreboard } from "./components/Scoreboard";
 import { ScoreboardSnapshot } from "../../types/scoreboard";
 
 // Minimal scoreboard renderer for video generation
+// eslint-disable-next-line react-refresh/only-export-components
 function ScoreboardRenderer(): JSX.Element {
 	const [data, setData] = useState<Partial<ScoreboardSnapshot>>({
 		teamHomeName: "HOME",
