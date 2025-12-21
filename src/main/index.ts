@@ -4,8 +4,8 @@ import { electronApp, optimizer, is } from "@electron-toolkit/utils";
 import icon from "../../resources/icon.png?asset";
 import { ScoreboardServer } from "./server";
 import { ScoreboardData, ScoreboardSnapshot } from "../types/scoreboard";
-import { RecordingService } from "./services/recordingServiceTemp";
-import { SettingsService } from "./services/settingsServiceTemp";
+import { RecordingService } from "./services/recordingService";
+import { SettingsService } from "./services/settingsService";
 
 // Global server instance
 let scoreboardServer: ScoreboardServer;
