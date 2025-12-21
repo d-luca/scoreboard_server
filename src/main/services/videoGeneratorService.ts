@@ -11,9 +11,12 @@ import {
 	GenerationStep,
 } from "../../types/scoreboard";
 
-// Set FFmpeg path
+// Set FFmpeg path - handle asar unpacking for production builds
 if (ffmpegStatic) {
-	ffmpeg.setFfmpegPath(ffmpegStatic);
+	// In production, ffmpeg-static is unpacked from asar
+	// The path needs to be adjusted from app.asar to app.asar.unpacked
+	const ffmpegPath = ffmpegStatic.replace("app.asar", "app.asar.unpacked");
+	ffmpeg.setFfmpegPath(ffmpegPath);
 }
 
 export class VideoGeneratorService {
