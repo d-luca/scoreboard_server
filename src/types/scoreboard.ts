@@ -56,3 +56,24 @@ export interface RecordingStatus {
 	startTime?: number; // Unix timestamp (ms)
 	duration: number; // Seconds
 }
+
+// Video generation types
+
+export interface VideoGenerationConfig {
+	recordingPath: string;
+	outputPath: string; // Full path including filename.webm
+	frameRate: number; // Default: 30
+	scoreboardScale: number; // Default: 1.0 (multiplier for scoreboard size)
+}
+
+export type GenerationStep = "idle" | "parsing" | "rendering" | "encoding" | "cleanup" | "complete" | "error";
+
+export interface GenerationProgress {
+	step: GenerationStep;
+	stepProgress: number; // 0-100 for current step
+	overallProgress: number; // 0-100 for entire process
+	currentFrame?: number;
+	totalFrames?: number;
+	message: string;
+	error?: string;
+}

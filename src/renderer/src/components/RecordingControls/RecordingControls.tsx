@@ -121,6 +121,17 @@ export function RecordingControls(): JSX.Element {
 						</Button>
 					)}
 				</div>
+
+				{/* Video Generator */}
+				<Button
+					variant="outline"
+					onClick={() => window.api.openVideoGenerator()}
+					disabled={isRecording}
+					title={isRecording ? "Stop recording first to generate video" : "Open Video Generator"}
+					className="w-full"
+				>
+					Generate Video from Recording
+				</Button>
 			</CardContent>
 		</Card>
 	);

@@ -3,17 +3,25 @@ import { join } from "path";
 import { electronApp, optimizer, is } from "@electron-toolkit/utils";
 import icon from "../../resources/icon.png?asset";
 import { ScoreboardServer } from "./server";
-import { ScoreboardData, ScoreboardSnapshot } from "../types/scoreboard";
+import {
+	ScoreboardData,
+	ScoreboardSnapshot,
+	VideoGenerationConfig,
+	GenerationProgress,
+} from "../types/scoreboard";
 import { RecordingService } from "./services/recordingService";
 import { SettingsService } from "./services/settingsService";
+import { VideoGeneratorService } from "./services/videoGeneratorService";
 
 // Global server instance
 let scoreboardServer: ScoreboardServer;
 let recordingService: RecordingService;
 let settingsService: SettingsService;
+let videoGeneratorService: VideoGeneratorService;
 let mainWindow: BrowserWindow | null = null;
 let overlayPreviewWindow: BrowserWindow | null = null;
 let overlayControlWindow: BrowserWindow | null = null;
+let videoGeneratorWindow: BrowserWindow | null = null;
 
 // Store current hotkey configuration
 let currentHotkeys: Record<
@@ -345,6 +353,39 @@ function closeOverlayWindows(): void {
 	}
 }
 
+function createVideoGeneratorWindow(): void {
+	// If window already exists, focus it
+	if (videoGeneratorWindow) {
+		videoGeneratorWindow.focus();
+		return;
+	}
+
+	videoGeneratorWindow = new BrowserWindow({
+		width: 900,
+		height: 700,
+		title: "Scoreboard Video Generator",
+		autoHideMenuBar: true,
+		...(process.platform === "linux" ? { icon } : {}),
+		webPreferences: {
+			preload: join(__dirname, "../preload/index.js"),
+			sandbox: false,
+			nodeIntegration: false,
+			contextIsolation: true,
+		},
+	});
+
+	videoGeneratorWindow.on("closed", () => {
+		videoGeneratorWindow = null;
+	});
+
+	// Load video-generator.html
+	if (is.dev && process.env["ELECTRON_RENDERER_URL"]) {
+		videoGeneratorWindow.loadURL(`${process.env["ELECTRON_RENDERER_URL"]}/video-generator.html`);
+	} else {
+		videoGeneratorWindow.loadFile(join(__dirname, "../renderer/video-generator.html"));
+	}
+}
+
 // This method will be called when Electron has finished
 // initialization and is ready to create browser windows.
 // Some APIs can only be used after this event occurs.
@@ -363,6 +404,7 @@ app.whenReady().then(() => {
 	scoreboardServer = new ScoreboardServer(3001);
 	recordingService = new RecordingService();
 	settingsService = new SettingsService();
+	videoGeneratorService = new VideoGeneratorService();
 
 	// Load settings
 	settingsService
@@ -448,6 +490,56 @@ app.whenReady().then(() => {
 			canceled: result.canceled,
 			path: result.filePaths[0],
 		};
+	});
+
+	// IPC handlers for video generation
+	ipcMain.on("video-generator:open-window", () => {
+		createVideoGeneratorWindow();
+	});
+
+	ipcMain.handle("video-generator:select-file", async () => {
+		const result = await dialog.showOpenDialog({
+			properties: ["openFile"],
+			title: "Select Recording File",
+			filters: [{ name: "JSON Files", extensions: ["json"] }],
+		});
+
+		return {
+			canceled: result.canceled,
+			filePath: result.filePaths[0],
+		};
+	});
+
+	ipcMain.handle("video-generator:load-recording", async (_event, filePath: string) => {
+		return videoGeneratorService.loadRecording(filePath);
+	});
+
+	ipcMain.handle("video-generator:select-output", async () => {
+		const result = await dialog.showSaveDialog({
+			title: "Save Video As",
+			defaultPath: "scoreboard-video.webm",
+			filters: [{ name: "WebM Video", extensions: ["webm"] }],
+		});
+
+		return {
+			canceled: result.canceled,
+			filePath: result.filePath,
+		};
+	});
+
+	ipcMain.handle("video-generator:generate", async (_event, config: VideoGenerationConfig) => {
+		// Set up progress callback to send updates to renderer
+		videoGeneratorService.setProgressCallback((progress: GenerationProgress) => {
+			if (videoGeneratorWindow && !videoGeneratorWindow.isDestroyed()) {
+				videoGeneratorWindow.webContents.send("video-generator:progress", progress);
+			}
+		});
+
+		return videoGeneratorService.generateVideo(config);
+	});
+
+	ipcMain.handle("video-generator:cancel", async () => {
+		await videoGeneratorService.cancel();
 	});
 
 	// IPC handler for hotkey synchronization

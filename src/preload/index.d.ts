@@ -1,5 +1,12 @@
 import { ElectronAPI } from "@electron-toolkit/preload";
-import { ScoreboardData, ScoreboardSnapshot, RecordingStatus } from "../types/scoreboard";
+import {
+	ScoreboardData,
+	ScoreboardSnapshot,
+	ScoreboardRecording,
+	RecordingStatus,
+	VideoGenerationConfig,
+	GenerationProgress,
+} from "../types/scoreboard";
 
 interface ScoreboardAPI {
 	// Scoreboard
@@ -45,6 +52,23 @@ interface ScoreboardAPI {
 	onOverlayWindowsClosed: (callback: () => void) => () => void;
 	onOverlayWindowsOpened: (callback: () => void) => () => void;
 	onResetOverlayState: (callback: () => void) => () => void;
+
+	// Video Generator
+	openVideoGenerator: () => void;
+	selectRecordingFile: () => Promise<{ canceled: boolean; filePath?: string }>;
+	loadRecording: (filePath: string) => Promise<{
+		success: boolean;
+		data?: ScoreboardRecording;
+		error?: string;
+	}>;
+	selectOutputFile: () => Promise<{ canceled: boolean; filePath?: string }>;
+	generateVideo: (config: VideoGenerationConfig) => Promise<{
+		success: boolean;
+		outputPath?: string;
+		error?: string;
+	}>;
+	cancelGeneration: () => Promise<void>;
+	onGenerationProgress: (callback: (progress: GenerationProgress) => void) => () => void;
 }
 
 declare global {

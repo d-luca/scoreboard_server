@@ -23,6 +23,8 @@ export default defineConfig({
 					index: resolve(__dirname, "src/renderer/index.html"),
 					"overlay-preview": resolve(__dirname, "src/renderer/overlay-preview.html"),
 					"overlay-control": resolve(__dirname, "src/renderer/overlay-control.html"),
+					"video-generator": resolve(__dirname, "src/renderer/video-generator.html"),
+					"scoreboard-renderer": resolve(__dirname, "src/renderer/scoreboard-renderer.html"),
 				},
 			},
 		},

@@ -1,7 +1,13 @@
 import { contextBridge, ipcRenderer } from "electron";
 import { electronAPI } from "@electron-toolkit/preload";
 
-import { ScoreboardData, ScoreboardSnapshot } from "../types/scoreboard";
+import {
+	ScoreboardData,
+	ScoreboardSnapshot,
+	ScoreboardRecording,
+	VideoGenerationConfig,
+	GenerationProgress,
+} from "../types/scoreboard";
 
 // Custom APIs for renderer
 const api = {
@@ -74,6 +80,28 @@ const api = {
 		const subscription = (): void => callback();
 		ipcRenderer.on("reset-overlay-state", subscription);
 		return () => ipcRenderer.removeListener("reset-overlay-state", subscription);
+	},
+
+	// Video Generator API
+	openVideoGenerator: () => ipcRenderer.send("video-generator:open-window"),
+	selectRecordingFile: (): Promise<{ canceled: boolean; filePath?: string }> =>
+		ipcRenderer.invoke("video-generator:select-file"),
+	loadRecording: (
+		filePath: string,
+	): Promise<{ success: boolean; data?: ScoreboardRecording; error?: string }> =>
+		ipcRenderer.invoke("video-generator:load-recording", filePath),
+	selectOutputFile: (): Promise<{ canceled: boolean; filePath?: string }> =>
+		ipcRenderer.invoke("video-generator:select-output"),
+	generateVideo: (
+		config: VideoGenerationConfig,
+	): Promise<{ success: boolean; outputPath?: string; error?: string }> =>
+		ipcRenderer.invoke("video-generator:generate", config),
+	cancelGeneration: (): Promise<void> => ipcRenderer.invoke("video-generator:cancel"),
+	onGenerationProgress: (callback: (progress: GenerationProgress) => void) => {
+		const subscription = (_event: Electron.IpcRendererEvent, progress: GenerationProgress): void =>
+			callback(progress);
+		ipcRenderer.on("video-generator:progress", subscription);
+		return () => ipcRenderer.removeListener("video-generator:progress", subscription);
 	},
 };
 

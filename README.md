@@ -1,4 +1,3 @@
-
 # Scoreboard Server
 
 <div align="center">
@@ -31,6 +30,7 @@ A professional real-time scoreboard application for live streaming and sports br
 ## ✨ Features
 
 ### Core Functionality
+
 - **Real-time Score Management** - Control home and away team scores with instant updates
 - **Game Timer** - Countdown timer with play, pause, and stop controls
 - **Half/Period Tracking** - Track game periods or halves with customizable labels
@@ -38,12 +38,14 @@ A professional real-time scoreboard application for live streaming and sports br
 - **Timer Loadouts** - Quick-access presets for common timer durations (e.g., 15:00, 45:00, 20:00)
 
 ### Advanced Features
+
 - **Overlay Mode** - Separate windows for controls and preview, perfect for multi-monitor setups
 - **Global Hotkeys** - Control everything without focusing the app window
 - **Browser Source Support** - Seamless integration with OBS Studio and streaming software
 - **WebSocket Server** - Real-time updates to all connected clients
 
 ### Customization
+
 - **Team Colors** - Visual color picker for team branding
 - **Custom Labels** - Rename teams and period/half prefixes
 - **Flexible Hotkeys** - Fully customizable keyboard shortcuts with duplicate detection
@@ -54,15 +56,18 @@ A professional real-time scoreboard application for live streaming and sports br
 ## 📸 Screenshots
 
 ### Main Application View
+
 ![Main app view](screenshots/image-1.png)
 
 ### Example Usage with OBS Studio
+
 ![OBS usage example](screenshots/image-2.png)
 
 <details>
 <summary><strong>Disclaimer about OBS Studio in screenshots</strong></summary>
 
 The OBS Studio interface shown in the screenshot is for demonstration purposes only. Scoreboard Server does not include, modify, or distribute any OBS Studio code or assets. The OBS Studio view is used solely to illustrate how Scoreboard Server can be integrated as a browser source in streaming setups. All rights to OBS Studio belong to their respective owners.
+
 </details>
 
 ---
@@ -82,18 +87,21 @@ This feature is available on all platforms and works in both the main window and
 ## 📦 Installation
 
 ### Prerequisites
+
 - **Node.js** 18+ and **pnpm** package manager
 - **Windows**, **macOS**, or **Linux**
 
 ### Quick Start
 
 1. **Clone the repository**
+
    ```bash
    git clone https://github.com/d-luca/scoreboard_server.git
    cd scoreboard_server
    ```
 
 2. **Install dependencies**
+
    ```bash
    pnpm install
    ```
@@ -112,6 +120,7 @@ This feature is available on all platforms and works in both the main window and
 When you launch Scoreboard Server, you'll see the main control interface with two sections:
 
 #### Scoreboard Controls
+
 - **Team Scores**: Use +/- buttons to adjust home and away scores
 - **Timer**: Start, pause, stop, and manually adjust the game timer
 - **Half/Period**: Track game periods with increment/decrement controls
@@ -119,6 +128,7 @@ When you launch Scoreboard Server, you'll see the main control interface with tw
 - **Reset**: Clear all scores and timer data
 
 #### Scoreboard Settings
+
 - **Overlay Mode**: Enable separate preview and control windows
 - **Team Names**: Customize home and away team names
 - **Team Colors**: Select brand colors for visual representation
@@ -126,7 +136,9 @@ When you launch Scoreboard Server, you'll see the main control interface with tw
 - **Timer Loadouts**: Configure three preset timer durations for play/pause time or whatever you need
 
 ### Scoreboard Feedback
+
 View your scoreboard design in real-time with the integrated preview. The scoreboard displays:
+
 - Team names with colored indicators
 - Current scores
 - Game timer (countdown format)
@@ -147,19 +159,23 @@ Overlay Mode is designed for streamers and broadcasters who need dedicated contr
    - **Overlay Controls**: Compact control panel with all functions
 
 ### Overlay Controls Window
+
 The compact control panel features:
+
 - **5-Column Layout**: Home, Away, Half, Timer Actions, Timer Values
 - **Visual Hotkey Indicators**: Each button shows its assigned hotkey
 - **Quick Access**: All controls accessible without switching windows
 - **Always on Top**: Stays visible while working in other applications
 
 ### Benefits
+
 - Control scoreboard from any window with global hotkeys
 - Keep preview visible while streaming
 - Compact interface perfect for small screens
 - Independent window positioning
 
 ### Disclaimer
+
 When in overlay mode, if the hotkeys are enabled, they will be globally registered, this mean that they will work even when you are not focusing the main app or the overlay
 
 ---
@@ -171,12 +187,14 @@ Scoreboard Server includes fully customizable global hotkeys that work even when
 ### Default Hotkeys
 
 #### Score Control
+
 - **Increase Home Score**: `W`
 - **Decrease Home Score**: `Q`
 - **Increase Away Score**: `E`
 - **Decrease Away Score**: `D`
 
 #### Timer Control
+
 - **Start Timer**: `Space`
 - **Pause Timer**: `P`
 - **Stop Timer**: `S`
@@ -186,15 +204,18 @@ Scoreboard Server includes fully customizable global hotkeys that work even when
 - **-1 Minute**: `Shift + ↓`
 
 #### Timer Loadouts
+
 - **Loadout 1**: `Ctrl + 1`
 - **Loadout 2**: `Ctrl + 2`
 - **Loadout 3**: `Ctrl + 3`
 
 #### Half/Period
+
 - **Increase Half**: `]`
 - **Decrease Half**: `[`
 
 #### Other
+
 - **Reset Scoreboard**: `Ctrl + Shift + R`
 
 ### Customizing Hotkeys
@@ -208,6 +229,7 @@ Scoreboard Server includes fully customizable global hotkeys that work even when
 7. Toggle **Enable Hotkeys** to temporarily disable all shortcuts
 
 ### Hotkey Features
+
 - **Modifier Support**: Combine with Ctrl, Alt, and Shift
 - **Conflict Detection**: Automatic duplicate detection
 - **Visual Feedback**: Hotkey badges on all buttons
@@ -230,6 +252,7 @@ Scoreboard Server includes fully customizable global hotkeys that work even when
 5. Control the scoreboard from the app while streaming
 
 ### Tips for Streaming
+
 - The scoreboard updates in real-time via WebSocket
 - Use **Overlay Mode** for better workflow during streams
 - Use hotkeys to control the scoreboard without switching windows
@@ -310,6 +333,7 @@ The built applications will be in the `dist/` directory.
 ### Build Configuration
 
 The build process uses `electron-builder`. Configuration is in `electron-builder.yml`:
+
 - **Product Name**: Scoreboard Server
 - **App ID**: `com.github.d-luca.scoreboard-server`
 - Includes SSR scoreboard files
@@ -320,6 +344,7 @@ The build process uses `electron-builder`. Configuration is in `electron-builder
 ## 🔧 Tech Stack
 
 ### Frontend
+
 - **React 19** - UI framework
 - **TypeScript** - Type-safe development
 - **Tailwind CSS 4** - Utility-first styling
@@ -327,12 +352,14 @@ The build process uses `electron-builder`. Configuration is in `electron-builder
 - **Radix UI** - Accessible component primitives
 
 ### Backend
+
 - **Electron 38** - Desktop application framework
 - **Express 5** - HTTP server
 - **WebSocket (ws)** - Real-time communication
 - **Node.js** - Runtime environment
 
 ### Build Tools
+
 - **Vite 7** - Fast bundler and dev server
 - **electron-vite** - Electron integration
 - **electron-builder** - Application packaging
