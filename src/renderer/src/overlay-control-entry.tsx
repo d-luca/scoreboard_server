@@ -20,43 +20,12 @@ export function OverlayControl(): React.JSX.Element {
 
 		void loadInitialData();
 
-		// Listen for global hotkey actions from main process
-		const unsubscribeHotkey = window.api.onGlobalHotkeyAction((action: string) => {
-			switch (action) {
-				case "startTimer":
-					store.startTimer();
-					break;
-				case "pauseTimer":
-					store.pauseTimer();
-					break;
-				case "stopTimer":
-					store.stopTimer();
-					break;
-				case "timerLoadout1":
-					if (store.timerLoadout1 !== undefined && store.timerLoadout1 >= 0) {
-						void store.setTimer(store.timerLoadout1);
-					}
-					break;
-				case "timerLoadout2":
-					if (store.timerLoadout2 !== undefined && store.timerLoadout2 >= 0) {
-						void store.setTimer(store.timerLoadout2);
-					}
-					break;
-				case "timerLoadout3":
-					if (store.timerLoadout3 !== undefined && store.timerLoadout3 >= 0) {
-						void store.setTimer(store.timerLoadout3);
-					}
-					break;
-			}
-		});
-
-		// Listen for scoreboard data updates from global hotkeys
+		// Listen for scoreboard data updates (timer state changes will come from main window)
 		const unsubscribeData = window.api.onScoreboardDataUpdate((data) => {
 			store.updateScoreboardDataFromExternal(data);
 		});
 
 		return () => {
-			unsubscribeHotkey();
 			unsubscribeData();
 		};
 	}, [store]);

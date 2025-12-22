@@ -53,6 +53,9 @@ interface ScoreboardAPI {
 	onRequestHotkeyEnabledState: (callback: () => void) => () => void;
 	onRequestHotkeys: (callback: () => void) => () => void;
 
+	// Timer action request (forwarded to main window)
+	requestTimerAction: (action: string) => void;
+
 	// Overlay
 	toggleOverlayMode: (hotkeyEnabled: boolean) => void;
 	enableOverlayMode: (hotkeyEnabled: boolean) => void;

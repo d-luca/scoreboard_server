@@ -123,11 +123,12 @@ function executeHotkeyAction(action: string): void {
 			};
 			scoreboardServer.updateScoreboardData(updatedData);
 			break;
-		// Timer control actions are handled via IPC
+		// Timer control actions are handled via IPC - send to main window
+		// since main window always has the correct timer state and owns the interval
 		default:
-			// Send IPC to overlay control window for timer actions
-			if (overlayControlWindow) {
-				overlayControlWindow.webContents.send("global-hotkey-action", action);
+			// Send IPC to main window for timer actions (it will broadcast state changes)
+			if (mainWindow) {
+				mainWindow.webContents.send("global-hotkey-action", action);
 			}
 			return; // Don't broadcast for timer control actions
 	}
@@ -567,6 +568,14 @@ app.whenReady().then(() => {
 
 	ipcMain.handle("video-generator:cancel", async () => {
 		await videoGeneratorService.cancel();
+	});
+
+	// IPC handler for timer action requests from any window
+	// This forwards the action to the main window which owns the timer interval
+	ipcMain.on("request-timer-action", (_event, action: string) => {
+		if (mainWindow) {
+			mainWindow.webContents.send("global-hotkey-action", action);
+		}
 	});
 
 	// IPC handler for hotkey synchronization

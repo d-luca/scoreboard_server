@@ -68,6 +68,9 @@ const api = {
 		ipcRenderer.on("request-hotkey-enabled-state", subscription);
 		return () => ipcRenderer.removeListener("request-hotkey-enabled-state", subscription);
 	},
+	// Timer action request (forwarded to main window)
+	requestTimerAction: (action: string) => ipcRenderer.send("request-timer-action", action),
+
 	// Overlay mode
 	toggleOverlayMode: (hotkeyEnabled: boolean) => ipcRenderer.send("toggle-overlay-mode", hotkeyEnabled),
 	enableOverlayMode: (hotkeyEnabled: boolean) => ipcRenderer.send("enable-overlay-mode", hotkeyEnabled),

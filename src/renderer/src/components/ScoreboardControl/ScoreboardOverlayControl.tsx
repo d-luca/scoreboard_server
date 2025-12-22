@@ -10,12 +10,30 @@ export function ScoreboardOverlayControl(): JSX.Element {
 	const { getHotkeyString } = useHotkeyStore();
 
 	const timerValue = store.timer ?? 0;
+
+	// Timer actions are delegated to main window to ensure proper interval management
+	const handleStartTimer = (): void => {
+		window.api.requestTimerAction("startTimer");
+	};
+
+	const handlePauseTimer = (): void => {
+		window.api.requestTimerAction("pauseTimer");
+	};
+
+	const handleStopTimer = (): void => {
+		window.api.requestTimerAction("stopTimer");
+	};
+
 	const handleToggleTimer = (): void => {
 		if (store.timerRunning) {
-			store.pauseTimer();
+			handlePauseTimer();
 		} else {
-			store.startTimer();
+			handleStartTimer();
 		}
+	};
+
+	const handleTimerLoadout = (loadoutNumber: 1 | 2 | 3): void => {
+		window.api.requestTimerAction(`timerLoadout${loadoutNumber}`);
 	};
 
 	return (
@@ -50,11 +68,7 @@ export function ScoreboardOverlayControl(): JSX.Element {
 						<Button
 							variant="outline"
 							className="flex flex-col items-center justify-center px-1 py-1"
-							onClick={() => {
-								if ((store.timerLoadout1 ?? 0) >= 0) {
-									void store.setTimer(store.timerLoadout1 ?? 0);
-								}
-							}}
+							onClick={() => handleTimerLoadout(1)}
 							title={`Hotkey: ${getHotkeyString("timerLoadout1")}`}
 							size="sm"
 						>
@@ -89,11 +103,7 @@ export function ScoreboardOverlayControl(): JSX.Element {
 						<Button
 							variant="outline"
 							className="flex flex-col items-center justify-center px-1 py-1"
-							onClick={() => {
-								if ((store.timerLoadout2 ?? 0) >= 0) {
-									void store.setTimer(store.timerLoadout2 ?? 0);
-								}
-							}}
+							onClick={() => handleTimerLoadout(2)}
 							title={`Hotkey: ${getHotkeyString("timerLoadout2")}`}
 							size="sm"
 						>
@@ -128,11 +138,7 @@ export function ScoreboardOverlayControl(): JSX.Element {
 						<Button
 							variant="outline"
 							className="flex flex-col items-center justify-center px-1 py-1"
-							onClick={() => {
-								if ((store.timerLoadout3 ?? 0) >= 0) {
-									void store.setTimer(store.timerLoadout3 ?? 0);
-								}
-							}}
+							onClick={() => handleTimerLoadout(3)}
 							title={`Hotkey: ${getHotkeyString("timerLoadout3")}`}
 							size="sm"
 						>
@@ -165,7 +171,7 @@ export function ScoreboardOverlayControl(): JSX.Element {
 						<Button
 							variant="destructive"
 							className="flex flex-col items-center justify-center px-1 py-2"
-							onClick={store.stopTimer}
+							onClick={handleStopTimer}
 							disabled={!store.timerRunning && (store.timer ?? 0) === 0}
 							title={`Hotkey: ${getHotkeyString("stopTimer")}`}
 							size="sm"

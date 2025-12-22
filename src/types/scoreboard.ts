@@ -9,6 +9,7 @@ export interface ScoreboardData {
 	half: number;
 	halfPrefix?: string;
 	eventLogo?: string;
+	isTimerRunning?: boolean;
 }
 
 export interface GameState extends ScoreboardData {
