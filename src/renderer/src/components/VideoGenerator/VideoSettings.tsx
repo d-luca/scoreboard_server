@@ -3,8 +3,7 @@ import { useVideoGeneratorStore } from "@renderer/stores/videoGeneratorStore";
 import { Button } from "../ui/Button/Button";
 
 export function VideoSettings(): JSX.Element {
-	const { outputPath, frameRate, scoreboardScale, selectOutputPath, setFrameRate, setScoreboardScale } =
-		useVideoGeneratorStore();
+	const { outputPath, frameRate, selectOutputPath, setFrameRate } = useVideoGeneratorStore();
 
 	return (
 		<div className="flex flex-col gap-4">
@@ -46,6 +45,7 @@ export function VideoSettings(): JSX.Element {
 					<span className="text-xs text-white/50">Higher FPS = smoother video, larger file</span>
 				</div>
 
+				{/* Does not work rigth now
 				<div className="flex flex-col gap-2">
 					<label className="text-sm font-medium text-white/70">Scoreboard Scale</label>
 					<div className="flex items-center gap-2">
@@ -69,7 +69,7 @@ export function VideoSettings(): JSX.Element {
 						/>
 					</div>
 					<span className="text-xs text-white/50">1.0 = 600×80px, 2.0 = 1200×160px</span>
-				</div>
+				</div> */}
 			</div>
 		</div>
 	);
