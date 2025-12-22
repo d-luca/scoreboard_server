@@ -6,16 +6,17 @@ import { CardContent } from "../ui/Card/CardContent";
 import { CardTitle } from "../ui/Card/CardTitle";
 
 export function RecordingControls(): JSX.Element {
-	const { isRecording, outputDir, startRecording, stopRecording, selectOutputDir } = useRecordingStore();
+	const { isRecording, outputDir, startRecording, stopRecording, selectOutputDir, duration } =
+		useRecordingStore();
 	const [isStarting, setIsStarting] = useState(false);
 	const [isStopping, setIsStopping] = useState(false);
 
 	// Format duration as MM:SS
-	// const formatDuration = (seconds: number): string => {
-	// 	const mins = Math.floor(seconds / 60);
-	// 	const secs = seconds % 60;
-	// 	return `${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
-	// };
+	const formatDuration = (seconds: number): string => {
+		const mins = Math.floor(seconds / 60);
+		const secs = seconds % 60;
+		return `${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
+	};
 
 	const handleStartRecording = async (): Promise<void> => {
 		setIsStarting(true);
@@ -57,9 +58,9 @@ export function RecordingControls(): JSX.Element {
 			<CardTitle className="flex items-center gap-2">
 				Record Scoreboard data
 				{isRecording && (
-					<span className="flex items-center gap-1 text-sm font-normal text-red-500">
-						<span className="animate-pulse leading-none">●</span>
-						Recording...
+					<span className="flex items-center gap-1 text-sm font-normal">
+						<span className="animate-pulse leading-none text-red-500">●</span>
+						{`REC ${formatDuration(duration)}`}
 					</span>
 				)}
 			</CardTitle>

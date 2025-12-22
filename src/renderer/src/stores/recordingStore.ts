@@ -178,3 +178,20 @@ export const useRecordingStore = create<RecordingState>((set, get) => ({
 window.api.getRecordingOutputDir().then((dir) => {
 	useRecordingStore.setState({ outputDir: dir });
 });
+
+// Subscribe to recording status changes from other windows
+window.api.onRecordingStatusChange((status) => {
+	// Update local state when another window changes recording status
+	useRecordingStore.setState({
+		isRecording: status.isRecording,
+		filePath: status.filePath || null,
+		snapshotCount: status.snapshotCount,
+		duration: status.duration,
+	});
+
+	// If recording stopped from another window, clear our interval
+	if (!status.isRecording && recordingInterval) {
+		clearInterval(recordingInterval);
+		recordingInterval = null;
+	}
+});

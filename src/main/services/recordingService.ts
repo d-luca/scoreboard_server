@@ -9,6 +9,18 @@ export class RecordingService {
 	private recordingStartTime: number | null = null;
 	private snapshotBuffer: ScoreboardSnapshot[] = [];
 	private bufferFlushInterval: NodeJS.Timeout | null = null;
+	private statusBroadcastCallback: ((status: ReturnType<RecordingService["getStatus"]>) => void) | null =
+		null;
+
+	setStatusBroadcastCallback(callback: (status: ReturnType<RecordingService["getStatus"]>) => void): void {
+		this.statusBroadcastCallback = callback;
+	}
+
+	private broadcastStatus(): void {
+		if (this.statusBroadcastCallback) {
+			this.statusBroadcastCallback(this.getStatus());
+		}
+	}
 
 	isRecording(): boolean {
 		return this.currentRecording !== null;
@@ -110,6 +122,9 @@ export class RecordingService {
 			this.snapshotBuffer.push(snapshot);
 			this.currentRecording.snapshots.push(snapshot);
 			this.currentRecording.metadata.totalSnapshots = this.currentRecording.snapshots.length;
+
+			// Broadcast status update
+			this.broadcastStatus();
 
 			return { success: true };
 		} catch (error) {

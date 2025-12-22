@@ -27,6 +27,23 @@ const api = {
 	setRecordingOutputDir: (path: string) => ipcRenderer.invoke("settings:set-recording-output-dir", path),
 	selectRecordingOutputDir: () => ipcRenderer.invoke("settings:select-recording-output-dir"),
 
+	// Recording status updates
+	onRecordingStatusChange: (
+		callback: (status: {
+			isRecording: boolean;
+			filePath?: string;
+			snapshotCount: number;
+			duration: number;
+		}) => void,
+	) => {
+		const subscription = (
+			_event: Electron.IpcRendererEvent,
+			status: { isRecording: boolean; filePath?: string; snapshotCount: number; duration: number },
+		): void => callback(status);
+		ipcRenderer.on("recording-status-changed", subscription);
+		return () => ipcRenderer.removeListener("recording-status-changed", subscription);
+	},
+
 	// Hotkey synchronization
 	onHotkeyUpdate: (callback: (hotkeys: string) => void) => {
 		const subscription = (_event: Electron.IpcRendererEvent, hotkeys: string): void => callback(hotkeys);

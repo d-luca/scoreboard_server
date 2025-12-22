@@ -406,6 +406,13 @@ app.whenReady().then(() => {
 	settingsService = new SettingsService();
 	videoGeneratorService = new VideoGeneratorService();
 
+	// Set up recording status broadcast callback
+	recordingService.setStatusBroadcastCallback((status) => {
+		BrowserWindow.getAllWindows().forEach((window) => {
+			window.webContents.send("recording-status-changed", status);
+		});
+	});
+
 	// Load settings
 	settingsService
 		.load()
@@ -448,7 +455,17 @@ app.whenReady().then(() => {
 	// IPC handlers for recording
 	ipcMain.handle("recording:start", async (_event, config: { homeName: string; awayName: string }) => {
 		const outputDir = await settingsService.getRecordingOutputDir();
-		return recordingService.startRecording(outputDir, config.homeName, config.awayName);
+		const result = await recordingService.startRecording(outputDir, config.homeName, config.awayName);
+
+		// Broadcast status change to all windows
+		if (result.success) {
+			const status = recordingService.getStatus();
+			BrowserWindow.getAllWindows().forEach((window) => {
+				window.webContents.send("recording-status-changed", status);
+			});
+		}
+
+		return result;
 	});
 
 	ipcMain.handle("recording:write-snapshot", async (_event, snapshot: ScoreboardSnapshot) => {
@@ -456,7 +473,17 @@ app.whenReady().then(() => {
 	});
 
 	ipcMain.handle("recording:stop", async () => {
-		return recordingService.stopRecording();
+		const result = await recordingService.stopRecording();
+
+		// Broadcast status change to all windows
+		if (result.success) {
+			const status = recordingService.getStatus();
+			BrowserWindow.getAllWindows().forEach((window) => {
+				window.webContents.send("recording-status-changed", status);
+			});
+		}
+
+		return result;
 	});
 
 	ipcMain.handle("recording:get-status", async () => {

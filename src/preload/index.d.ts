@@ -34,6 +34,16 @@ interface ScoreboardAPI {
 	setRecordingOutputDir: (path: string) => Promise<{ success: boolean; error?: string }>;
 	selectRecordingOutputDir: () => Promise<{ canceled: boolean; path?: string }>;
 
+	// Recording status updates
+	onRecordingStatusChange: (
+		callback: (status: {
+			isRecording: boolean;
+			filePath?: string;
+			snapshotCount: number;
+			duration: number;
+		}) => void,
+	) => () => void;
+
 	// Hotkeys
 	onHotkeyUpdate: (callback: (hotkeys: string) => void) => () => void;
 	notifyHotkeyUpdate: (hotkeys: string) => void;
