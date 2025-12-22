@@ -6,17 +6,16 @@ import { CardContent } from "../ui/Card/CardContent";
 import { CardTitle } from "../ui/Card/CardTitle";
 
 export function RecordingControls(): JSX.Element {
-	const { isRecording, snapshotCount, duration, outputDir, startRecording, stopRecording, selectOutputDir } =
-		useRecordingStore();
+	const { isRecording, outputDir, startRecording, stopRecording, selectOutputDir } = useRecordingStore();
 	const [isStarting, setIsStarting] = useState(false);
 	const [isStopping, setIsStopping] = useState(false);
 
 	// Format duration as MM:SS
-	const formatDuration = (seconds: number): string => {
-		const mins = Math.floor(seconds / 60);
-		const secs = seconds % 60;
-		return `${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
-	};
+	// const formatDuration = (seconds: number): string => {
+	// 	const mins = Math.floor(seconds / 60);
+	// 	const secs = seconds % 60;
+	// 	return `${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
+	// };
 
 	const handleStartRecording = async (): Promise<void> => {
 		setIsStarting(true);
@@ -56,10 +55,10 @@ export function RecordingControls(): JSX.Element {
 	return (
 		<Card className="flex w-full flex-col gap-4">
 			<CardTitle className="flex items-center gap-2">
-				Recording
+				Record Scoreboard data
 				{isRecording && (
-					<span className="flex items-center gap-2 text-sm font-normal text-red-500">
-						<span className="animate-pulse text-2xl">●</span>
+					<span className="flex items-center gap-1 text-sm font-normal text-red-500">
+						<span className="animate-pulse leading-none">●</span>
 						Recording...
 					</span>
 				)}
@@ -85,7 +84,7 @@ export function RecordingControls(): JSX.Element {
 				</div>
 
 				{/* Recording Stats */}
-				{isRecording && (
+				{/* {isRecording && (
 					<div className="grid grid-cols-2 gap-4">
 						<div className="flex flex-col gap-1 rounded border border-white/10 bg-gray-800 p-3">
 							<span className="text-xs text-white/50">Duration</span>
@@ -96,7 +95,7 @@ export function RecordingControls(): JSX.Element {
 							<span className="text-xl font-bold text-white">{snapshotCount}</span>
 						</div>
 					</div>
-				)}
+				)} */}
 
 				{/* Recording Controls */}
 				<div className="flex gap-2">

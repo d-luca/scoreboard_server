@@ -5,6 +5,7 @@ import { useKeyboardControls } from "@renderer/hooks/useKeyboardControls";
 import { HotkeySettings } from "@renderer/components/HotkeySettings";
 import { ScoreboardControl } from "@renderer/components/ScoreboardControl";
 import { ScoreboardFeedback } from "@renderer/components/ScoreboardFeedback";
+import { RecordingControls } from "@renderer/components/RecordingControls";
 
 export function ScoreboardMain(): JSX.Element {
 	const store = useScoreboardStore();
@@ -38,6 +39,7 @@ export function ScoreboardMain(): JSX.Element {
 		<div className="flex size-full gap-4">
 			<div className="flex h-full w-full flex-col gap-4">
 				<ScoreboardFeedback />
+				<RecordingControls />
 				<HotkeySettings />
 			</div>
 			<div className="flex h-full w-full flex-col gap-4 overflow-hidden">
