@@ -57,6 +57,26 @@ export function TimerControl(): JSX.Element {
 			<div className="flex w-full flex-col gap-2">
 				<div className="flex w-full gap-2">
 					<Button
+						className="flex w-1/2 flex-col items-center justify-center p-0 px-2"
+						onClick={store.increaseTimerByOneSecond}
+						title={`Hotkey: ${getHotkeyString("increaseTimerSecond")}`}
+						size="lg"
+					>
+						+1s
+						<HotkeyBadge hotkey={getHotkeyString("increaseTimerSecond")} />
+					</Button>
+					<Button
+						className="flex w-1/2 flex-col items-center justify-center p-0 px-2"
+						onClick={store.increaseTimerByOneMinute}
+						title={`Hotkey: ${getHotkeyString("increaseTimerMinute")}`}
+						size="lg"
+					>
+						+1m
+						<HotkeyBadge hotkey={getHotkeyString("increaseTimerMinute")} />
+					</Button>
+				</div>
+				<div className="flex w-full gap-2">
+					<Button
 						variant="destructive"
 						className="flex w-1/2 flex-col items-center justify-center p-0 px-2"
 						onClick={store.decreaseTimerByOneSecond}
@@ -67,17 +87,6 @@ export function TimerControl(): JSX.Element {
 						<HotkeyBadge hotkey={getHotkeyString("decreaseTimerSecond")} />
 					</Button>
 					<Button
-						className="flex w-1/2 flex-col items-center justify-center p-0 px-2"
-						onClick={store.increaseTimerByOneSecond}
-						title={`Hotkey: ${getHotkeyString("increaseTimerSecond")}`}
-						size="lg"
-					>
-						+1s
-						<HotkeyBadge hotkey={getHotkeyString("increaseTimerSecond")} />
-					</Button>
-				</div>
-				<div className="flex w-full gap-2">
-					<Button
 						variant="destructive"
 						className="flex w-1/2 flex-col items-center justify-center p-0 px-2"
 						onClick={store.decreaseTimerByOneMinute}
@@ -86,15 +95,6 @@ export function TimerControl(): JSX.Element {
 					>
 						-1m
 						<HotkeyBadge hotkey={getHotkeyString("decreaseTimerMinute")} />
-					</Button>
-					<Button
-						className="flex w-1/2 flex-col items-center justify-center p-0 px-2"
-						onClick={store.increaseTimerByOneMinute}
-						title={`Hotkey: ${getHotkeyString("increaseTimerMinute")}`}
-						size="lg"
-					>
-						+1m
-						<HotkeyBadge hotkey={getHotkeyString("increaseTimerMinute")} />
 					</Button>
 				</div>
 			</div>
