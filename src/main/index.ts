@@ -303,7 +303,7 @@ function createOverlayControlWindow(): void {
 
 	overlayControlWindow = new BrowserWindow({
 		width: 500,
-		height: 200,
+		height: 250,
 		x: width - 550,
 		y: height - 250,
 		show: false,

@@ -3,7 +3,7 @@ import { useRecordingStore } from "@renderer/stores/recordingStore";
 import { Button } from "../ui/Button/Button";
 
 export function RecordingControlsCompact(): JSX.Element {
-	const { isRecording, duration, snapshotCount, startRecording, stopRecording } = useRecordingStore();
+	const { isRecording, duration, startRecording, stopRecording } = useRecordingStore();
 	const [isStarting, setIsStarting] = useState(false);
 	const [isStopping, setIsStopping] = useState(false);
 
@@ -36,15 +36,15 @@ export function RecordingControlsCompact(): JSX.Element {
 	};
 
 	return (
-		<div className="flex flex-col gap-2 rounded-lg border border-white/10 bg-gray-900 p-2 shadow-2xl backdrop-blur-md">
+		<div className="flex gap-2 rounded-lg border border-white/10 bg-gray-900 p-2 shadow-2xl backdrop-blur-md">
 			<div className="flex items-center justify-between gap-2">
 				<div className="flex items-center gap-2">
 					{isRecording && <span className="animate-pulse text-xl text-red-500">●</span>}
 					<span className="text-xs font-medium text-white/70">
-						{isRecording ? `REC ${formatDuration(duration)}` : "Recording"}
+						{isRecording ? `REC ${formatDuration(duration)}` : "Record Scoreboard data"}
 					</span>
 				</div>
-				{isRecording && <span className="text-xs text-white/50">{snapshotCount} snaps</span>}
+				{/* {isRecording && <span className="text-xs text-white/50">{snapshotCount} snaps</span>} */}
 			</div>
 
 			{!isRecording ? (
