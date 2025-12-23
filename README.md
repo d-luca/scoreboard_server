@@ -5,7 +5,7 @@
 A professional real-time scoreboard application for live streaming and sports broadcasting, built with Electron, React, and TypeScript.
 
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/version-0.2.1-green.svg)](package.json)
+[![Version](https://img.shields.io/badge/version-0.2.3-green.svg)](package.json)
 
 </div>
 
@@ -18,6 +18,8 @@ A professional real-time scoreboard application for live streaming and sports br
 - [Installation](#-installation)
 - [Usage](#-usage)
 - [Overlay Mode](#-overlay-mode)
+- [Match Recording](#-match-recording)
+- [Video Generator](#-video-generator)
 - [Hotkey Configuration](#-hotkey-configuration)
 - [OBS Studio Integration](#-obs-studio-integration)
 - [Development](#-development)
@@ -43,6 +45,8 @@ A professional real-time scoreboard application for live streaming and sports br
 - **Global Hotkeys** - Control everything without focusing the app window
 - **Browser Source Support** - Seamless integration with OBS Studio and streaming software
 - **WebSocket Server** - Real-time updates to all connected clients
+- **Match Recording** - Record every second of your match for later review or video generation
+- **Video Generator** - Create highlight videos from your recorded match data
 
 ### Customization
 
@@ -177,6 +181,60 @@ The compact control panel features:
 ### Disclaimer
 
 When in overlay mode, if the hotkeys are enabled, they will be globally registered, this mean that they will work even when you are not focusing the main app or the overlay
+
+---
+
+## 🎬 Match Recording
+
+Scoreboard Server can record all scoreboard data during a match, capturing a snapshot every second. This data can be used to generate later a video with the scoreboard, useful for embedding the scoreboard on videos using other video editing programs.
+
+### Starting a Recording
+
+1. Navigate to the **Recording Controls** section in the main window or overlay controls
+2. (Optional) Click **Change Directory** to select where recordings are saved
+3. Click the **Record** button (🔴) to start recording
+4. The recording indicator will show the elapsed time and snapshot count
+5. Click **Stop** (⬛) to end the recording
+
+### Recording Output
+
+- Recordings are saved as JSON files with the naming format: `{HomeTeam}-{AwayTeam}-{Timestamp}.json`
+- Each recording contains:
+  - **Metadata**: Team names, recording ID, start/end times
+  - **Snapshots**: One per second, containing scores, timer, half, team colors, and timestamps
+
+### Recording Features
+
+- **Background Recording**: Snapshots are captured in the main process, ensuring reliable 1-second intervals even when the app window is minimized
+- **Multi-Window Support**: Recording status is synced across all windows (main app and overlay)
+- **Compact Controls**: Recording controls are available in both the main window and the compact overlay control panel
+
+---
+
+## 🎥 Video Generator
+
+The Video Generator allows you to create video files from your recorded match data. This is useful for embedding the scoreboard on videos using other video editing programs.
+
+### Opening the Video Generator
+
+1. From the main application, click **Open Video Generator** in the toolbar or settings
+2. A new window will open with the video generation interface
+
+### Generating a Video
+
+1. **Select Recording File**: Click **Browse** to select a previously saved `.json` recording file
+2. **Review Recording Info**: The generator displays metadata about the recording (teams, duration, snapshots)
+3. **Select Output File**: Click **Browse** next to Output File to choose where to save the video
+4. **Configure Settings**:
+   - **Frame Rate**: Choose from 1 to 60 FPS (default 30FPS)
+5. **Generate**: Click **Generate Video** to start the rendering process
+6. **Monitor Progress**: A progress bar shows the current rendering status
+7. **Cancel**: You can cancel generation at any time if needed
+
+### Tips
+
+- Longer recordings will take more time to render
+- Higher frame rates increase rendering time and file size
 
 ---
 
