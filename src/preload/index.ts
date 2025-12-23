@@ -68,6 +68,33 @@ const api = {
 		ipcRenderer.on("request-hotkey-enabled-state", subscription);
 		return () => ipcRenderer.removeListener("request-hotkey-enabled-state", subscription);
 	},
+	// Timer control handoff between windows
+	onSurrenderTimerControl: (callback: () => { timer: number; isRunning: boolean }) => {
+		const subscription = (): void => {
+			const state = callback();
+			ipcRenderer.send("timer-control-surrendered", state);
+		};
+		ipcRenderer.on("surrender-timer-control", subscription);
+		return () => ipcRenderer.removeListener("surrender-timer-control", subscription);
+	},
+	onReceiveTimerControl: (callback: (state: { timer: number; isRunning: boolean }) => void) => {
+		const subscription = (
+			_event: Electron.IpcRendererEvent,
+			state: { timer: number; isRunning: boolean },
+		): void => callback(state);
+		ipcRenderer.on("receive-timer-control", subscription);
+		return () => ipcRenderer.removeListener("receive-timer-control", subscription);
+	},
+	surrenderTimerBeforeClose: (state: { timer: number; isRunning: boolean }) =>
+		ipcRenderer.send("overlay-timer-surrender", state),
+	signalOverlayReady: () => ipcRenderer.send("overlay-ready"),
+
+	// Main process timer - never throttled
+	mainTimerStart: () => ipcRenderer.send("main-timer:start"),
+	mainTimerPause: () => ipcRenderer.send("main-timer:pause"),
+	mainTimerStop: () => ipcRenderer.send("main-timer:stop"),
+	mainTimerIsRunning: (): Promise<boolean> => ipcRenderer.invoke("main-timer:is-running"),
+
 	// Timer action request (forwarded to main window)
 	requestTimerAction: (action: string) => ipcRenderer.send("request-timer-action", action),
 

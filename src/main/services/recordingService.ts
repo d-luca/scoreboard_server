@@ -1,7 +1,7 @@
 import { promises as fs } from "fs";
 import { join } from "path";
 import { v4 as uuidv4 } from "uuid";
-import { ScoreboardRecording, ScoreboardSnapshot } from "../../types/scoreboard";
+import { ScoreboardRecording, ScoreboardSnapshot, ScoreboardData } from "../../types/scoreboard";
 
 export class RecordingService {
 	private currentRecording: ScoreboardRecording | null = null;
@@ -9,11 +9,18 @@ export class RecordingService {
 	private recordingStartTime: number | null = null;
 	private snapshotBuffer: ScoreboardSnapshot[] = [];
 	private bufferFlushInterval: NodeJS.Timeout | null = null;
+	private snapshotCaptureInterval: NodeJS.Timeout | null = null;
+	private relativeTime: number = 0;
 	private statusBroadcastCallback: ((status: ReturnType<RecordingService["getStatus"]>) => void) | null =
 		null;
+	private getScoreboardDataCallback: (() => ScoreboardData) | null = null;
 
 	setStatusBroadcastCallback(callback: (status: ReturnType<RecordingService["getStatus"]>) => void): void {
 		this.statusBroadcastCallback = callback;
+	}
+
+	setGetScoreboardDataCallback(callback: () => ScoreboardData): void {
+		this.getScoreboardDataCallback = callback;
 	}
 
 	private broadcastStatus(): void {
@@ -89,6 +96,12 @@ export class RecordingService {
 			this.bufferFlushInterval = setInterval(() => {
 				void this.flushBuffer();
 			}, 5000);
+
+			// Start snapshot capture interval (every 1 second) - runs in main process, never throttled
+			this.relativeTime = 0;
+			this.snapshotCaptureInterval = setInterval(() => {
+				void this.captureSnapshot();
+			}, 1000);
 
 			console.log(`Recording started: ${this.currentFilePath}`);
 
@@ -197,6 +210,40 @@ export class RecordingService {
 		}
 	}
 
+	private async captureSnapshot(): Promise<void> {
+		if (!this.isRecording() || !this.currentRecording || !this.getScoreboardDataCallback) {
+			return;
+		}
+
+		try {
+			const data = this.getScoreboardDataCallback();
+
+			const snapshot: ScoreboardSnapshot = {
+				timestamp: Date.now(),
+				relativeTime: this.relativeTime++,
+				teamHomeName: data.teamHomeName || "HOME",
+				teamAwayName: data.teamAwayName || "AWAY",
+				teamHomeColor: data.teamHomeColor || "#00ff00",
+				teamAwayColor: data.teamAwayColor || "#ff0000",
+				teamHomeScore: data.teamHomeScore || 0,
+				teamAwayScore: data.teamAwayScore || 0,
+				timer: data.timer || 0,
+				half: data.half || 1,
+				halfPrefix: data.halfPrefix || "PERIODO",
+			};
+
+			// Add snapshot to buffer and recording
+			this.snapshotBuffer.push(snapshot);
+			this.currentRecording.snapshots.push(snapshot);
+			this.currentRecording.metadata.totalSnapshots = this.currentRecording.snapshots.length;
+
+			// Broadcast status update
+			this.broadcastStatus();
+		} catch (error) {
+			console.error("Failed to capture snapshot:", error);
+		}
+	}
+
 	private async writeToFile(): Promise<void> {
 		if (!this.currentRecording || !this.currentFilePath) return;
 
@@ -208,10 +255,15 @@ export class RecordingService {
 			clearInterval(this.bufferFlushInterval);
 			this.bufferFlushInterval = null;
 		}
+		if (this.snapshotCaptureInterval) {
+			clearInterval(this.snapshotCaptureInterval);
+			this.snapshotCaptureInterval = null;
+		}
 		this.currentRecording = null;
 		this.currentFilePath = null;
 		this.recordingStartTime = null;
 		this.snapshotBuffer = [];
+		this.relativeTime = 0;
 	}
 
 	private sanitizeFilename(name: string): string {

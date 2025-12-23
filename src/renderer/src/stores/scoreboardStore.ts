@@ -36,6 +36,10 @@ interface ScoreboardState extends ScoreboardStoreData {
 	pauseTimer: () => void;
 	stopTimer: () => void;
 
+	// Timer control handoff
+	surrenderTimerControl: () => { timer: number; isRunning: boolean };
+	receiveTimerControl: (state: { timer: number; isRunning: boolean }) => void;
+
 	// Bulk update action
 	updateScoreboardData: (data: Partial<ScoreboardProps>) => void;
 	// Bulk update from external source (doesn't call API)
@@ -61,15 +65,6 @@ const defaultScoreboardData: ScoreboardStoreData = {
 	timerLoadout2: 45 * 60,
 	timerLoadout3: 20 * 60,
 	timerRunning: false,
-};
-
-let timerInterval: ReturnType<typeof setInterval> | null = null;
-
-const clearTimerInterval = (): void => {
-	if (timerInterval !== null) {
-		clearInterval(timerInterval);
-		timerInterval = null;
-	}
 };
 
 export const useScoreboardStore = create<ScoreboardState>((set, get) => ({
@@ -101,7 +96,8 @@ export const useScoreboardStore = create<ScoreboardState>((set, get) => ({
 			timer: sanitizedTimer,
 		});
 		if (sanitizedTimer <= 0) {
-			clearTimerInterval();
+			// Stop the main process timer if timer is set to 0
+			window.api.mainTimerPause();
 			return set({ timer: 0, timerRunning: false });
 		}
 		return set({ timer: sanitizedTimer });
@@ -212,7 +208,7 @@ export const useScoreboardStore = create<ScoreboardState>((set, get) => ({
 			timer: newTimer,
 		});
 		if (newTimer <= 0) {
-			clearTimerInterval();
+			window.api.mainTimerPause();
 			return set({ timer: 0, timerRunning: false });
 		}
 		return set({ timer: newTimer });
@@ -232,58 +228,37 @@ export const useScoreboardStore = create<ScoreboardState>((set, get) => ({
 			timer: newTimer,
 		});
 		if (newTimer <= 0) {
-			clearTimerInterval();
+			window.api.mainTimerPause();
 			return set({ timer: 0, timerRunning: false });
 		}
 		return set({ timer: newTimer });
 	},
+	// Timer controls now delegate to main process timer (never throttled)
 	startTimer: () => {
-		if (get().timerRunning) {
-			return;
-		}
-		const currentTimer = get().timer ?? 0;
-		if (currentTimer <= 0) {
-			return;
-		}
-		clearTimerInterval();
-		set({ timerRunning: true });
-		// Broadcast that timer is running to all windows
-		void window.api.updateScoreboardData({ timer: currentTimer, isTimerRunning: true });
-		timerInterval = setInterval(() => {
-			set((state) => {
-				const timerValue = state.timer ?? 0;
-				if (timerValue <= 0) {
-					clearTimerInterval();
-					return { timer: 0, timerRunning: false };
-				}
-				const newTimer = timerValue - 1;
-				void window.api.updateScoreboardData({
-					timer: newTimer,
-				});
-				if (newTimer <= 0) {
-					clearTimerInterval();
-					return { timer: newTimer, timerRunning: false };
-				}
-				return { timer: newTimer };
-			});
-		}, 1000);
+		window.api.mainTimerStart();
 	},
 	pauseTimer: () => {
-		if (!get().timerRunning) {
-			return;
-		}
-		clearTimerInterval();
-		set({ timerRunning: false });
-		// Broadcast current timer value to sync with other windows
-		void window.api.updateScoreboardData({ timer: get().timer ?? 0, isTimerRunning: false });
+		window.api.mainTimerPause();
 	},
 	stopTimer: () => {
-		clearTimerInterval();
-		void window.api.updateScoreboardData({
-			timer: 0,
-			isTimerRunning: false,
-		});
-		set({ timer: 0, timerRunning: false });
+		window.api.mainTimerStop();
+	},
+
+	// Timer control handoff - called when this window must give up timer control
+	// Pauses the main process timer - user must manually resume
+	surrenderTimerControl: () => {
+		const currentTimer = get().timer ?? 0;
+		// Pause the main process timer
+		window.api.mainTimerPause();
+		set({ timerRunning: false });
+		return { timer: currentTimer, isRunning: false };
+	},
+
+	// Timer control handoff - called when this window receives timer control
+	// Timer is always paused during handoff - user must manually start it
+	receiveTimerControl: (state: { timer: number; isRunning: boolean }) => {
+		// Just update the local state - main process timer handles everything
+		set({ timer: state.timer, timerRunning: false });
 	},
 
 	// Bulk update
@@ -293,37 +268,18 @@ export const useScoreboardStore = create<ScoreboardState>((set, get) => ({
 	},
 
 	// Bulk update from external source (like IPC) - doesn't call API
+	// Timer is now controlled by main process, so just update the local state
 	updateScoreboardDataFromExternal: (data) => {
-		const currentState = get();
-
-		// Handle timer running state updates from other windows
+		// Map isTimerRunning to timerRunning for local state
 		if (data.isTimerRunning !== undefined) {
-			if (data.isTimerRunning && !currentState.timerRunning) {
-				// Another window started the timer
-				// Don't start our own interval - just update UI state to show it's running
-				// The window that started the timer owns the countdown interval
-				set((state) => ({ ...state, ...data, timerRunning: true }));
-				return;
-			} else if (!data.isTimerRunning && currentState.timerRunning) {
-				// Timer was paused/stopped
-				// Only clear our interval if WE had one running
-				if (timerInterval !== null) {
-					clearTimerInterval();
-				}
-				set((state) => ({ ...state, ...data, timerRunning: false }));
-				return;
-			}
-			// If states match, just update data normally (fall through)
+			return set((state) => ({ ...state, ...data, timerRunning: data.isTimerRunning }));
 		}
-
-		// For regular updates (timer values, scores, etc.), just update the state
-		// Don't interfere with any running interval
 		return set((state) => ({ ...state, ...data }));
 	},
 
 	// Reset to defaults
 	reset: async () => {
-		clearTimerInterval();
+		window.api.mainTimerStop();
 		await window.api.updateScoreboardData(defaultScoreboardData);
 		return set(defaultScoreboardData);
 	},

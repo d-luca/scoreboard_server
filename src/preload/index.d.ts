@@ -53,6 +53,18 @@ interface ScoreboardAPI {
 	onRequestHotkeyEnabledState: (callback: () => void) => () => void;
 	onRequestHotkeys: (callback: () => void) => () => void;
 
+	// Timer control handoff between windows
+	onSurrenderTimerControl: (callback: () => { timer: number; isRunning: boolean }) => () => void;
+	onReceiveTimerControl: (callback: (state: { timer: number; isRunning: boolean }) => void) => () => void;
+	surrenderTimerBeforeClose: (state: { timer: number; isRunning: boolean }) => void;
+	signalOverlayReady: () => void;
+
+	// Main process timer - never throttled
+	mainTimerStart: () => void;
+	mainTimerPause: () => void;
+	mainTimerStop: () => void;
+	mainTimerIsRunning: () => Promise<boolean>;
+
 	// Timer action request (forwarded to main window)
 	requestTimerAction: (action: string) => void;
 

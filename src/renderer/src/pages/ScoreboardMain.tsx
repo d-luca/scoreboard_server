@@ -61,9 +61,21 @@ export function ScoreboardMain(): JSX.Element {
 			store.updateScoreboardDataFromExternal(data);
 		});
 
+		// Listen for timer control surrender request (when overlay opens)
+		const unsubscribeSurrender = window.api.onSurrenderTimerControl(() => {
+			return store.surrenderTimerControl();
+		});
+
+		// Listen for timer control receive (when overlay closes)
+		const unsubscribeReceive = window.api.onReceiveTimerControl((state) => {
+			store.receiveTimerControl(state);
+		});
+
 		return () => {
 			unsubscribeHotkey();
 			unsubscribeData();
+			unsubscribeSurrender();
+			unsubscribeReceive();
 		};
 		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, []);

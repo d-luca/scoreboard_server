@@ -168,6 +168,7 @@ export class VideoGeneratorService {
 				offscreen: true,
 				nodeIntegration: false,
 				contextIsolation: true,
+				backgroundThrottling: false,
 			},
 		});
 

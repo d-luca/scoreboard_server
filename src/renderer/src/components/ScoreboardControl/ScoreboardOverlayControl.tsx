@@ -5,35 +5,37 @@ import { useHotkeyStore } from "@renderer/stores/hotkeyStore";
 import { HotkeyBadge } from "../ui/HotkeyBadge";
 import { RecordingControlsCompact } from "../RecordingControls";
 
-export function ScoreboardOverlayControl(): JSX.Element {
+interface TimerControls {
+	startTimer: () => void;
+	pauseTimer: () => void;
+	stopTimer: () => void;
+}
+
+interface ScoreboardOverlayControlProps {
+	timerControls: TimerControls;
+}
+
+export function ScoreboardOverlayControl({ timerControls }: ScoreboardOverlayControlProps): JSX.Element {
 	const store = useScoreboardStore();
 	const { getHotkeyString } = useHotkeyStore();
 
 	const timerValue = store.timer ?? 0;
 
-	// Timer actions are delegated to main window to ensure proper interval management
-	const handleStartTimer = (): void => {
-		window.api.requestTimerAction("startTimer");
-	};
-
-	const handlePauseTimer = (): void => {
-		window.api.requestTimerAction("pauseTimer");
-	};
-
-	const handleStopTimer = (): void => {
-		window.api.requestTimerAction("stopTimer");
-	};
-
+	// Timer actions use the Web Worker-based timer controls
 	const handleToggleTimer = (): void => {
 		if (store.timerRunning) {
-			handlePauseTimer();
+			timerControls.pauseTimer();
 		} else {
-			handleStartTimer();
+			timerControls.startTimer();
 		}
 	};
 
 	const handleTimerLoadout = (loadoutNumber: 1 | 2 | 3): void => {
-		window.api.requestTimerAction(`timerLoadout${loadoutNumber}`);
+		const loadoutKey = `timerLoadout${loadoutNumber}` as const;
+		const loadoutValue = store[loadoutKey];
+		if (loadoutValue !== undefined && loadoutValue >= 0) {
+			void store.setTimer(loadoutValue);
+		}
 	};
 
 	return (
@@ -171,7 +173,7 @@ export function ScoreboardOverlayControl(): JSX.Element {
 						<Button
 							variant="destructive"
 							className="flex flex-col items-center justify-center px-1 py-2"
-							onClick={handleStopTimer}
+							onClick={timerControls.stopTimer}
 							disabled={!store.timerRunning && (store.timer ?? 0) === 0}
 							title={`Hotkey: ${getHotkeyString("stopTimer")}`}
 							size="sm"

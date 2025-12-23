@@ -1,6 +1,4 @@
 import { create } from "zustand";
-import { useScoreboardStore } from "./scoreboardStore";
-import { ScoreboardSnapshot } from "../../../types/scoreboard";
 
 interface RecordingState {
 	isRecording: boolean;
@@ -18,8 +16,6 @@ interface RecordingState {
 	selectOutputDir: () => Promise<void>;
 }
 
-let recordingInterval: ReturnType<typeof setInterval> | null = null;
-
 export const useRecordingStore = create<RecordingState>((set, get) => ({
 	isRecording: false,
 	recordingId: null,
@@ -35,7 +31,9 @@ export const useRecordingStore = create<RecordingState>((set, get) => ({
 			return;
 		}
 
-		// Get current team names
+		// Get current team names from scoreboard
+		// Import dynamically to avoid circular dependency
+		const { useScoreboardStore } = await import("./scoreboardStore");
 		const scoreboardState = useScoreboardStore.getState();
 		const homeName = scoreboardState.teamHomeName || "HOME";
 		const awayName = scoreboardState.teamAwayName || "AWAY";
@@ -52,35 +50,7 @@ export const useRecordingStore = create<RecordingState>((set, get) => ({
 					duration: 0,
 				});
 
-				// Start recording interval - capture snapshot every 1 second
-				let relativeTime = 0;
-				recordingInterval = setInterval(async () => {
-					const currentState = useScoreboardStore.getState();
-
-					const snapshot: ScoreboardSnapshot = {
-						timestamp: Date.now(),
-						relativeTime: relativeTime++,
-						teamHomeName: currentState.teamHomeName || "HOME",
-						teamAwayName: currentState.teamAwayName || "AWAY",
-						teamHomeColor: currentState.teamHomeColor || "#00ff00",
-						teamAwayColor: currentState.teamAwayColor || "#ff0000",
-						teamHomeScore: currentState.teamHomeScore || 0,
-						teamAwayScore: currentState.teamAwayScore || 0,
-						timer: currentState.timer || 0,
-						half: currentState.half || 1,
-						halfPrefix: currentState.halfPrefix || "PERIODO",
-					};
-
-					const writeResult = await window.api.writeSnapshot(snapshot);
-
-					if (writeResult.success) {
-						// Update status
-						await get().updateStatus();
-					} else {
-						console.error("Failed to write snapshot:", writeResult.error);
-					}
-				}, 1000);
-
+				// Snapshots are now captured by the main process - no renderer interval needed
 				console.log("Recording started:", result.filePath);
 			} else {
 				console.error("Failed to start recording:", result.error);
@@ -97,12 +67,6 @@ export const useRecordingStore = create<RecordingState>((set, get) => ({
 		if (!state.isRecording) {
 			console.warn("No recording in progress");
 			return;
-		}
-
-		// Clear interval
-		if (recordingInterval) {
-			clearInterval(recordingInterval);
-			recordingInterval = null;
 		}
 
 		try {
@@ -124,11 +88,6 @@ export const useRecordingStore = create<RecordingState>((set, get) => ({
 			}
 		} catch (error) {
 			console.error("Error stopping recording:", error);
-			// Force cleanup even on error
-			if (recordingInterval) {
-				clearInterval(recordingInterval);
-				recordingInterval = null;
-			}
 			set({
 				isRecording: false,
 				recordingId: null,
@@ -179,19 +138,12 @@ window.api.getRecordingOutputDir().then((dir) => {
 	useRecordingStore.setState({ outputDir: dir });
 });
 
-// Subscribe to recording status changes from other windows
+// Subscribe to recording status changes from main process
 window.api.onRecordingStatusChange((status) => {
-	// Update local state when another window changes recording status
 	useRecordingStore.setState({
 		isRecording: status.isRecording,
 		filePath: status.filePath || null,
 		snapshotCount: status.snapshotCount,
 		duration: status.duration,
 	});
-
-	// If recording stopped from another window, clear our interval
-	if (!status.isRecording && recordingInterval) {
-		clearInterval(recordingInterval);
-		recordingInterval = null;
-	}
 });
