@@ -5,7 +5,7 @@
 A professional real-time scoreboard application for live streaming and sports broadcasting, built with Electron, React, and TypeScript.
 
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/version-0.2.3-green.svg)](package.json)
+[![Version](https://img.shields.io/badge/version-0.2.4-green.svg)](package.json)
 
 </div>
 
