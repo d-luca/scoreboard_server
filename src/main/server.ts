@@ -50,9 +50,109 @@ export class ScoreboardServer {
 			res.send(renderScoreboardHTML(this.currentData));
 		});
 
+		// Serve individual property value with auto-update via WebSocket
+		this.app.get("/value/:property", (req, res) => {
+			const property = req.params.property as keyof ScoreboardData;
+
+			if (!(property in this.currentData)) {
+				res.status(404).send("Property not found");
+				return;
+			}
+
+			// Format timer value for display
+			const formatValue = (
+				prop: keyof ScoreboardData,
+				value: ScoreboardData[keyof ScoreboardData],
+			): string => {
+				if (prop === "timer" && typeof value === "number") {
+					const mins = Math.floor(value / 60);
+					const secs = value % 60;
+					return `${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
+				}
+				return String(value);
+			};
+
+			const displayValue = formatValue(property, this.currentData[property]);
+
+			const html = `
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            background: transparent;
+            font-family: system-ui, -apple-system, sans-serif;
+            color: white;
+            font-size: 48px;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            overflow: hidden;
+        }
+        #value {
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <div id="value">${displayValue}</div>
+    <script>
+        const property = '${property}';
+
+        function formatValue(prop, value) {
+            if (prop === 'timer' && typeof value === 'number') {
+                const mins = Math.floor(value / 60);
+                const secs = value % 60;
+                return mins.toString().padStart(2, '0') + ':' + secs.toString().padStart(2, '0');
+            }
+            return String(value);
+        }
+
+        const ws = new WebSocket('ws://' + window.location.host);
+
+        ws.onmessage = (event) => {
+            try {
+                const data = JSON.parse(event.data);
+                if (property in data) {
+                    document.getElementById('value').textContent = formatValue(property, data[property]);
+                }
+            } catch (e) {
+                console.error('Failed to parse WebSocket message:', e);
+            }
+        };
+
+        ws.onerror = (error) => {
+            console.error('WebSocket error:', error);
+        };
+
+        ws.onclose = () => {
+            console.log('WebSocket connection closed');
+        };
+    </script>
+</body>
+</html>
+			`;
+			res.send(html);
+		});
+
 		// API endpoint to get current scoreboard data
 		this.app.get("/api/scoreboard", (_req, res) => {
 			res.json(this.currentData);
+		});
+
+		// API endpoint to get a specific property from scoreboard data
+		this.app.get("/api/scoreboard/:property", (req, res) => {
+			const property = req.params.property as keyof ScoreboardData;
+
+			if (property in this.currentData) {
+				res.send(String(this.currentData[property]));
+			} else {
+				res.status(404).send("Property not found");
+			}
 		});
 
 		// API endpoint to update scoreboard data

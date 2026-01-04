@@ -1,13 +1,49 @@
 import { contextBridge, ipcRenderer } from "electron";
 import { electronAPI } from "@electron-toolkit/preload";
 
-import { ScoreboardData } from "../types/scoreboard";
+import {
+	ScoreboardData,
+	ScoreboardSnapshot,
+	ScoreboardRecording,
+	VideoGenerationConfig,
+	GenerationProgress,
+} from "../types/scoreboard";
 
 // Custom APIs for renderer
 const api = {
 	// Scoreboard API
 	getScoreboardData: () => ipcRenderer.invoke("get-scoreboard-data"),
 	updateScoreboardData: (data: Partial<ScoreboardData>) => ipcRenderer.invoke("update-scoreboard-data", data),
+
+	// Recording API
+	startRecording: (config: { homeName: string; awayName: string }) =>
+		ipcRenderer.invoke("recording:start", config),
+	writeSnapshot: (snapshot: ScoreboardSnapshot) => ipcRenderer.invoke("recording:write-snapshot", snapshot),
+	stopRecording: () => ipcRenderer.invoke("recording:stop"),
+	getRecordingStatus: () => ipcRenderer.invoke("recording:get-status"),
+
+	// Settings API
+	getRecordingOutputDir: () => ipcRenderer.invoke("settings:get-recording-output-dir"),
+	setRecordingOutputDir: (path: string) => ipcRenderer.invoke("settings:set-recording-output-dir", path),
+	selectRecordingOutputDir: () => ipcRenderer.invoke("settings:select-recording-output-dir"),
+
+	// Recording status updates
+	onRecordingStatusChange: (
+		callback: (status: {
+			isRecording: boolean;
+			filePath?: string;
+			snapshotCount: number;
+			duration: number;
+		}) => void,
+	) => {
+		const subscription = (
+			_event: Electron.IpcRendererEvent,
+			status: { isRecording: boolean; filePath?: string; snapshotCount: number; duration: number },
+		): void => callback(status);
+		ipcRenderer.on("recording-status-changed", subscription);
+		return () => ipcRenderer.removeListener("recording-status-changed", subscription);
+	},
+
 	// Hotkey synchronization
 	onHotkeyUpdate: (callback: (hotkeys: string) => void) => {
 		const subscription = (_event: Electron.IpcRendererEvent, hotkeys: string): void => callback(hotkeys);
@@ -32,6 +68,36 @@ const api = {
 		ipcRenderer.on("request-hotkey-enabled-state", subscription);
 		return () => ipcRenderer.removeListener("request-hotkey-enabled-state", subscription);
 	},
+	// Timer control handoff between windows
+	onSurrenderTimerControl: (callback: () => { timer: number; isRunning: boolean }) => {
+		const subscription = (): void => {
+			const state = callback();
+			ipcRenderer.send("timer-control-surrendered", state);
+		};
+		ipcRenderer.on("surrender-timer-control", subscription);
+		return () => ipcRenderer.removeListener("surrender-timer-control", subscription);
+	},
+	onReceiveTimerControl: (callback: (state: { timer: number; isRunning: boolean }) => void) => {
+		const subscription = (
+			_event: Electron.IpcRendererEvent,
+			state: { timer: number; isRunning: boolean },
+		): void => callback(state);
+		ipcRenderer.on("receive-timer-control", subscription);
+		return () => ipcRenderer.removeListener("receive-timer-control", subscription);
+	},
+	surrenderTimerBeforeClose: (state: { timer: number; isRunning: boolean }) =>
+		ipcRenderer.send("overlay-timer-surrender", state),
+	signalOverlayReady: () => ipcRenderer.send("overlay-ready"),
+
+	// Main process timer - never throttled
+	mainTimerStart: () => ipcRenderer.send("main-timer:start"),
+	mainTimerPause: () => ipcRenderer.send("main-timer:pause"),
+	mainTimerStop: () => ipcRenderer.send("main-timer:stop"),
+	mainTimerIsRunning: (): Promise<boolean> => ipcRenderer.invoke("main-timer:is-running"),
+
+	// Timer action request (forwarded to main window)
+	requestTimerAction: (action: string) => ipcRenderer.send("request-timer-action", action),
+
 	// Overlay mode
 	toggleOverlayMode: (hotkeyEnabled: boolean) => ipcRenderer.send("toggle-overlay-mode", hotkeyEnabled),
 	enableOverlayMode: (hotkeyEnabled: boolean) => ipcRenderer.send("enable-overlay-mode", hotkeyEnabled),
@@ -61,6 +127,28 @@ const api = {
 		const subscription = (): void => callback();
 		ipcRenderer.on("reset-overlay-state", subscription);
 		return () => ipcRenderer.removeListener("reset-overlay-state", subscription);
+	},
+
+	// Video Generator API
+	openVideoGenerator: () => ipcRenderer.send("video-generator:open-window"),
+	selectRecordingFile: (): Promise<{ canceled: boolean; filePath?: string }> =>
+		ipcRenderer.invoke("video-generator:select-file"),
+	loadRecording: (
+		filePath: string,
+	): Promise<{ success: boolean; data?: ScoreboardRecording; error?: string }> =>
+		ipcRenderer.invoke("video-generator:load-recording", filePath),
+	selectOutputFile: (): Promise<{ canceled: boolean; filePath?: string }> =>
+		ipcRenderer.invoke("video-generator:select-output"),
+	generateVideo: (
+		config: VideoGenerationConfig,
+	): Promise<{ success: boolean; outputPath?: string; error?: string }> =>
+		ipcRenderer.invoke("video-generator:generate", config),
+	cancelGeneration: (): Promise<void> => ipcRenderer.invoke("video-generator:cancel"),
+	onGenerationProgress: (callback: (progress: GenerationProgress) => void) => {
+		const subscription = (_event: Electron.IpcRendererEvent, progress: GenerationProgress): void =>
+			callback(progress);
+		ipcRenderer.on("video-generator:progress", subscription);
+		return () => ipcRenderer.removeListener("video-generator:progress", subscription);
 	},
 };
 

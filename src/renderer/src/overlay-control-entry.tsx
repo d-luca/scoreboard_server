@@ -1,14 +1,17 @@
 import React, { useEffect } from "react";
 import ReactDOM from "react-dom/client";
 import { useScoreboardStore } from "./stores/scoreboardStore";
+import { useOverlayTimer } from "./hooks/useOverlayTimer";
 import "./global.css";
 import { ScoreboardOverlayControl } from "./components/ScoreboardControl";
 
 export function OverlayControl(): React.JSX.Element {
 	const store = useScoreboardStore();
+	const overlayTimer = useOverlayTimer();
 
 	useEffect(() => {
 		// Load current scoreboard data from server when overlay opens
+		// Wait for this to complete before signaling ready to receive timer control
 		const loadInitialData = async (): Promise<void> => {
 			try {
 				const currentData = await window.api.getScoreboardData();
@@ -16,21 +19,24 @@ export function OverlayControl(): React.JSX.Element {
 			} catch (error) {
 				console.error("Failed to load initial scoreboard data:", error);
 			}
+			// Signal ready AFTER initial data is loaded
+			// This ensures timer handoff won't be overwritten by initial data
+			window.api.signalOverlayReady();
 		};
 
 		void loadInitialData();
 
-		// Listen for global hotkey actions from main process
+		// Listen for global hotkey actions - overlay handles timer actions when open
 		const unsubscribeHotkey = window.api.onGlobalHotkeyAction((action: string) => {
 			switch (action) {
 				case "startTimer":
-					store.startTimer();
+					overlayTimer.startTimer();
 					break;
 				case "pauseTimer":
-					store.pauseTimer();
+					overlayTimer.pauseTimer();
 					break;
 				case "stopTimer":
-					store.stopTimer();
+					overlayTimer.stopTimer();
 					break;
 				case "timerLoadout1":
 					if (store.timerLoadout1 !== undefined && store.timerLoadout1 >= 0) {
@@ -50,16 +56,35 @@ export function OverlayControl(): React.JSX.Element {
 			}
 		});
 
-		// Listen for scoreboard data updates from global hotkeys
+		// Listen for scoreboard data updates
 		const unsubscribeData = window.api.onScoreboardDataUpdate((data) => {
 			store.updateScoreboardDataFromExternal(data);
 		});
 
+		// Listen for timer control receive (when main window surrenders control)
+		const unsubscribeReceive = window.api.onReceiveTimerControl((state) => {
+			console.log("Overlay receiving timer control:", state);
+			store.receiveTimerControl(state);
+		});
+
+		// Handle window close - surrender timer control back to main window
+		const handleBeforeUnload = (): void => {
+			// Stop the worker timer first
+			overlayTimer.pauseTimer();
+			const timerState = store.surrenderTimerControl();
+			console.log("Overlay surrendering timer before close:", timerState);
+			window.api.surrenderTimerBeforeClose(timerState);
+		};
+
+		window.addEventListener("beforeunload", handleBeforeUnload);
+
 		return () => {
 			unsubscribeHotkey();
 			unsubscribeData();
+			unsubscribeReceive();
+			window.removeEventListener("beforeunload", handleBeforeUnload);
 		};
-	}, [store]);
+	}, [store, overlayTimer]);
 
 	return (
 		<div className="flex h-screen w-screen flex-col">
@@ -72,7 +97,13 @@ export function OverlayControl(): React.JSX.Element {
 			</div>
 			{/* Content area */}
 			<div className="flex flex-1 items-start justify-center p-2">
-				<ScoreboardOverlayControl />
+				<ScoreboardOverlayControl
+					timerControls={{
+						startTimer: overlayTimer.startTimer,
+						pauseTimer: overlayTimer.pauseTimer,
+						stopTimer: overlayTimer.stopTimer,
+					}}
+				/>
 			</div>
 		</div>
 	);

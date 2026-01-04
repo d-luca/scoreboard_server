@@ -17,6 +17,7 @@ files:
 asarUnpack:
   - resources/**
   - dist/scoreboard-ssr/**
+  - node_modules/ffmpeg-static/**
 win:
   executableName: Scoreboard Server
 nsis:

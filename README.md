@@ -1,4 +1,3 @@
-
 # Scoreboard Server
 
 <div align="center">
@@ -6,7 +5,7 @@
 A professional real-time scoreboard application for live streaming and sports broadcasting, built with Electron, React, and TypeScript.
 
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/version-0.2.1-green.svg)](package.json)
+[![Version](https://img.shields.io/badge/version-0.2.3-green.svg)](package.json)
 
 </div>
 
@@ -19,6 +18,8 @@ A professional real-time scoreboard application for live streaming and sports br
 - [Installation](#-installation)
 - [Usage](#-usage)
 - [Overlay Mode](#-overlay-mode)
+- [Match Recording](#-match-recording)
+- [Video Generator](#-video-generator)
 - [Hotkey Configuration](#-hotkey-configuration)
 - [OBS Studio Integration](#-obs-studio-integration)
 - [Development](#-development)
@@ -31,6 +32,7 @@ A professional real-time scoreboard application for live streaming and sports br
 ## ✨ Features
 
 ### Core Functionality
+
 - **Real-time Score Management** - Control home and away team scores with instant updates
 - **Game Timer** - Countdown timer with play, pause, and stop controls
 - **Half/Period Tracking** - Track game periods or halves with customizable labels
@@ -38,12 +40,16 @@ A professional real-time scoreboard application for live streaming and sports br
 - **Timer Loadouts** - Quick-access presets for common timer durations (e.g., 15:00, 45:00, 20:00)
 
 ### Advanced Features
+
 - **Overlay Mode** - Separate windows for controls and preview, perfect for multi-monitor setups
 - **Global Hotkeys** - Control everything without focusing the app window
 - **Browser Source Support** - Seamless integration with OBS Studio and streaming software
 - **WebSocket Server** - Real-time updates to all connected clients
+- **Match Recording** - Record every second of your match for later review or video generation
+- **Video Generator** - Create highlight videos from your recorded match data
 
 ### Customization
+
 - **Team Colors** - Visual color picker for team branding
 - **Custom Labels** - Rename teams and period/half prefixes
 - **Flexible Hotkeys** - Fully customizable keyboard shortcuts with duplicate detection
@@ -54,15 +60,18 @@ A professional real-time scoreboard application for live streaming and sports br
 ## 📸 Screenshots
 
 ### Main Application View
+
 ![Main app view](screenshots/image-1.png)
 
 ### Example Usage with OBS Studio
+
 ![OBS usage example](screenshots/image-2.png)
 
 <details>
 <summary><strong>Disclaimer about OBS Studio in screenshots</strong></summary>
 
 The OBS Studio interface shown in the screenshot is for demonstration purposes only. Scoreboard Server does not include, modify, or distribute any OBS Studio code or assets. The OBS Studio view is used solely to illustrate how Scoreboard Server can be integrated as a browser source in streaming setups. All rights to OBS Studio belong to their respective owners.
+
 </details>
 
 ---
@@ -82,18 +91,21 @@ This feature is available on all platforms and works in both the main window and
 ## 📦 Installation
 
 ### Prerequisites
+
 - **Node.js** 18+ and **pnpm** package manager
 - **Windows**, **macOS**, or **Linux**
 
 ### Quick Start
 
 1. **Clone the repository**
+
    ```bash
    git clone https://github.com/d-luca/scoreboard_server.git
    cd scoreboard_server
    ```
 
 2. **Install dependencies**
+
    ```bash
    pnpm install
    ```
@@ -112,6 +124,7 @@ This feature is available on all platforms and works in both the main window and
 When you launch Scoreboard Server, you'll see the main control interface with two sections:
 
 #### Scoreboard Controls
+
 - **Team Scores**: Use +/- buttons to adjust home and away scores
 - **Timer**: Start, pause, stop, and manually adjust the game timer
 - **Half/Period**: Track game periods with increment/decrement controls
@@ -119,6 +132,7 @@ When you launch Scoreboard Server, you'll see the main control interface with tw
 - **Reset**: Clear all scores and timer data
 
 #### Scoreboard Settings
+
 - **Overlay Mode**: Enable separate preview and control windows
 - **Team Names**: Customize home and away team names
 - **Team Colors**: Select brand colors for visual representation
@@ -126,7 +140,9 @@ When you launch Scoreboard Server, you'll see the main control interface with tw
 - **Timer Loadouts**: Configure three preset timer durations for play/pause time or whatever you need
 
 ### Scoreboard Feedback
+
 View your scoreboard design in real-time with the integrated preview. The scoreboard displays:
+
 - Team names with colored indicators
 - Current scores
 - Game timer (countdown format)
@@ -147,20 +163,78 @@ Overlay Mode is designed for streamers and broadcasters who need dedicated contr
    - **Overlay Controls**: Compact control panel with all functions
 
 ### Overlay Controls Window
+
 The compact control panel features:
+
 - **5-Column Layout**: Home, Away, Half, Timer Actions, Timer Values
 - **Visual Hotkey Indicators**: Each button shows its assigned hotkey
 - **Quick Access**: All controls accessible without switching windows
 - **Always on Top**: Stays visible while working in other applications
 
 ### Benefits
+
 - Control scoreboard from any window with global hotkeys
 - Keep preview visible while streaming
 - Compact interface perfect for small screens
 - Independent window positioning
 
 ### Disclaimer
+
 When in overlay mode, if the hotkeys are enabled, they will be globally registered, this mean that they will work even when you are not focusing the main app or the overlay
+
+---
+
+## 🎬 Match Recording
+
+Scoreboard Server can record all scoreboard data during a match, capturing a snapshot every second. This data can be used to generate later a video with the scoreboard, useful for embedding the scoreboard on videos using other video editing programs.
+
+### Starting a Recording
+
+1. Navigate to the **Recording Controls** section in the main window or overlay controls
+2. (Optional) Click **Change Directory** to select where recordings are saved
+3. Click the **Record** button (🔴) to start recording
+4. The recording indicator will show the elapsed time and snapshot count
+5. Click **Stop** (⬛) to end the recording
+
+### Recording Output
+
+- Recordings are saved as JSON files with the naming format: `{HomeTeam}-{AwayTeam}-{Timestamp}.json`
+- Each recording contains:
+  - **Metadata**: Team names, recording ID, start/end times
+  - **Snapshots**: One per second, containing scores, timer, half, team colors, and timestamps
+
+### Recording Features
+
+- **Background Recording**: Snapshots are captured in the main process, ensuring reliable 1-second intervals even when the app window is minimized
+- **Multi-Window Support**: Recording status is synced across all windows (main app and overlay)
+- **Compact Controls**: Recording controls are available in both the main window and the compact overlay control panel
+
+---
+
+## 🎥 Video Generator
+
+The Video Generator allows you to create video files from your recorded match data. This is useful for embedding the scoreboard on videos using other video editing programs.
+
+### Opening the Video Generator
+
+1. From the main application, click **Open Video Generator** in the toolbar or settings
+2. A new window will open with the video generation interface
+
+### Generating a Video
+
+1. **Select Recording File**: Click **Browse** to select a previously saved `.json` recording file
+2. **Review Recording Info**: The generator displays metadata about the recording (teams, duration, snapshots)
+3. **Select Output File**: Click **Browse** next to Output File to choose where to save the video
+4. **Configure Settings**:
+   - **Frame Rate**: Choose from 1 to 60 FPS (default 30FPS)
+5. **Generate**: Click **Generate Video** to start the rendering process
+6. **Monitor Progress**: A progress bar shows the current rendering status
+7. **Cancel**: You can cancel generation at any time if needed
+
+### Tips
+
+- Longer recordings will take more time to render
+- Higher frame rates increase rendering time and file size
 
 ---
 
@@ -171,12 +245,14 @@ Scoreboard Server includes fully customizable global hotkeys that work even when
 ### Default Hotkeys
 
 #### Score Control
+
 - **Increase Home Score**: `W`
 - **Decrease Home Score**: `Q`
 - **Increase Away Score**: `E`
 - **Decrease Away Score**: `D`
 
 #### Timer Control
+
 - **Start Timer**: `Space`
 - **Pause Timer**: `P`
 - **Stop Timer**: `S`
@@ -186,15 +262,18 @@ Scoreboard Server includes fully customizable global hotkeys that work even when
 - **-1 Minute**: `Shift + ↓`
 
 #### Timer Loadouts
+
 - **Loadout 1**: `Ctrl + 1`
 - **Loadout 2**: `Ctrl + 2`
 - **Loadout 3**: `Ctrl + 3`
 
 #### Half/Period
+
 - **Increase Half**: `]`
 - **Decrease Half**: `[`
 
 #### Other
+
 - **Reset Scoreboard**: `Ctrl + Shift + R`
 
 ### Customizing Hotkeys
@@ -208,6 +287,7 @@ Scoreboard Server includes fully customizable global hotkeys that work even when
 7. Toggle **Enable Hotkeys** to temporarily disable all shortcuts
 
 ### Hotkey Features
+
 - **Modifier Support**: Combine with Ctrl, Alt, and Shift
 - **Conflict Detection**: Automatic duplicate detection
 - **Visual Feedback**: Hotkey badges on all buttons
@@ -230,6 +310,7 @@ Scoreboard Server includes fully customizable global hotkeys that work even when
 5. Control the scoreboard from the app while streaming
 
 ### Tips for Streaming
+
 - The scoreboard updates in real-time via WebSocket
 - Use **Overlay Mode** for better workflow during streams
 - Use hotkeys to control the scoreboard without switching windows
@@ -310,6 +391,7 @@ The built applications will be in the `dist/` directory.
 ### Build Configuration
 
 The build process uses `electron-builder`. Configuration is in `electron-builder.yml`:
+
 - **Product Name**: Scoreboard Server
 - **App ID**: `com.github.d-luca.scoreboard-server`
 - Includes SSR scoreboard files
@@ -320,6 +402,7 @@ The build process uses `electron-builder`. Configuration is in `electron-builder
 ## 🔧 Tech Stack
 
 ### Frontend
+
 - **React 19** - UI framework
 - **TypeScript** - Type-safe development
 - **Tailwind CSS 4** - Utility-first styling
@@ -327,12 +410,14 @@ The build process uses `electron-builder`. Configuration is in `electron-builder
 - **Radix UI** - Accessible component primitives
 
 ### Backend
+
 - **Electron 38** - Desktop application framework
 - **Express 5** - HTTP server
 - **WebSocket (ws)** - Real-time communication
 - **Node.js** - Runtime environment
 
 ### Build Tools
+
 - **Vite 7** - Fast bundler and dev server
 - **electron-vite** - Electron integration
 - **electron-builder** - Application packaging
