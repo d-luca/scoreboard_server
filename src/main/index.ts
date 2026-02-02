@@ -101,18 +101,34 @@ function executeHotkeyAction(action: string): void {
 		case "increaseTimerSecond":
 			updatedData = { timer: (currentData.timer ?? 0) + 1 };
 			scoreboardServer.updateScoreboardData(updatedData);
+			// Adjust initial value if timer is running to maintain countdown continuity
+			if (isTimerRunning && timerInitialValue !== null) {
+				timerInitialValue += 1;
+			}
 			break;
 		case "decreaseTimerSecond":
 			updatedData = { timer: Math.max(0, (currentData.timer ?? 0) - 1) };
 			scoreboardServer.updateScoreboardData(updatedData);
+			// Adjust initial value if timer is running to maintain countdown continuity
+			if (isTimerRunning && timerInitialValue !== null) {
+				timerInitialValue -= 1;
+			}
 			break;
 		case "increaseTimerMinute":
 			updatedData = { timer: (currentData.timer ?? 0) + 60 };
 			scoreboardServer.updateScoreboardData(updatedData);
+			// Adjust initial value if timer is running to maintain countdown continuity
+			if (isTimerRunning && timerInitialValue !== null) {
+				timerInitialValue += 60;
+			}
 			break;
 		case "decreaseTimerMinute":
 			updatedData = { timer: Math.max(0, (currentData.timer ?? 0) - 60) };
 			scoreboardServer.updateScoreboardData(updatedData);
+			// Adjust initial value if timer is running to maintain countdown continuity
+			if (isTimerRunning && timerInitialValue !== null) {
+				timerInitialValue -= 60;
+			}
 			break;
 		case "resetScoreboard":
 			updatedData = {
@@ -204,6 +220,9 @@ function unregisterGlobalHotkeys(): void {
 // Main process timer - never throttled
 let mainTimerInterval: ReturnType<typeof setInterval> | null = null;
 let isTimerRunning = false;
+// Timestamp-based timer state to prevent error accumulation
+let timerStartTimestamp: number | null = null;
+let timerInitialValue: number | null = null;
 
 function startMainTimer(): void {
 	if (mainTimerInterval !== null || !scoreboardServer) {
@@ -211,11 +230,16 @@ function startMainTimer(): void {
 	}
 
 	const currentData = scoreboardServer.getCurrentData();
-	if ((currentData.timer ?? 0) <= 0) {
+	const currentTimer = currentData.timer ?? 0;
+	if (currentTimer <= 0) {
 		return;
 	}
 
 	isTimerRunning = true;
+	// Store the start timestamp and initial timer value
+	timerStartTimestamp = Date.now();
+	timerInitialValue = currentTimer;
+
 	// Broadcast that timer started
 	scoreboardServer.updateScoreboardData({ isTimerRunning: true });
 	BrowserWindow.getAllWindows().forEach((window) => {
@@ -223,20 +247,16 @@ function startMainTimer(): void {
 	});
 
 	mainTimerInterval = setInterval(() => {
-		if (!scoreboardServer) {
+		if (!scoreboardServer || timerStartTimestamp === null || timerInitialValue === null) {
 			stopMainTimer();
 			return;
 		}
 
-		const data = scoreboardServer.getCurrentData();
-		const currentTimer = data.timer ?? 0;
+		// Calculate elapsed seconds from start timestamp
+		const elapsedMs = Date.now() - timerStartTimestamp;
+		const elapsedSeconds = Math.floor(elapsedMs / 1000);
+		const newTimer = Math.max(0, timerInitialValue - elapsedSeconds);
 
-		if (currentTimer <= 0) {
-			stopMainTimer();
-			return;
-		}
-
-		const newTimer = currentTimer - 1;
 		scoreboardServer.updateScoreboardData({ timer: newTimer });
 
 		// Broadcast to all windows
@@ -260,6 +280,9 @@ function pauseMainTimer(): void {
 	clearInterval(mainTimerInterval);
 	mainTimerInterval = null;
 	isTimerRunning = false;
+	// Reset timestamp state - timer value is already updated in scoreboard data
+	timerStartTimestamp = null;
+	timerInitialValue = null;
 
 	// Broadcast that timer paused
 	if (scoreboardServer) {
@@ -278,6 +301,9 @@ function stopMainTimer(): void {
 		mainTimerInterval = null;
 	}
 	isTimerRunning = false;
+	// Reset timestamp state
+	timerStartTimestamp = null;
+	timerInitialValue = null;
 
 	// Broadcast that timer stopped and reset to 0
 	if (scoreboardServer) {
@@ -559,6 +585,19 @@ app.whenReady().then(() => {
 	ipcMain.handle("update-scoreboard-data", (_event, data: Partial<ScoreboardData>) => {
 		scoreboardServer.updateScoreboardData(data);
 		const fullData = scoreboardServer.getCurrentData();
+
+		// If timer was updated while running, adjust initial value to maintain countdown continuity
+		if (
+			data.timer !== undefined &&
+			isTimerRunning &&
+			timerInitialValue !== null &&
+			timerStartTimestamp !== null
+		) {
+			const elapsedSeconds = Math.floor((Date.now() - timerStartTimestamp) / 1000);
+			const currentDisplayedTimer = timerInitialValue - elapsedSeconds;
+			const delta = data.timer - currentDisplayedTimer;
+			timerInitialValue += delta;
+		}
 
 		// Broadcast to all Electron windows so they stay in sync
 		BrowserWindow.getAllWindows().forEach((window) => {
