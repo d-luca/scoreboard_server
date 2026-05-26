@@ -25,6 +25,26 @@ export function ScoreboardSettings(): JSX.Element {
 		2: formatSecondsToClock(store.timerLoadout2),
 		3: formatSecondsToClock(store.timerLoadout3),
 	}));
+	const [lanControlUrls, setLanControlUrls] = useState<string[]>([]);
+
+	useEffect(() => {
+		let isMounted = true;
+
+		void window.api
+			.getLanAddresses()
+			.then((urls) => {
+				if (isMounted) {
+					setLanControlUrls(urls);
+				}
+			})
+			.catch((error) => {
+				console.error("Failed to load LAN control URLs:", error);
+			});
+
+		return () => {
+			isMounted = false;
+		};
+	}, []);
 
 	useEffect(() => {
 		// Listen for overlay windows being closed
@@ -139,6 +159,25 @@ export function ScoreboardSettings(): JSX.Element {
 			<CardContent className="flex size-full flex-col justify-between gap-4 overflow-auto">
 				{/* Overlay Mode Toggle */}
 				<OverlayModeToggle enabled={overlayEnabled} onToggle={handleOverlayToggle} />
+
+				{lanControlUrls.length > 0 && (
+					<div className="border-app-secondary bg-surface-secondary rounded-md border p-3">
+						<div className="text-app-secondary text-sm font-semibold">LAN Remote Control</div>
+						<div className="mt-2 flex flex-col gap-2">
+							{lanControlUrls.map((url) => (
+								<a
+									key={url}
+									href={url}
+									target="_blank"
+									rel="noreferrer"
+									className="text-primary-300 hover:text-primary-200 font-mono text-sm break-all underline underline-offset-4"
+								>
+									{url}
+								</a>
+							))}
+						</div>
+					</div>
+				)}
 
 				{/* Team Settings */}
 				<TeamSettings

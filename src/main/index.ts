@@ -1,5 +1,6 @@
 import { app, shell, BrowserWindow, ipcMain, globalShortcut, screen, dialog } from "electron";
 import { join } from "path";
+import { networkInterfaces } from "os";
 import { electronApp, optimizer, is } from "@electron-toolkit/utils";
 import icon from "../../resources/icon.png?asset";
 import { ScoreboardServer } from "./server";
@@ -22,6 +23,21 @@ let mainWindow: BrowserWindow | null = null;
 let overlayPreviewWindow: BrowserWindow | null = null;
 let overlayControlWindow: BrowserWindow | null = null;
 let videoGeneratorWindow: BrowserWindow | null = null;
+
+function getLanControlUrls(): string[] {
+	const interfaces = networkInterfaces();
+	const urls: string[] = [];
+
+	Object.values(interfaces).forEach((networkInterface) => {
+		networkInterface?.forEach((address) => {
+			if (address.family === "IPv4" && !address.internal) {
+				urls.push(`http://${address.address}:3001/control`);
+			}
+		});
+	});
+
+	return urls.length > 0 ? urls : ["http://localhost:3001/control"];
+}
 
 // Store current hotkey configuration
 let currentHotkeys: Record<
@@ -316,6 +332,31 @@ function stopMainTimer(): void {
 	console.log("Main process timer stopped");
 }
 
+function setMainTimerValue(timer: number): void {
+	if (!scoreboardServer) {
+		return;
+	}
+
+	const sanitizedTimer = Number.isFinite(timer) ? Math.max(0, Math.floor(timer)) : 0;
+
+	if (sanitizedTimer <= 0 && isTimerRunning) {
+		pauseMainTimer();
+	}
+
+	if (sanitizedTimer > 0 && isTimerRunning && timerInitialValue !== null && timerStartTimestamp !== null) {
+		const elapsedSeconds = Math.floor((Date.now() - timerStartTimestamp) / 1000);
+		const currentDisplayedTimer = timerInitialValue - elapsedSeconds;
+		const delta = sanitizedTimer - currentDisplayedTimer;
+		timerInitialValue += delta;
+	}
+
+	scoreboardServer.updateScoreboardData({ timer: sanitizedTimer });
+	const fullData = scoreboardServer.getCurrentData();
+	BrowserWindow.getAllWindows().forEach((window) => {
+		window.webContents.send("scoreboard-data-update", fullData);
+	});
+}
+
 function createWindow(): void {
 	// Create the browser window.
 	mainWindow = new BrowserWindow({
@@ -542,6 +583,29 @@ app.whenReady().then(() => {
 
 	// Initialize services
 	scoreboardServer = new ScoreboardServer(3001);
+	scoreboardServer.setTimerCommandCallback((command, value) => {
+		switch (command) {
+			case "start":
+				startMainTimer();
+				break;
+			case "pause":
+				pauseMainTimer();
+				break;
+			case "stop":
+				stopMainTimer();
+				break;
+			case "set":
+				if (value !== undefined) {
+					setMainTimerValue(value);
+				}
+				break;
+		}
+	});
+	scoreboardServer.setStateChangedCallback((fullData) => {
+		BrowserWindow.getAllWindows().forEach((window) => {
+			window.webContents.send("scoreboard-data-update", fullData);
+		});
+	});
 	recordingService = new RecordingService();
 	settingsService = new SettingsService();
 	videoGeneratorService = new VideoGeneratorService();
@@ -572,6 +636,9 @@ app.whenReady().then(() => {
 		.start()
 		.then(() => {
 			console.log("Scoreboard server started successfully");
+			getLanControlUrls().forEach((url) => {
+				console.log(`Remote control available at ${url}`);
+			});
 		})
 		.catch((error) => {
 			console.error("Failed to start scoreboard server:", error);
@@ -580,6 +647,10 @@ app.whenReady().then(() => {
 	// IPC handlers for scoreboard data
 	ipcMain.handle("get-scoreboard-data", () => {
 		return scoreboardServer.getCurrentData();
+	});
+
+	ipcMain.handle("get-lan-addresses", () => {
+		return getLanControlUrls();
 	});
 
 	ipcMain.handle("update-scoreboard-data", (_event, data: Partial<ScoreboardData>) => {

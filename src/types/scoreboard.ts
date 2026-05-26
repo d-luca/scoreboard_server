@@ -10,6 +10,35 @@ export interface ScoreboardData {
 	halfPrefix?: string;
 	eventLogo?: string;
 	isTimerRunning?: boolean;
+	timerLoadout1?: number;
+	timerLoadout2?: number;
+	timerLoadout3?: number;
+}
+
+export type TimerCommand = "start" | "pause" | "stop" | "set";
+
+export type ScoreboardWSCommandAction =
+	| "update"
+	| "timer:start"
+	| "timer:pause"
+	| "timer:stop"
+	| "timer:set"
+	| "timer:inc:second"
+	| "timer:dec:second"
+	| "timer:inc:minute"
+	| "timer:dec:minute"
+	| "score:home:inc"
+	| "score:home:dec"
+	| "score:away:inc"
+	| "score:away:dec"
+	| "half:inc"
+	| "half:dec"
+	| "reset";
+
+export interface ScoreboardWSCommand {
+	type: "command";
+	action: ScoreboardWSCommandAction;
+	data?: Partial<ScoreboardData>;
 }
 
 export interface GameState extends ScoreboardData {

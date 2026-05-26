@@ -33,6 +33,7 @@ interface ScoreboardAPI {
 	getRecordingOutputDir: () => Promise<string>;
 	setRecordingOutputDir: (path: string) => Promise<{ success: boolean; error?: string }>;
 	selectRecordingOutputDir: () => Promise<{ canceled: boolean; path?: string }>;
+	getLanAddresses: () => Promise<string[]>;
 
 	// Recording status updates
 	onRecordingStatusChange: (

@@ -13,6 +13,9 @@ export type ScoreboardProps = TeamsData & {
 	half?: number;
 	halfPrefix?: string;
 	isTimerRunning?: boolean;
+	timerLoadout1?: number;
+	timerLoadout2?: number;
+	timerLoadout3?: number;
 };
 
 export function Scoreboard({

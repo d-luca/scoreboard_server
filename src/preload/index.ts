@@ -26,6 +26,7 @@ const api = {
 	getRecordingOutputDir: () => ipcRenderer.invoke("settings:get-recording-output-dir"),
 	setRecordingOutputDir: (path: string) => ipcRenderer.invoke("settings:set-recording-output-dir", path),
 	selectRecordingOutputDir: () => ipcRenderer.invoke("settings:select-recording-output-dir"),
+	getLanAddresses: () => ipcRenderer.invoke("get-lan-addresses"),
 
 	// Recording status updates
 	onRecordingStatusChange: (

@@ -143,6 +143,7 @@ export const useScoreboardStore = create<ScoreboardState>((set, get) => ({
 		const key = `timerLoadout${boundedIndex}` as const;
 		const sanitizedValue = Number.isFinite(value) ? Math.max(0, Math.floor(value)) : 0;
 		const payload = { [key]: sanitizedValue } as Partial<ScoreboardProps>;
+		await window.api.updateScoreboardData(payload);
 		return set(payload as Partial<ScoreboardState>);
 	},
 	increaseHalf: async () => {
