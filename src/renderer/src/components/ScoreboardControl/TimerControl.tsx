@@ -3,12 +3,14 @@ import { Button } from "../ui/Button/Button";
 import { ValueBox } from "../ui/ValueBox";
 import { useScoreboardStore } from "@renderer/stores/scoreboardStore";
 import { useHotkeyStore } from "@renderer/stores/hotkeyStore";
+import { useBuzzerStore } from "@renderer/stores/buzzerStore";
 import { HotkeyBadge } from "../ui/HotkeyBadge";
 import { formatTime } from "@renderer/utils/formatTime";
 
 export function TimerControl(): JSX.Element {
 	const store = useScoreboardStore();
 	const { getHotkeyString } = useHotkeyStore();
+	const { buzzerEnabled, toggleBuzzer, playBuzzer } = useBuzzerStore();
 
 	const timerValue = store.timer ?? 0;
 	const handleToggleTimer = (): void => {
@@ -50,6 +52,27 @@ export function TimerControl(): JSX.Element {
 				>
 					Stop
 					<HotkeyBadge hotkey={getHotkeyString("stopTimer")} />
+				</Button>
+			</div>
+
+			{/* Buzzer Controls */}
+			<div className="flex w-full gap-2">
+				<Button
+					className="flex w-1/2 flex-col items-center justify-center p-0 px-2"
+					onClick={playBuzzer}
+					size="lg"
+					title="Play buzzer sound"
+				>
+					Buzzer
+				</Button>
+				<Button
+					variant={buzzerEnabled ? "default" : "outline"}
+					className="flex w-1/2 flex-col items-center justify-center p-0 px-2"
+					onClick={toggleBuzzer}
+					size="lg"
+					title="Auto-buzzer when timer ends"
+				>
+					Auto: {buzzerEnabled ? "ON" : "OFF"}
 				</Button>
 			</div>
 

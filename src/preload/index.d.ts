@@ -66,6 +66,9 @@ interface ScoreboardAPI {
 	mainTimerStop: () => void;
 	mainTimerIsRunning: () => Promise<boolean>;
 
+	// Buzzer
+	onTimerFinished: (callback: () => void) => () => void;
+
 	// Timer action request (forwarded to main window)
 	requestTimerAction: (action: string) => void;
 

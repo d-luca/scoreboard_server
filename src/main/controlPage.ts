@@ -397,6 +397,10 @@ export function renderControlPage(): string {
 				<div class="stop-row">
 					<button id="timerStop" class="danger" type="button">Reset</button>
 				</div>
+				<div class="stop-row" style="gap: 0.5rem;">
+					<button id="buzzerPlay" type="button" style="flex:1;">🔔 Buzzer</button>
+					<button id="buzzerToggle" class="primary" type="button" style="flex:1;">Auto: ON</button>
+				</div>
 				<div class="field-row">
 					<div>
 						<label for="timerInput">Set Timer (MM:SS)</label>
@@ -630,7 +634,12 @@ export function renderControlPage(): string {
 
 			websocket.onmessage = function (event) {
 				try {
-					updateUI(JSON.parse(event.data));
+					var msg = JSON.parse(event.data);
+					if (msg.event === "timer-finished") {
+						if (buzzerAutoEnabled) playBuzzer();
+						return;
+					}
+					updateUI(msg);
 				} catch (error) {
 					console.error("Failed to parse scoreboard state", error);
 				}
@@ -661,6 +670,23 @@ export function renderControlPage(): string {
 			sendCommand(scoreboardState.isTimerRunning ? "timer:pause" : "timer:start");
 		});
 		element("timerStop").addEventListener("click", function () { sendCommand("timer:stop"); });
+
+		// Buzzer
+		var buzzerAudio = new Audio("/buzzer.mp3");
+		var buzzerAutoEnabled = true;
+
+		function playBuzzer() {
+			buzzerAudio.currentTime = 0;
+			buzzerAudio.play().catch(function (err) { console.error("Buzzer play failed", err); });
+		}
+
+		element("buzzerPlay").addEventListener("click", playBuzzer);
+		element("buzzerToggle").addEventListener("click", function () {
+			buzzerAutoEnabled = !buzzerAutoEnabled;
+			element("buzzerToggle").textContent = "Auto: " + (buzzerAutoEnabled ? "ON" : "OFF");
+			element("buzzerToggle").className = buzzerAutoEnabled ? "primary" : "";
+		});
+
 		element("timerSet").addEventListener("click", function () {
 			const seconds = parseClock(element("timerInput").value);
 			if (seconds !== null) setTimer(seconds);

@@ -282,6 +282,12 @@ function startMainTimer(): void {
 
 		if (newTimer <= 0) {
 			stopMainTimer();
+			// Notify renderers that the timer finished naturally
+			BrowserWindow.getAllWindows().forEach((window) => {
+				window.webContents.send("timer-finished");
+			});
+			// Notify WebSocket clients (remote control)
+			scoreboardServer.broadcastTimerFinished();
 		}
 	}, 1000);
 

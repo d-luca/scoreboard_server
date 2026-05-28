@@ -5,7 +5,7 @@
 A professional real-time scoreboard application for live streaming and sports broadcasting, built with Electron, React, and TypeScript.
 
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/version-0.2.5-green.svg)](package.json)
+[![Version](https://img.shields.io/badge/version-0.3.0-green.svg)](package.json)
 
 </div>
 
@@ -17,13 +17,15 @@ A professional real-time scoreboard application for live streaming and sports br
 - [Screenshots](#-screenshots)
 - [Installation](#-installation)
 - [Usage](#-usage)
-- [Overlay Mode](#-overlay-mode)
+- [LAN Remote Control](#lan-remote-control)
+- [Buzzer](#-buzzer)
+- [Overlay Mode](#overlay-mode)
 - [Match Recording](#-match-recording)
 - [Video Generator](#-video-generator)
-- [Hotkey Configuration](#-hotkey-configuration)
+- [Hotkey Configuration](#hotkey-configuration)
 - [OBS Studio Integration](#-obs-studio-integration)
-- [Development](#-development)
-- [Building](#-building)
+- [Development](#development)
+- [Building](#building)
 - [Tech Stack](#-tech-stack)
 - [License](#-license)
 
@@ -41,16 +43,18 @@ A professional real-time scoreboard application for live streaming and sports br
 
 ### Advanced Features
 
+- **LAN Remote Control** - Control the scoreboard from any phone or tablet on the same network
+- **Buzzer** - Audible alert when the timer reaches zero, with manual trigger and auto-play toggle
 - **Overlay Mode** - Separate windows for controls and preview, perfect for multi-monitor setups
 - **Global Hotkeys** - Control everything without focusing the app window
 - **Browser Source Support** - Seamless integration with OBS Studio and streaming software
-- **WebSocket Server** - Real-time updates to all connected clients
+- **WebSocket Server** - Real-time updates to all connected clients (bidirectional)
 - **Match Recording** - Record every second of your match for later review or video generation
 - **Video Generator** - Create highlight videos from your recorded match data
 
 ### Customization
 
-- **Team Colors** - Visual color picker for team branding
+- **Team Colors** - Visual color picker with preset palette for team branding
 - **Custom Labels** - Rename teams and period/half prefixes
 - **Flexible Hotkeys** - Fully customizable keyboard shortcuts with duplicate detection
 - **Responsive Design** - Clean, modern UI that scales beautifully
@@ -150,7 +154,82 @@ View your scoreboard design in real-time with the integrated preview. The scoreb
 
 ---
 
-## 🖥️ Overlay Mode
+## LAN Remote Control
+
+Scoreboard Server exposes a mobile-friendly web control panel accessible from any device on the same network. This is designed for a referee or scorekeeper at the game table.
+
+### Accessing the Remote Control
+
+1. Start the application
+2. In **Scoreboard Settings**, find the **LAN Remote Control** section showing one or more URLs
+3. Open the displayed URL on a phone, tablet, or any browser on the same network (e.g. `http://192.168.1.x:3001/control`)
+4. The remote control page connects instantly via WebSocket
+
+### Remote Control Features
+
+- **Score Control** - Large +/- buttons for home and away scores
+- **Timer Control** - Start, pause, reset, ±1s, ±1m, and custom timer set
+- **Timer Presets** - Quick loadout buttons matching the app's configured durations
+- **Half/Period Control** - Increment and decrement the current period
+- **Team Settings** - Change team names and colors (with preset color palette)
+- **Half Prefix** - Edit the period label
+- **Timer Loadouts** - Configure the three preset durations
+- **Buzzer** - Manual buzzer trigger and auto-buzzer toggle
+- **Reset All** - Clear all scores and timer in one action
+- **Connection Status** - Live indicator showing WebSocket connection state
+- **Auto-Reconnect** - Automatically reconnects if the phone loses WiFi momentarily
+
+### How Input Submission Works
+
+Text fields (team names, half prefix, loadouts) are applied when you **press Enter** or **leave the field** (tap outside). This avoids accidental partial updates while typing.
+
+### Network Requirements
+
+- The phone/tablet must be on the **same local network** (WiFi/LAN) as the PC running Scoreboard Server
+- Windows Firewall may prompt to allow incoming connections on port 3001 the first time
+- No authentication is required (designed for trusted LAN environments)
+- Multiple devices can connect simultaneously
+
+### WebSocket Command Protocol
+
+The remote control communicates over a bidirectional WebSocket on the same port (3001). Clients send JSON command messages and receive state broadcasts:
+
+```json
+{ "type": "command", "action": "score:home:inc" }
+{ "type": "command", "action": "timer:start" }
+{ "type": "command", "action": "update", "data": { "teamHomeName": "Eagles" } }
+```
+
+This protocol is also available to third-party integrations that want to control the scoreboard programmatically.
+
+---
+
+## 🔔 Buzzer
+
+A built-in audible buzzer alerts everyone when the game timer reaches zero.
+
+### Buzzer Controls
+
+- **Manual Trigger** - Press the Buzzer button to play the sound at any time
+- **Auto-Buzzer Toggle** - When enabled (default: ON), the buzzer plays automatically when the countdown timer finishes
+- Available in the main app **Timer Controls**, the **Overlay Control** window, and the **LAN Remote Control** page
+
+### How It Works
+
+1. When the timer counts down to 0 while running, the server broadcasts a `timer-finished` event
+2. All connected clients (app windows and remote control pages) receive the event
+3. If auto-buzzer is enabled on that client, the buzzer sound plays locally on the device
+4. The buzzer sound can also be triggered manually at any time, regardless of the auto setting
+
+### Notes
+
+- The buzzer plays on the **device where the control page or app is open** (e.g. the referee's phone)
+- On mobile browsers, the first buzzer tap may require user interaction to unlock audio playback (browser autoplay policy)
+- The auto-buzzer setting is per-client and not synced across devices
+
+---
+
+## Overlay Mode
 
 Overlay Mode is designed for streamers and broadcasters who need dedicated control and preview windows:
 
@@ -238,7 +317,7 @@ The Video Generator allows you to create video files from your recorded match da
 
 ---
 
-## ⌨️ Hotkey Configuration
+## Hotkey Configuration
 
 Scoreboard Server includes fully customizable global hotkeys that work even when the app is in the background.
 
@@ -315,10 +394,11 @@ Scoreboard Server includes fully customizable global hotkeys that work even when
 - Use **Overlay Mode** for better workflow during streams
 - Use hotkeys to control the scoreboard without switching windows
 - The scoreboard has a transparent background for easy integration
+- The server is now accessible on the LAN — use the OBS host machine's IP if OBS runs on a different PC
 
 ---
 
-## 🛠️ Development
+## Development
 
 ### Recommended IDE Setup
 
@@ -355,23 +435,26 @@ pnpm start
 
 ```
 src/
-├── main/           # Electron main process
-│   ├── index.ts    # Main entry, window management, IPC
-│   ├── server.ts   # Express + WebSocket server
-│   └── ssr.ts      # Server-side rendering for scoreboard
-├── preload/        # Preload scripts for IPC
-├── renderer/       # React frontend
+├── main/               # Electron main process
+│   ├── index.ts        # Main entry, window management, IPC
+│   ├── server.ts       # Express + WebSocket server (0.0.0.0:3001)
+│   ├── ssr.ts          # Server-side rendering for scoreboard
+│   └── controlPage.ts  # Standalone LAN remote control page HTML
+├── preload/            # Preload scripts for IPC
+├── renderer/           # React frontend
 │   └── src/
 │       ├── components/  # React components
-│       ├── stores/      # Zustand state management
+│       ├── stores/      # Zustand state management (incl. buzzerStore)
 │       ├── hooks/       # Custom React hooks
 │       └── pages/       # Page components
-└── types/          # Shared TypeScript types
+├── types/              # Shared TypeScript types
+resources/
+└── buzzer.mp3          # Buzzer audio file
 ```
 
 ---
 
-## 🏗️ Building
+## Building
 
 Build executables for distribution:
 
@@ -412,8 +495,8 @@ The build process uses `electron-builder`. Configuration is in `electron-builder
 ### Backend
 
 - **Electron 38** - Desktop application framework
-- **Express 5** - HTTP server
-- **WebSocket (ws)** - Real-time communication
+- **Express 5** - HTTP server (binds to `0.0.0.0` for LAN access)
+- **WebSocket (ws)** - Bidirectional real-time communication
 - **Node.js** - Runtime environment
 
 ### Build Tools

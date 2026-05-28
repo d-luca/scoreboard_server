@@ -2,12 +2,14 @@ import React, { useEffect } from "react";
 import ReactDOM from "react-dom/client";
 import { useScoreboardStore } from "./stores/scoreboardStore";
 import { useOverlayTimer } from "./hooks/useOverlayTimer";
+import { useBuzzerStore } from "./stores/buzzerStore";
 import "./global.css";
 import { ScoreboardOverlayControl } from "./components/ScoreboardControl";
 
 export function OverlayControl(): React.JSX.Element {
 	const store = useScoreboardStore();
 	const overlayTimer = useOverlayTimer();
+	const { playBuzzer } = useBuzzerStore();
 
 	useEffect(() => {
 		// Load current scoreboard data from server when overlay opens
@@ -78,13 +80,21 @@ export function OverlayControl(): React.JSX.Element {
 
 		window.addEventListener("beforeunload", handleBeforeUnload);
 
+		// Listen for timer-finished event to play buzzer
+		const unsubscribeTimerFinished = window.api.onTimerFinished(() => {
+			if (useBuzzerStore.getState().buzzerEnabled) {
+				playBuzzer();
+			}
+		});
+
 		return () => {
 			unsubscribeHotkey();
 			unsubscribeData();
 			unsubscribeReceive();
+			unsubscribeTimerFinished();
 			window.removeEventListener("beforeunload", handleBeforeUnload);
 		};
-	}, [store, overlayTimer]);
+	}, [store, overlayTimer, playBuzzer]);
 
 	return (
 		<div className="flex h-screen w-screen flex-col">

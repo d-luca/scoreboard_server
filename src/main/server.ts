@@ -54,6 +54,11 @@ export class ScoreboardServer {
 	}
 
 	private setupRoutes(): void {
+		// Serve buzzer audio file for remote control page
+		this.app.get("/buzzer.mp3", (_req, res) => {
+			res.sendFile(join(__dirname, "../../resources/buzzer.mp3"));
+		});
+
 		// Serve the scoreboard HTML page
 		this.app.get("/scoreboard", (_req, res) => {
 			res.send(renderScoreboardHTML(this.currentData));
@@ -360,6 +365,15 @@ export class ScoreboardServer {
 		this.wss.clients.forEach((client) => {
 			if (client.readyState === 1) {
 				// WebSocket.OPEN
+				client.send(message);
+			}
+		});
+	}
+
+	public broadcastTimerFinished(): void {
+		const message = JSON.stringify({ event: "timer-finished" });
+		this.wss.clients.forEach((client) => {
+			if (client.readyState === 1) {
 				client.send(message);
 			}
 		});

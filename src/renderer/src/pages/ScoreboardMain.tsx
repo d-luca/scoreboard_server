@@ -6,9 +6,11 @@ import { HotkeySettings } from "@renderer/components/HotkeySettings";
 import { ScoreboardControl } from "@renderer/components/ScoreboardControl";
 import { ScoreboardFeedback } from "@renderer/components/ScoreboardFeedback";
 import { RecordingControls } from "@renderer/components/RecordingControls";
+import { useBuzzerStore } from "@renderer/stores/buzzerStore";
 
 export function ScoreboardMain(): JSX.Element {
 	const store = useScoreboardStore();
+	const { playBuzzer } = useBuzzerStore();
 
 	// Enable keyboard controls
 	useKeyboardControls();
@@ -71,11 +73,19 @@ export function ScoreboardMain(): JSX.Element {
 			store.receiveTimerControl(state);
 		});
 
+		// Listen for timer-finished event to play buzzer
+		const unsubscribeTimerFinished = window.api.onTimerFinished(() => {
+			if (useBuzzerStore.getState().buzzerEnabled) {
+				playBuzzer();
+			}
+		});
+
 		return () => {
 			unsubscribeHotkey();
 			unsubscribeData();
 			unsubscribeSurrender();
 			unsubscribeReceive();
+			unsubscribeTimerFinished();
 		};
 		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, []);

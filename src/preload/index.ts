@@ -96,6 +96,13 @@ const api = {
 	mainTimerStop: () => ipcRenderer.send("main-timer:stop"),
 	mainTimerIsRunning: (): Promise<boolean> => ipcRenderer.invoke("main-timer:is-running"),
 
+	// Buzzer
+	onTimerFinished: (callback: () => void) => {
+		const subscription = (): void => callback();
+		ipcRenderer.on("timer-finished", subscription);
+		return () => ipcRenderer.removeListener("timer-finished", subscription);
+	},
+
 	// Timer action request (forwarded to main window)
 	requestTimerAction: (action: string) => ipcRenderer.send("request-timer-action", action),
 
