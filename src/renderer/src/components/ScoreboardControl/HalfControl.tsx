@@ -1,6 +1,5 @@
 import { JSX } from "react";
 import { Button } from "../ui/Button/Button";
-import { ValueBox } from "../ui/ValueBox";
 import { useScoreboardStore } from "@renderer/stores/scoreboardStore";
 import { useHotkeyStore } from "@renderer/stores/hotkeyStore";
 import { HotkeyBadge } from "../ui/HotkeyBadge";
@@ -10,11 +9,12 @@ export function HalfControl(): JSX.Element {
 	const { getHotkeyString } = useHotkeyStore();
 
 	return (
-		<div className="flex flex-col items-center gap-4">
-			<ValueBox value={store.half ?? 1} title="Half" />
-			<div className="flex size-full flex-col gap-2">
+		<div className="flex flex-col items-center justify-center gap-1 px-6 py-4">
+			<span className="text-app-secondary text-sm font-semibold tracking-wide uppercase">Half</span>
+			<span className="text-app-primary text-5xl font-bold tabular-nums">{store.half ?? 1}</span>
+			<div className="mt-2 flex gap-2">
 				<Button
-					className="flex size-full flex-col items-center justify-center"
+					className="flex h-12 flex-col items-center justify-center px-6 text-base"
 					onClick={store.increaseHalf}
 					title={`Hotkey: ${getHotkeyString("increaseHalf")}`}
 				>
@@ -23,7 +23,7 @@ export function HalfControl(): JSX.Element {
 				</Button>
 				<Button
 					variant="destructive"
-					className="flex size-full flex-col items-center justify-center"
+					className="flex h-12 flex-col items-center justify-center px-6 text-base"
 					onClick={store.decreaseHalf}
 					title={`Hotkey: ${getHotkeyString("decreaseHalf")}`}
 				>

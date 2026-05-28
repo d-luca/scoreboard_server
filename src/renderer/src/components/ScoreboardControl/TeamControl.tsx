@@ -1,7 +1,6 @@
 import { JSX } from "react";
 
 import { Button } from "../ui/Button/Button";
-import { ValueBox } from "../ui/ValueBox";
 import { useHotkeyStore } from "@renderer/stores/hotkeyStore";
 import { HotkeyBadge } from "../ui/HotkeyBadge";
 
@@ -25,13 +24,12 @@ export function TeamControl({
 	const decreaseAction = teamType === "home" ? "decreaseHomeScore" : "decreaseAwayScore";
 
 	return (
-		<div className="flex flex-col items-center gap-4">
-			<ValueBox value={score} title={title} />
-
-			{/* Score Controls */}
-			<div className="flex size-full flex-col gap-2">
+		<div className="flex flex-1 flex-col items-center justify-center gap-1 p-4">
+			<span className="text-app-secondary text-sm font-semibold tracking-wide uppercase">{title}</span>
+			<span className="text-app-primary text-5xl font-bold tabular-nums">{score}</span>
+			<div className="mt-2 flex gap-2">
 				<Button
-					className="flex size-full flex-col items-center justify-center"
+					className="flex h-12 flex-col items-center justify-center px-6 text-base"
 					onClick={onIncreaseScore}
 					title={`Hotkey: ${getHotkeyString(increaseAction)}`}
 				>
@@ -40,7 +38,7 @@ export function TeamControl({
 				</Button>
 				<Button
 					variant="destructive"
-					className="flex size-full w-full flex-col items-center justify-center"
+					className="flex h-12 flex-col items-center justify-center px-6 text-base"
 					onClick={onDecreaseScore}
 					title={`Hotkey: ${getHotkeyString(decreaseAction)}`}
 				>
