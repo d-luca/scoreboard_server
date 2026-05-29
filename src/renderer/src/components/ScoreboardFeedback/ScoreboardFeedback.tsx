@@ -9,7 +9,9 @@ type FeedTab = "local" | "external";
 
 export function ScoreboardFeedback(): JSX.Element {
 	const [activeTab, setActiveTab] = useState<FeedTab>("local");
-	const [lanUrls, setLanUrls] = useState<string[]>([]);
+
+	type LanAddress = { name: string; address: string; url: string };
+	const [lanUrls, setLanUrls] = useState<LanAddress[]>([]);
 
 	useEffect(() => {
 		let isMounted = true;
@@ -25,7 +27,8 @@ export function ScoreboardFeedback(): JSX.Element {
 	}, []);
 
 	// Derive the scoreboard URL for the first LAN address (replace /control with /scoreboard)
-	const externalScoreboardUrl = lanUrls.length > 0 ? lanUrls[0].replace(/\/control$/, "/scoreboard") : null;
+	const externalScoreboardUrl =
+		lanUrls.length > 0 ? lanUrls[0].url.replace(/\/control$/, "/scoreboard") : null;
 
 	return (
 		<Card className="border-app-primary flex flex-col gap-4 border">
@@ -68,15 +71,15 @@ export function ScoreboardFeedback(): JSX.Element {
 							<div className="flex flex-col gap-2">
 								<div className="text-app-secondary text-sm font-semibold">LAN Remote Control</div>
 								<div className="flex flex-col gap-1">
-									{lanUrls.map((url) => (
+									{lanUrls.map((entry) => (
 										<a
-											key={url}
-											href={url}
+											key={entry.url}
+											href={entry.url}
 											target="_blank"
 											rel="noreferrer"
 											className="text-primary-300 hover:text-primary-200 font-mono text-sm break-all underline underline-offset-4"
 										>
-											{url}
+											{entry.name} — {entry.url}
 										</a>
 									))}
 								</div>

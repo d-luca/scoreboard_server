@@ -24,19 +24,25 @@ let overlayPreviewWindow: BrowserWindow | null = null;
 let overlayControlWindow: BrowserWindow | null = null;
 let videoGeneratorWindow: BrowserWindow | null = null;
 
-function getLanControlUrls(): string[] {
-	const interfaces = networkInterfaces();
-	const urls: string[] = [];
+type LanControlEntry = { name: string; address: string; url: string };
 
-	Object.values(interfaces).forEach((networkInterface) => {
+function getLanControlUrls(): LanControlEntry[] {
+	const interfaces = networkInterfaces();
+	const urls: LanControlEntry[] = [];
+
+	Object.entries(interfaces).forEach(([name, networkInterface]) => {
 		networkInterface?.forEach((address) => {
 			if (address.family === "IPv4" && !address.internal) {
-				urls.push(`http://${address.address}:3001/control`);
+				urls.push({ name, address: address.address, url: `http://${address.address}:3001/control` });
 			}
 		});
 	});
 
-	return urls.length > 0 ? urls : ["http://localhost:3001/control"];
+	if (urls.length === 0) {
+		return [{ name: "localhost", address: "127.0.0.1", url: "http://localhost:3001/control" }];
+	}
+
+	return urls;
 }
 
 // Store current hotkey configuration
@@ -642,8 +648,8 @@ app.whenReady().then(() => {
 		.start()
 		.then(() => {
 			console.log("Scoreboard server started successfully");
-			getLanControlUrls().forEach((url) => {
-				console.log(`Remote control available at ${url}`);
+			getLanControlUrls().forEach((entry) => {
+				console.log(`Remote control available at ${entry.url} (${entry.name})`);
 			});
 		})
 		.catch((error) => {

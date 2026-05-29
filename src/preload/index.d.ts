@@ -8,6 +8,8 @@ import {
 	GenerationProgress,
 } from "../types/scoreboard";
 
+type LanAddress = { name: string; address: string; url: string };
+
 interface ScoreboardAPI {
 	// Scoreboard
 	getScoreboardData: () => Promise<ScoreboardData>;
@@ -33,7 +35,7 @@ interface ScoreboardAPI {
 	getRecordingOutputDir: () => Promise<string>;
 	setRecordingOutputDir: (path: string) => Promise<{ success: boolean; error?: string }>;
 	selectRecordingOutputDir: () => Promise<{ canceled: boolean; path?: string }>;
-	getLanAddresses: () => Promise<string[]>;
+	getLanAddresses: () => Promise<LanAddress[]>;
 
 	// Recording status updates
 	onRecordingStatusChange: (
