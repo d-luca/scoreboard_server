@@ -9,7 +9,7 @@ import { formatTime } from "@renderer/utils/formatTime";
 export function TimerControl(): JSX.Element {
 	const store = useScoreboardStore();
 	const { getHotkeyString } = useHotkeyStore();
-	const { buzzerEnabled, toggleBuzzer, playBuzzer } = useBuzzerStore();
+	const { playBuzzer } = useBuzzerStore();
 
 	const timerValue = store.timer ?? 0;
 	const handleToggleTimer = (): void => {
@@ -61,7 +61,7 @@ export function TimerControl(): JSX.Element {
 			</div>
 
 			{/* Time adjustments + Buzzer */}
-			<div className="grid grid-cols-6 gap-2">
+			<div className="grid grid-cols-5 gap-2">
 				<Button
 					className="flex h-11 flex-col items-center justify-center text-sm"
 					onClick={store.increaseTimerByOneSecond}
@@ -103,14 +103,6 @@ export function TimerControl(): JSX.Element {
 					title="Play buzzer sound"
 				>
 					Buzzer
-				</Button>
-				<Button
-					variant={buzzerEnabled ? "default" : "outline"}
-					className="flex h-11 flex-col items-center justify-center text-sm"
-					onClick={toggleBuzzer}
-					title="Auto-buzzer when timer ends"
-				>
-					Auto: {buzzerEnabled ? "ON" : "OFF"}
 				</Button>
 			</div>
 		</div>

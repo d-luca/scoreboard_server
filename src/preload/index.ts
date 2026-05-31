@@ -102,6 +102,14 @@ const api = {
 		ipcRenderer.on("timer-finished", subscription);
 		return () => ipcRenderer.removeListener("timer-finished", subscription);
 	},
+	onPlayBuzzer: (callback: () => void) => {
+		const subscription = (): void => callback();
+		ipcRenderer.on("play-buzzer", subscription);
+		return () => ipcRenderer.removeListener("play-buzzer", subscription);
+	},
+	selectBuzzerTrack: () => ipcRenderer.invoke("buzzer:select-track"),
+	getBuzzerTrack: () => ipcRenderer.invoke("buzzer:get-track"),
+	clearBuzzerTrack: () => ipcRenderer.invoke("buzzer:clear-track"),
 
 	// Timer action request (forwarded to main window)
 	requestTimerAction: (action: string) => ipcRenderer.send("request-timer-action", action),

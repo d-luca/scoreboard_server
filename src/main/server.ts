@@ -15,6 +15,7 @@ export class ScoreboardServer {
 	private currentData: ScoreboardData;
 	private onTimerCommand: ((command: TimerCommand, value?: number) => void) | null = null;
 	private onStateChangedFromExternal: ((data: ScoreboardData) => void) | null = null;
+	private onBuzzerCommand: (() => void) | null = null;
 
 	constructor(port: number = 3001) {
 		this.port = port;
@@ -206,6 +207,10 @@ export class ScoreboardServer {
 		this.onStateChangedFromExternal = callback;
 	}
 
+	public setBuzzerCommandCallback(callback: () => void): void {
+		this.onBuzzerCommand = callback;
+	}
+
 	private sanitizeNonNegativeInteger(value: unknown): number | undefined {
 		const parsedValue = typeof value === "number" ? value : Number(value);
 		return Number.isFinite(parsedValue) ? Math.max(0, Math.floor(parsedValue)) : undefined;
@@ -335,6 +340,9 @@ export class ScoreboardServer {
 				this.applyExternalScoreboardData({
 					teamAwayScore: Math.max(0, (this.currentData.teamAwayScore ?? 0) - 1),
 				});
+				break;
+			case "buzzer:play":
+				this.onBuzzerCommand?.();
 				break;
 			case "half:inc":
 				this.applyExternalScoreboardData({ half: (this.currentData.half ?? 1) + 1 });

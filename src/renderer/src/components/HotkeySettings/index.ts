@@ -1,2 +1,2 @@
-export { HotkeySettings } from "./HotkeySettings";
+export { KeyboardShortcutsPanel } from "./HotkeySettings";
 export { HotkeyRecorder } from "./HotkeyRecorder";

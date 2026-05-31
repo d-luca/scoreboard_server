@@ -9,12 +9,12 @@ export function HalfControl(): JSX.Element {
 	const { getHotkeyString } = useHotkeyStore();
 
 	return (
-		<div className="flex flex-col items-center justify-center gap-1 px-6 py-4">
-			<span className="text-app-secondary text-sm font-semibold tracking-wide uppercase">Half</span>
-			<span className="text-app-primary text-5xl font-bold tabular-nums">{store.half ?? 1}</span>
-			<div className="mt-2 flex gap-2">
+		<div className="flex min-w-0 flex-col items-center justify-center gap-2 px-4 py-4">
+			<span className="text-app-secondary text-base font-semibold tracking-wide uppercase">Half</span>
+			<span className="text-app-primary text-7xl font-bold tabular-nums">{store.half ?? 1}</span>
+			<div className="mt-3 flex w-full gap-2">
 				<Button
-					className="flex h-12 flex-col items-center justify-center px-6 text-base"
+					className="flex h-16 flex-1 flex-col items-center justify-center text-xl"
 					onClick={store.increaseHalf}
 					title={`Hotkey: ${getHotkeyString("increaseHalf")}`}
 				>
@@ -23,7 +23,7 @@ export function HalfControl(): JSX.Element {
 				</Button>
 				<Button
 					variant="destructive"
-					className="flex h-12 flex-col items-center justify-center px-6 text-base"
+					className="flex h-16 flex-1 flex-col items-center justify-center text-xl"
 					onClick={store.decreaseHalf}
 					title={`Hotkey: ${getHotkeyString("decreaseHalf")}`}
 				>

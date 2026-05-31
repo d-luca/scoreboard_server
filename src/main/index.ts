@@ -1,5 +1,6 @@
 import { app, shell, BrowserWindow, ipcMain, globalShortcut, screen, dialog } from "electron";
-import { join } from "path";
+import { join, basename } from "path";
+import { readFile } from "fs/promises";
 import { networkInterfaces } from "os";
 import { electronApp, optimizer, is } from "@electron-toolkit/utils";
 import icon from "../../resources/icon.png?asset";
@@ -618,6 +619,10 @@ app.whenReady().then(() => {
 			window.webContents.send("scoreboard-data-update", fullData);
 		});
 	});
+	scoreboardServer.setBuzzerCommandCallback(() => {
+		// Remote control requested a buzzer; trigger the main app buzzer
+		mainWindow?.webContents.send("play-buzzer");
+	});
 	recordingService = new RecordingService();
 	settingsService = new SettingsService();
 	videoGeneratorService = new VideoGeneratorService();
@@ -758,6 +763,70 @@ app.whenReady().then(() => {
 			canceled: result.canceled,
 			path: result.filePaths[0],
 		};
+	});
+
+	// IPC handlers for buzzer audio track
+	ipcMain.handle("buzzer:select-track", async () => {
+		const result = await dialog.showOpenDialog({
+			properties: ["openFile"],
+			title: "Select Buzzer Audio Track",
+			filters: [{ name: "Audio Files", extensions: ["mp3", "wav", "ogg", "m4a", "aac", "flac"] }],
+		});
+
+		if (result.canceled || result.filePaths.length === 0) {
+			return { canceled: true };
+		}
+
+		const path = result.filePaths[0];
+		try {
+			await settingsService.setBuzzerTrackPath(path);
+			const data = await readFile(path);
+			return {
+				canceled: false,
+				path,
+				fileName: basename(path),
+				data: new Uint8Array(data),
+			};
+		} catch (error) {
+			return {
+				canceled: false,
+				error: error instanceof Error ? error.message : String(error),
+			};
+		}
+	});
+
+	ipcMain.handle("buzzer:get-track", async () => {
+		const path = settingsService.getBuzzerTrackPath();
+		if (!path) {
+			return { path: null };
+		}
+
+		try {
+			const data = await readFile(path);
+			return {
+				path,
+				fileName: basename(path),
+				data: new Uint8Array(data),
+			};
+		} catch (error) {
+			// File no longer accessible; report so renderer can fall back to default
+			return {
+				path: null,
+				error: error instanceof Error ? error.message : String(error),
+			};
+		}
+	});
+
+	ipcMain.handle("buzzer:clear-track", async () => {
+		try {
+			await settingsService.clearBuzzerTrackPath();
+			return { success: true };
+		} catch (error) {
+			return {
+				success: false,
+				error: error instanceof Error ? error.message : String(error),
+			};
+		}
 	});
 
 	// IPC handlers for video generation

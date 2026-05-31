@@ -1,8 +1,7 @@
 import { JSX, useEffect } from "react";
-import { ScoreboardSettings } from "@renderer/components/ScoreboardSettings";
+import { Settings } from "@renderer/components/Settings";
 import { useScoreboardStore } from "@renderer/stores/scoreboardStore";
 import { useKeyboardControls } from "@renderer/hooks/useKeyboardControls";
-import { HotkeySettings } from "@renderer/components/HotkeySettings";
 import { ScoreboardControl } from "@renderer/components/ScoreboardControl";
 import { ScoreboardFeedback } from "@renderer/components/ScoreboardFeedback";
 import { RecordingControls } from "@renderer/components/RecordingControls";
@@ -80,26 +79,31 @@ export function ScoreboardMain(): JSX.Element {
 			}
 		});
 
+		// Listen for remote-control buzzer requests (always plays, regardless of auto setting)
+		const unsubscribePlayBuzzer = window.api.onPlayBuzzer(() => {
+			playBuzzer();
+		});
+
 		return () => {
 			unsubscribeHotkey();
 			unsubscribeData();
 			unsubscribeSurrender();
 			unsubscribeReceive();
 			unsubscribeTimerFinished();
+			unsubscribePlayBuzzer();
 		};
 		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, []);
 
 	return (
 		<div className="flex size-full gap-4">
-			<div className="flex h-full w-full flex-col gap-4">
+			<div className="flex h-full w-1/2 flex-col gap-4 overflow-hidden">
 				<ScoreboardFeedback />
-				<RecordingControls />
-				<HotkeySettings />
+				<Settings />
 			</div>
-			<div className="flex h-full w-full flex-col gap-4 overflow-hidden">
+			<div className="flex h-full w-1/2 flex-col gap-4 overflow-hidden">
 				<ScoreboardControl />
-				<ScoreboardSettings />
+				<RecordingControls />
 			</div>
 		</div>
 	);

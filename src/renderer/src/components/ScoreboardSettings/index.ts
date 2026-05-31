@@ -1,1 +1,1 @@
-export { ScoreboardSettings } from "./ScoreboardSettings";
+export { ScoreboardSettingsPanel } from "./ScoreboardSettings";

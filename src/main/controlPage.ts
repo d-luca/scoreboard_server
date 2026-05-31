@@ -680,7 +680,7 @@ export function renderControlPage(): string {
 			buzzerAudio.play().catch(function (err) { console.error("Buzzer play failed", err); });
 		}
 
-		element("buzzerPlay").addEventListener("click", playBuzzer);
+		element("buzzerPlay").addEventListener("click", function () { sendCommand("buzzer:play"); });
 		element("buzzerToggle").addEventListener("click", function () {
 			buzzerAutoEnabled = !buzzerAutoEnabled;
 			element("buzzerToggle").textContent = "Auto: " + (buzzerAutoEnabled ? "ON" : "OFF");

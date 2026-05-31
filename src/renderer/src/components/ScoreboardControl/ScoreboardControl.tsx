@@ -21,10 +21,10 @@ export function ScoreboardControl(): JSX.Element {
 	];
 
 	return (
-		<Card className="flex h-1/2 w-full flex-col overflow-hidden">
+		<Card className="flex min-h-0 w-full flex-1 flex-col overflow-hidden">
 			<CardTitle>Scoreboard Controls</CardTitle>
 
-			<CardContent className="flex size-full flex-col overflow-auto">
+			<CardContent className="flex size-full flex-col justify-between overflow-x-hidden overflow-y-auto">
 				{/* Score & Half row */}
 				<div className="border-app-primary flex items-stretch border-b">
 					<TeamControl

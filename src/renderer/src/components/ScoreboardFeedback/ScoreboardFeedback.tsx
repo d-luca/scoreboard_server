@@ -1,4 +1,5 @@
 import { JSX, useEffect, useState } from "react";
+import { EyeClosedIcon, EyeOpenIcon } from "@radix-ui/react-icons";
 import { Card } from "../ui/Card/Card";
 import { CardTitle } from "../ui/Card/CardTitle";
 import { CardContent } from "../ui/Card/CardContent";
@@ -9,6 +10,7 @@ type FeedTab = "local" | "external";
 
 export function ScoreboardFeedback(): JSX.Element {
 	const [activeTab, setActiveTab] = useState<FeedTab>("local");
+	const [showLanAddresses, setShowLanAddresses] = useState(false);
 
 	type LanAddress = { name: string; address: string; url: string };
 	const [lanUrls, setLanUrls] = useState<LanAddress[]>([]);
@@ -69,20 +71,34 @@ export function ScoreboardFeedback(): JSX.Element {
 					<>
 						{lanUrls.length > 0 ? (
 							<div className="flex flex-col gap-2">
-								<div className="text-app-secondary text-sm font-semibold">LAN Remote Control</div>
-								<div className="flex flex-col gap-1">
-									{lanUrls.map((entry) => (
-										<a
-											key={entry.url}
-											href={entry.url}
-											target="_blank"
-											rel="noreferrer"
-											className="text-primary-300 hover:text-primary-200 font-mono text-sm break-all underline underline-offset-4"
-										>
-											{entry.name} — {entry.url}
-										</a>
-									))}
+								<div className="flex items-center justify-between gap-2">
+									<div className="text-app-secondary text-sm font-semibold">LAN Remote Control</div>
+									<button
+										type="button"
+										onClick={() => setShowLanAddresses((prev) => !prev)}
+										className="text-app-secondary hover:text-app-primary flex items-center gap-1 rounded-md px-2 py-1 text-xs transition"
+										title={showLanAddresses ? "Hide addresses" : "Show addresses"}
+										aria-pressed={showLanAddresses}
+									>
+										{showLanAddresses ? <EyeOpenIcon /> : <EyeClosedIcon />}
+										{showLanAddresses ? "Hide" : "Show"}
+									</button>
 								</div>
+								{showLanAddresses && (
+									<div className="flex flex-col gap-1">
+										{lanUrls.map((entry) => (
+											<a
+												key={entry.url}
+												href={entry.url}
+												target="_blank"
+												rel="noreferrer"
+												className="text-primary-300 hover:text-primary-200 font-mono text-sm break-all underline underline-offset-4"
+											>
+												{entry.name} — {entry.url}
+											</a>
+										))}
+									</div>
+								)}
 								{externalScoreboardUrl && (
 									<div className="mt-2 flex h-16 w-[580px] items-center justify-center">
 										<iframe src={externalScoreboardUrl} className="flex h-20 w-[560px]" />

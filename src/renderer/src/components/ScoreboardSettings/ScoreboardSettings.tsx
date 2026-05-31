@@ -1,7 +1,4 @@
 import { ChangeEvent, JSX, useEffect, useState } from "react";
-import { Card } from "../ui/Card/Card";
-import { CardTitle } from "../ui/Card/CardTitle";
-import { CardContent } from "../ui/Card/CardContent";
 import { useScoreboardStore } from "@renderer/stores/scoreboardStore";
 import { useOverlayStore } from "@renderer/stores/overlayStore";
 import { useHotkeyStore } from "@renderer/stores/hotkeyStore";
@@ -14,7 +11,7 @@ import { TimerLoadoutSettings } from "./TimerLoadoutSettings";
 type TimerLoadoutIndex = 1 | 2 | 3;
 type TimerLoadoutState = Record<TimerLoadoutIndex, string>;
 
-export function ScoreboardSettings(): JSX.Element {
+export function ScoreboardSettingsPanel(): JSX.Element {
 	const store = useScoreboardStore();
 	const { enabled: overlayEnabled, toggleOverlay, setOverlay } = useOverlayStore();
 	const { enabled: hotkeyEnabled } = useHotkeyStore();
@@ -134,38 +131,35 @@ export function ScoreboardSettings(): JSX.Element {
 	};
 
 	return (
-		<Card className="border-app-primary flex h-1/2 w-full flex-col gap-4 overflow-hidden border">
-			<CardTitle>Scoreboard Settings</CardTitle>
-			<CardContent className="flex size-full flex-col justify-between gap-4 overflow-auto">
-				{/* Overlay Mode Toggle */}
-				<OverlayModeToggle enabled={overlayEnabled} onToggle={handleOverlayToggle} />
+		<div className="flex size-full flex-col justify-between gap-4 overflow-auto">
+			{/* Overlay Mode Toggle */}
+			<OverlayModeToggle enabled={overlayEnabled} onToggle={handleOverlayToggle} />
 
-				{/* Team Settings */}
-				<TeamSettings
-					teamHomeName={store.teamHomeName}
-					teamAwayName={store.teamAwayName}
-					halfPrefix={store.halfPrefix}
-					onTeamHomeNameChange={handleTeamHomeNameChange}
-					onTeamAwayNameChange={handleTeamAwayNameChange}
-					onHalfPrefixChange={handleHalfPrefixChange}
-				/>
+			{/* Team Settings */}
+			<TeamSettings
+				teamHomeName={store.teamHomeName}
+				teamAwayName={store.teamAwayName}
+				halfPrefix={store.halfPrefix}
+				onTeamHomeNameChange={handleTeamHomeNameChange}
+				onTeamAwayNameChange={handleTeamAwayNameChange}
+				onHalfPrefixChange={handleHalfPrefixChange}
+			/>
 
-				{/* Team Colors */}
-				<TeamColorSettings
-					teamHomeColor={store.teamHomeColor}
-					teamAwayColor={store.teamAwayColor}
-					onTeamHomeColorChange={store.setTeamHomeColor}
-					onTeamAwayColorChange={store.setTeamAwayColor}
-				/>
+			{/* Team Colors */}
+			<TeamColorSettings
+				teamHomeColor={store.teamHomeColor}
+				teamAwayColor={store.teamAwayColor}
+				onTeamHomeColorChange={store.setTeamHomeColor}
+				onTeamAwayColorChange={store.setTeamAwayColor}
+			/>
 
-				{/* Timer Loadouts */}
-				<TimerLoadoutSettings
-					loadoutInputs={timerLoadoutInputs}
-					onLoadoutChange={handleLoadoutChange}
-					onLoadoutFocus={handleLoadoutFocus}
-					onLoadoutBlur={handleLoadoutBlur}
-				/>
-			</CardContent>
-		</Card>
+			{/* Timer Loadouts */}
+			<TimerLoadoutSettings
+				loadoutInputs={timerLoadoutInputs}
+				onLoadoutChange={handleLoadoutChange}
+				onLoadoutFocus={handleLoadoutFocus}
+				onLoadoutBlur={handleLoadoutBlur}
+			/>
+		</div>
 	);
 }

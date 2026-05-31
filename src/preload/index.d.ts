@@ -70,6 +70,21 @@ interface ScoreboardAPI {
 
 	// Buzzer
 	onTimerFinished: (callback: () => void) => () => void;
+	onPlayBuzzer: (callback: () => void) => () => void;
+	selectBuzzerTrack: () => Promise<{
+		canceled: boolean;
+		path?: string;
+		fileName?: string;
+		data?: Uint8Array;
+		error?: string;
+	}>;
+	getBuzzerTrack: () => Promise<{
+		path: string | null;
+		fileName?: string;
+		data?: Uint8Array;
+		error?: string;
+	}>;
+	clearBuzzerTrack: () => Promise<{ success: boolean; error?: string }>;
 
 	// Timer action request (forwarded to main window)
 	requestTimerAction: (action: string) => void;

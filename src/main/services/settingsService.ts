@@ -4,6 +4,7 @@ import { promises as fs } from "fs";
 
 interface AppSettings {
 	recordingOutputDir?: string;
+	buzzerTrackPath?: string;
 }
 
 export class SettingsService {
@@ -67,6 +68,30 @@ export class SettingsService {
 		}
 
 		this.settings.recordingOutputDir = path;
+		await this.save();
+	}
+
+	getBuzzerTrackPath(): string | undefined {
+		return this.settings.buzzerTrackPath;
+	}
+
+	async setBuzzerTrackPath(path: string): Promise<void> {
+		// Validate that the file exists
+		try {
+			const stats = await fs.stat(path);
+			if (!stats.isFile()) {
+				throw new Error("Path is not a file");
+			}
+		} catch (error) {
+			throw new Error(`Invalid file: ${error instanceof Error ? error.message : String(error)}`);
+		}
+
+		this.settings.buzzerTrackPath = path;
+		await this.save();
+	}
+
+	async clearBuzzerTrackPath(): Promise<void> {
+		delete this.settings.buzzerTrackPath;
 		await this.save();
 	}
 }

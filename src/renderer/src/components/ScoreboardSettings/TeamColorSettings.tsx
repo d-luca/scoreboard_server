@@ -16,7 +16,7 @@ export function TeamColorSettings({
 	onTeamAwayColorChange,
 }: TeamColorSettingsProps): JSX.Element {
 	return (
-		<div className="grid grid-cols-2 gap-4">
+		<div className="mx-2 grid grid-cols-2 gap-4">
 			<div className="space-y-2">
 				<Label htmlFor="teamHomeColor">Team Home Color</Label>
 				<ColorPicker value={teamHomeColor} onChange={onTeamHomeColorChange} />
