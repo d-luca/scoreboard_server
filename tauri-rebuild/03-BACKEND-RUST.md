@@ -298,17 +298,23 @@ async fn handler(ws: WebSocketUpgrade,
 
 `client_loop`:
 
-1. Send the current state frame.
-2. `tokio::select!` over
+1. Increment `shared.ws_clients` (and `authorized_clients` when applicable), publish
+   `ServerStatus`. Use a guard struct whose `Drop` decrements and republishes, so a
+   panicking or abruptly closed connection cannot leak the count. `[NEW]`
+2. Send the current state frame.
+3. `tokio::select!` over
    - `rx.recv()` from the broadcast channel → serialize and send.
      On `RecvError::Lagged(_)`, re-send a fresh full state and continue.
      On `RecvError::Closed`, break.
    - `socket.recv()` → parse, rate-limit, then `shared.dispatch(action)` if `authorized`,
      else send `{"type":"error","code":"unauthorized"}`.
    - a 30 s interval → send `Message::Ping`.
-3. On any error, break; the socket drops and the receiver unsubscribes automatically.
+4. On any error, break; the socket drops, the receiver unsubscribes and the guard fires.
 
 Rate limiting: a simple token bucket (30 tokens, refill 30/s) per connection.
+
+The client counters feed the main window's status bar (doc 02 §7.1.1). Coalesce
+`server:status` emissions to 2 Hz so a reconnect storm cannot flood the webviews.
 
 ### 4.3 Static assets
 
@@ -400,6 +406,128 @@ sort so `192.168.*` and `10.*` come first. Return `{ name, address }`.
 IPv6 listener on the dev machine. Bind `0.0.0.0` and always display/test the explicit IPv4
 URLs. Optionally also bind `[::]` — but keep the displayed URLs IPv4.
 
+## 7bis. `windows.rs` — window manager `[NEW]`
+
+Every secondary window is a singleton created on demand. See doc 01 §9.2 for the `open()`
+reference implementation and doc 01 ©7 for the size table.
+
+```rust
+pub enum AppWindow { Settings, Outputs, Recording, VideoGenerator, About }
+
+impl AppWindow {
+    pub fn label(self) -> &'static str;   // "settings", "outputs", ...
+    pub fn url(self) -> &'static str;     // "settings.html", ...
+    pub fn title(self) -> &'static str;   // "Settings", "Outputs & Sharing", ...
+    pub fn size(self) -> (f64, f64);
+    pub fn min_size(self) -> (f64, f64);
+}
+
+pub fn open(app: &AppHandle, which: AppWindow) -> tauri::Result<()>;
+pub fn close(app: &AppHandle, which: AppWindow) -> tauri::Result<()>;
+pub fn list_open(app: &AppHandle) -> Vec<AppWindow>;
+```
+
+Responsibilities:
+
+- Focus-if-open, otherwise build. Never allow two instances of a label.
+- Restore `settings.window_geometry[label]` when present; clamp to a visible monitor with
+  `app.available_monitors()` before applying, otherwise a window saved on a now-absent
+  second screen is unreachable. `[RISK]`
+- Register a `WindowEvent::Moved | Resized` handler that debounces 500 ms and persists
+  geometry.
+- On `WindowEvent::CloseRequested` for a feature window, emit `window:closed`.
+- On `main` closing, close everything and exit.
+
+## 7ter. `menu.rs` — native menu bar `[NEW]`
+
+```rust
+pub fn build(app: &AppHandle) -> tauri::Result<Menu<Wry>> {
+    let file = SubmenuBuilder::new(app, "File")
+        .item(&MenuItemBuilder::with_id("open:settings", "Settings…")
+            .accelerator("CmdOrCtrl+,").build(app)?)
+        .separator()
+        .quit()
+        .build()?;
+
+    let view = SubmenuBuilder::new(app, "View")
+        .item(&MenuItemBuilder::with_id("open:outputs", "Outputs & Sharing…")
+            .accelerator("CmdOrCtrl+O").build(app)?)
+        .separator()
+        .item(&MenuItemBuilder::with_id("view:zoom-in", "Zoom In")
+            .accelerator("CmdOrCtrl+Plus").build(app)?)
+        .item(&MenuItemBuilder::with_id("view:zoom-out", "Zoom Out")
+            .accelerator("CmdOrCtrl+-").build(app)?)
+        .item(&MenuItemBuilder::with_id("view:zoom-reset", "Reset Zoom")
+            .accelerator("CmdOrCtrl+0").build(app)?)
+        .build()?;
+
+    // Tools is assembled conditionally — see below
+    let tools = build_tools_menu(app)?;
+    let help  = SubmenuBuilder::new(app, "Help")
+        .item(&MenuItemBuilder::with_id("help:docs", "Documentation").build(app)?)
+        .item(&MenuItemBuilder::with_id("open:about", "About").build(app)?)
+        .build()?;
+
+    MenuBuilder::new(app).items(&[&file, &view, &tools, &help]).build()
+}
+```
+
+Attach it to the main window only:
+
+```rust
+let menu = menu::build(app.handle())?;
+app.get_webview_window("main").unwrap().set_menu(menu)?;
+```
+
+`[RISK]` Do **not** call `app.set_menu(...)`. On Windows and Linux that applies the menu
+to windows created afterwards, which would put a menu bar on the frameless overlay
+windows.
+
+### Event routing
+
+```rust
+app.on_menu_event(|app, event| match event.id().as_ref() {
+    "open:settings"   => { let _ = windows::open(app, AppWindow::Settings); }
+    "open:outputs"    => { let _ = windows::open(app, AppWindow::Outputs); }
+    "open:recording"  => { let _ = windows::open(app, AppWindow::Recording); }
+    "open:video"      => { let _ = windows::open(app, AppWindow::VideoGenerator); }
+    "open:about"      => { let _ = windows::open(app, AppWindow::About); }
+    "tools:overlay"   => { let _ = overlay::toggle(app); }
+    "view:zoom-in"    => zoom(app, 0.1),
+    "view:zoom-out"   => zoom(app, -0.1),
+    "view:zoom-reset" => set_zoom(app, 1.0),
+    "help:docs"       => { let _ = app.opener().open_url(DOCS_URL, None::<&str>); }
+    _ => {}
+});
+```
+
+- Zoom applies to the focused window via `WebviewWindow::set_zoom`, clamped to
+  `0.5..=2.0`, and the level is persisted per window label. Requires the
+  `core:webview:allow-set-webview-zoom` permission in the capability.
+- `tools:overlay` is a `CheckMenuItem`. Keep its check state in sync by updating it from
+  the `overlay:opened` / `overlay:closed` handlers — the overlay can also be closed by
+  clicking the window's X, and a stale check mark is a bug report waiting to happen.
+- Menu items for features compiled out are never added:
+
+```rust
+fn build_tools_menu(app: &AppHandle) -> tauri::Result<Submenu<Wry>> {
+    let mut b = SubmenuBuilder::new(app, "Tools");
+    #[cfg(feature = "overlay")]
+    { b = b.item(&CheckMenuItemBuilder::with_id("tools:overlay", "Overlay Mode")
+            .accelerator("F9").build(app)?).separator(); }
+    #[cfg(feature = "recording")]
+    { b = b.item(&MenuItemBuilder::with_id("open:recording", "Recording…")
+            .accelerator("CmdOrCtrl+R").build(app)?); }
+    #[cfg(feature = "video")]
+    { b = b.item(&MenuItemBuilder::with_id("open:video", "Video Generator…").build(app)?); }
+    b.build()
+}
+```
+
+`[RISK]` `Ctrl+R` as a menu accelerator will shadow the webview's reload in dev builds.
+That is fine in release; in debug, register it only when `cfg!(not(debug_assertions))`, or
+you will lose reload while developing.
+
 ## 8. `lib.rs` — wiring
 
 ```rust
@@ -430,12 +558,16 @@ pub fn run() {
             commands::sb_get_state,
             commands::sb_dispatch,
             commands::server_get_info,
+            commands::server_get_status,
             commands::server_regenerate_token,
             commands::settings_get,
             commands::settings_set,
             commands::buzzer_get_track,
             commands::buzzer_select_track,
             commands::buzzer_clear_track,
+            commands::window_open,
+            commands::window_close,
+            commands::window_list,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
@@ -452,10 +584,12 @@ pub fn run() {
 {
 	"$schema": "../gen/schemas/desktop-schema.json",
 	"identifier": "main-capability",
-	"windows": ["main", "video-generator"],
+	"windows": ["main", "settings", "outputs", "recording", "video-generator", "about"],
 	"permissions": [
 		"core:default",
 		"core:window:allow-start-dragging",
+		"core:window:allow-close",
+		"core:webview:allow-set-webview-zoom",
 		"dialog:allow-open",
 		"opener:allow-open-url"
 	]

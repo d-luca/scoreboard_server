@@ -1,1 +1,0 @@
-export { ScoreboardSettingsPanel } from "./ScoreboardSettings";

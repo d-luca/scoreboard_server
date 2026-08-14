@@ -65,25 +65,33 @@ later.
 
 ---
 
-## Phase 2 — Desktop control UI `L`
+## Phase 2 — Control window, menu bar & window manager `L`
 
-**Goal:** the main window at full parity for match operation.
+**Goal:** the main window at full parity for match operation — and nothing else in it.
 
-- `Layout` + `ScoreboardMain` two-column layout.
+- `Layout`: single-column controls + status bar (doc 04 §7.1). No two-column split, no
+  settings card, no preview.
 - `ScoreboardControl`: team controls, half control, timer region, loadouts, reset
   (doc 04 §7.2).
-- The visual `<Scoreboard/>` component, ported verbatim (doc 04 §6).
-- `Settings` card with the Scoreboard tab (names, colours, prefix, loadout `MM:SS` inputs
-  with their validation).
+- The visual `<Scoreboard/>` component, ported verbatim (doc 04 §6) — built now because
+  P3 needs it, even though it is not shown in the main window.
+- `menu.rs`: the full menu tree with accelerators and `on_menu_event` routing
+  (doc 03 §7ter), attached with `main_window.set_menu`.
+- `windows.rs`: singleton `open`/`close`/`list_open`, geometry persistence, monitor
+  clamping, Esc-to-close (doc 03 §7bis) + the `window_*` commands and `windowStore`.
+- `StatusBar` with the badges that already have data (timer state); the server, client,
+  overlay and REC badges are wired as the corresponding phases land.
 - `useLocalHotkeys` for window-focused shortcuts, with defaults from doc 05 §5.1.
-- Local preview iframe placeholder (the real one needs P3).
+- Empty `settings.html` and `outputs.html` shells that open from the menu, so the window
+  plumbing is proven before the content exists.
 
 **Done when:**
 
-- A full match can be operated from the main window alone.
+- A full match can be operated from the main window alone, with no scrolling at 640×480.
 - The scoreboard renders pixel-identical to a reference screenshot from the Electron build
-  at 600×80.
-- Loadout inputs accept `15:00`, `900`, `2:5`; reject `1:75`; revert on invalid blur.
+  at 600×80 (verified on the `/scoreboard` page or a scratch route).
+- Every menu entry opens exactly one window; invoking it again focuses the existing one.
+- Window positions and sizes survive a restart.
 - Typing in a text field does not trigger hotkeys.
 
 ---
@@ -95,12 +103,14 @@ later.
 - `server/mod.rs` with axum, CORS, port fallback binding.
 - REST routes: `/health`, `/api/scoreboard` (GET/POST), `/api/scoreboard/:property`,
   `/api/action`.
-- WebSocket at `/ws`: initial state, broadcast fanout, lag recovery, heartbeat, rate limit.
+- WebSocket at `/ws`: initial state, broadcast fanout, lag recovery, heartbeat, rate limit,
+  connection counting.
 - `rust-embed` static serving of `dist/`.
 - `scoreboard.html` entry with `WsTransport`, transparent background, font preloading.
 - `/value/:property` page.
-- `net.rs` LAN address enumeration + `ServerInfo` + the `ScoreboardFeedback` Local tab
-  with a working preview iframe.
+- `net.rs` LAN address enumeration + `ServerInfo` + `server_get_status`.
+- **Outputs & Sharing window** (doc 04 §7.5): preview iframe, local URL, OBS instructions.
+- Status bar: server and client badges go live.
 
 **Done when:**
 
@@ -122,9 +132,10 @@ later.
 - `auth.rs`: token generation, constant-time check, cookie issuance, read-only downgrade
   for unauthenticated sockets.
 - `control.html` entry: the full React remote (doc 04 §8) using `WsTransport`.
-- QR code generation in Rust; `ScoreboardFeedback` External tab with the eye toggle, QR,
+- QR code generation in Rust; the Outputs window's LAN section with the eye toggle, QR,
   copy link, regenerate token.
 - Read-only banner when unauthorized.
+- Status bar: control-token badge goes live.
 
 **Done when:**
 
@@ -137,21 +148,25 @@ later.
 
 ---
 
-## Phase 5 — Settings persistence & buzzer `M`
+## Phase 5 — Settings window, persistence & buzzer `M`
 
 **Goal:** the app remembers everything and makes noise at the right time.
 
 - `settings.rs`: atomic save, corrupt-file recovery, debounced writes, migration hook.
 - Seed `ScoreboardState` from settings at startup.
 - Settings commands + `settings:changed` event + `settingsStore`.
-- Buzzer: default asset, custom-track selection via dialog, asset-protocol playback,
+- **Settings window** (doc 04 §7.4): Scoreboard tab (names, colours, prefix, loadout
+  `MM:SS` inputs with their validation) and Server tab (port + restart, token toggle).
+- Buzzer tab: default asset, custom-track selection via dialog, asset-protocol playback,
   auto-play toggle, `Test` button, remote `BuzzerPlay` action routed to the main window.
-- Server port setting with restart.
 
 **Done when:**
 
 - Team names, colours, prefix, loadouts, port, buzzer choice and auto-play all survive a
   restart.
+- Loadout inputs accept `15:00`, `900`, `2:5`; reject `1:75`; revert on invalid blur.
+- Editing a team name in the Settings window updates the main window and OBS live, with no
+  Save button.
 - The timer hitting 00:00 plays the buzzer on the desktop and on any phone with auto on.
 - Deleting `settings.json` yields defaults; corrupting it yields defaults plus a
   `.corrupt-*.json` backup and a warning in the log.
@@ -181,11 +196,13 @@ a full match end-to-end with OBS and a phone, with no developer tools present.
 
 Per doc 05.
 
-- `windows.rs` builders with DPI-correct positioning.
+- Overlay window builders with DPI-correct positioning, reusing `windows.rs`.
 - `overlay-preview.html` and `overlay-control.html` entries.
+- `Tools › Overlay Mode` checkable menu item + status-bar overlay badge, both synced from
+  `overlay:opened` / `overlay:closed`.
 - `tauri-plugin-global-shortcut` integration, key-code conversion with unit tests,
   press-only filtering, failure reporting.
-- Hotkey settings tab with the recorder and duplicate detection.
+- Hotkey settings tab (in the Settings window) with the recorder and duplicate detection.
 - Overlay capability file.
 - Wayland detection notice.
 
@@ -199,12 +216,13 @@ surviving overlay enable/disable — the behaviour the Electron app could not de
 Per doc 06 Part A.
 
 - `.sbrec` writer task, v1 JSON importer, output-directory setting, status events.
-- `RecordingControls` card and the compact overlay strip.
+- The **recording window** (doc 06 §A6) opened from `Tools › Recording…`, plus the compact
+  overlay strip and the REC badge in the main status bar.
 - Flush-on-exit handling.
 
 **Done when:** a 20-minute recording produces a file whose line count equals the duration
 in seconds; killing the process mid-recording leaves a readable file missing at most one
-line.
+line; closing the recording window does not stop the recording.
 
 ---
 
@@ -221,7 +239,8 @@ Suggested order:
 3. ffmpeg sidecar bundling and path resolution on both platforms.
 4. Streaming pipeline with batching and backpressure.
 5. Progress reporting and cancellation.
-6. The `video-generator` window UI.
+6. The `video-generator` window UI, opened from `Tools › Video Generator…` and from the
+   recording window.
 
 **Done when:** the acceptance criteria in doc 06 §B8 all pass, notably flat memory usage
 on a 90-minute recording.
@@ -251,7 +270,7 @@ Every phase must satisfy all of:
 | 5   | Timer at 0 disables Start and Reset in the UI                     | 04 §7.2 |
 | 6   | `/value/:property` formats `timer` as `MM:SS`, 404s on unknown    | 02 §5.1 |
 | 7   | CORS is open for GET/POST                                         | 02 §5.2 |
-| 8   | LAN addresses hidden behind the eye toggle by default             | 04 §7.4 |
+| 8   | LAN addresses hidden behind the eye toggle by default             | 04 §7.5 |
 | 9   | Remote text inputs are not overwritten while focused              | 04 §8   |
 | 10  | Remote buttons are ≥ 48 px tall, inputs ≥ 44 px                   | 04 §8   |
 | 11  | Scoreboard renders at exactly 600×80 with the documented geometry | 04 §6   |
@@ -261,6 +280,8 @@ Every phase must satisfy all of:
 | 15  | Hotkeys ignored while typing in a field                           | 04 §9   |
 | 16  | Recording snapshots start at `t = 0`, one per second              | 06 §A5  |
 | 17  | Generated video preserves alpha                                   | 06 §B3  |
+| 18  | Every feature window is a singleton and reopens where it was left | 03 §7bis |
+| 19  | Overlay windows carry no menu bar                                 | 03 §7ter |
 
 ## Open questions to resolve during implementation
 

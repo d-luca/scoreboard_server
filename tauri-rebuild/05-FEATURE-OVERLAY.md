@@ -76,9 +76,22 @@ Dragging: the overlay control has an `h-8` drag strip. Use
 | `hotkeys:changed` | `HotkeyMap` | all    |
 
 If either overlay window is closed by the user, close the other one too and emit
-`overlay:closed` so the main window's toggle returns to OFF. `[PARITY]`
+`overlay:closed`. `[PARITY]`
 
 Closing the main window closes the overlays. `[PARITY]`
+
+### 3.1 Entry points `[NEW]`
+
+Overlay mode is toggled from three places, all of which end up calling `overlay_toggle`:
+
+1. `Tools › Overlay Mode` — a **checkable** menu item, accelerator `F9` (doc 01 §9.1)
+2. The `overlay` badge in the main window status bar (doc 04 §7.3)
+3. The Overlay Mode switch on the Settings window's Scoreboard tab
+
+All three are *reflections* of backend state, never sources of truth. Every one of them
+subscribes to `overlay:opened` / `overlay:closed`; the menu item's check mark is updated
+with `CheckMenuItem::set_checked` from the same handlers. Do not set the check mark
+optimistically when the item is clicked — window creation can fail.
 
 ## 4. Timer control handoff — deleted `[NEW]`
 
@@ -213,6 +226,9 @@ Every button dispatches through the same store as the main window. No local time
 
 ## 7. Hotkey settings UI `[PARITY]`
 
+Lives on the **Keyboard Shortcuts tab of the Settings window** (doc 04 §7.4), not in the
+main window.
+
 - `Hotkeys Enabled` ON/OFF toggle.
 - `Reset to Defaults` outlined button.
 - Rows grouped: Score, Half, Timer, Loadouts, Other. Each row: label, formatted `<kbd>`,
@@ -252,5 +268,9 @@ No dialog, no opener, no shell.
 - A running timer keeps running across enable → disable → enable.
 - Every default hotkey works while a different application is focused (Windows, X11).
 - Recording a hotkey that duplicates another shows the conflict UI and does not save.
-- Closing either overlay window closes both and flips the main toggle to OFF.
+- Closing either overlay window closes both, clears the `Tools › Overlay Mode` check mark,
+  and greys the status-bar overlay badge.
+- Toggling from the menu item, the status badge and the Settings switch all produce the
+  same result, and all three stay in sync whichever one was used.
+- The overlay windows have **no** menu bar.
 - Quitting the app leaves no registered global shortcuts behind.

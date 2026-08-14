@@ -18,7 +18,10 @@ graph TB
     end
 
     subgraph wv["Webviews (WebKitGTK / WebView2)"]
-        MAIN["main<br/>index.html"]
+        MAIN["main<br/>index.html<br/>controls + status bar"]
+        SET["settings.html"]
+        OUT["outputs.html"]
+        REW["recording.html"]
         OPRE["overlay-preview.html"]
         OCTL["overlay-control.html"]
         VGEN["video-generator.html"]
@@ -30,12 +33,18 @@ graph TB
         API["Third-party<br/>/api/scoreboard"]
     end
 
+    MENU["Native menu bar<br/>tauri::menu"] --> WM["Window manager<br/>windows.rs"]
+    MAIN --- MENU
+    WM --> SET & OUT & REW & VGEN
     MAIN <-->|invoke / listen| CMD
+    SET <-->|invoke / listen| CMD
+    OUT <-->|invoke / listen| CMD
+    REW <-->|invoke / listen| CMD
     OPRE <-->|invoke / listen| CMD
     OCTL <-->|invoke / listen| CMD
     VGEN <-->|invoke / listen| CMD
     CMD --> CORE
-    CORE --> EV --> MAIN & OPRE & OCTL & VGEN
+    CORE --> EV --> MAIN & SET & OUT & REW & OPRE & OCTL & VGEN
     CORE <--> HTTP
     HTTP <-->|WebSocket| OBS & PHONE
     HTTP <-->|REST| API
@@ -50,6 +59,12 @@ the de-facto source of truth for many fields, and the main process mirrors it. H
 update arrives as a broadcast event. This deletes the timer-handoff protocol entirely
 (see doc 05 §4).
 
+**Second inversion — the UI shape.** `[NEW]` The Electron main window is a dashboard: two
+columns holding controls, a settings card, a live preview and recording controls. In the
+rebuild the main window contains **only the scoreboard values, the buttons that change
+them, and a status bar**. Every other surface — settings, outputs/preview, recording,
+video generation — is a **dedicated window opened from the native menu bar**. See §9.
+
 ## 2. Repository layout
 
 ```
@@ -57,7 +72,10 @@ scoreboard-tauri/
 ├── package.json                 # frontend deps + scripts
 ├── vite.config.ts               # multi-entry build
 ├── tsconfig.json
-├── index.html                   # main window entry
+├── index.html                   # main window entry — controls + status bar only
+├── settings.html                # Settings window
+├── outputs.html                 # Outputs & Sharing window (preview, URLs, QR)
+├── recording.html               # [OPTIONAL] Recording window
 ├── overlay-control.html         # [OPTIONAL]
 ├── overlay-preview.html         # [OPTIONAL]
 ├── video-generator.html         # [OPTIONAL]
@@ -65,13 +83,16 @@ scoreboard-tauri/
 ├── control.html                 # served over HTTP to phones
 ├── src/                         # React sources
 │   ├── entries/                 # one tsx per html entry
-│   ├── app/                     # main-window pages + layout
+│   ├── app/                     # per-window shells + layout
 │   ├── features/
 │   │   ├── scoreboard/          # visual scoreboard component (shared by all entries)
-│   │   ├── control/             # score/timer/half controls
-│   │   ├── settings/            # settings tabs
+│   │   ├── control/             # score/timer/half controls (main window)
+│   │   ├── status/              # status bar + status indicators
+│   │   ├── settings/            # settings window tabs
+│   │   ├── outputs/             # preview, LAN URLs, QR, token
 │   │   ├── remote/              # LAN /control page
 │   │   ├── overlay/             # [OPTIONAL]
+│   │   ├── recording/           # [OPTIONAL]
 │   │   └── video/               # [OPTIONAL]
 │   ├── stores/                  # zustand
 │   ├── lib/                     # ipc wrappers, ws client, formatters
@@ -105,26 +126,30 @@ scoreboard-tauri/
         │   └── assets.rs        # rust-embed static serving
         ├── settings.rs
         ├── net.rs               # LAN address enumeration
+        ├── menu.rs              # native menu bar + menu event routing
+        ├── windows.rs           # window manager (open/focus/close singletons)
         ├── recording.rs         # [OPTIONAL]
         ├── video.rs             # [OPTIONAL]
-        ├── windows.rs           # [OPTIONAL] overlay window builders
         └── hotkeys.rs           # [OPTIONAL]
 ```
 
 ## 3. Frontend entry points
 
-One Vite build produces every HTML page. Three of them are loaded by Tauri windows over
+One Vite build produces every HTML page. Most of them are loaded by Tauri windows over
 `tauri://localhost`; two are served over HTTP by axum to LAN clients from the _same_
 `dist/` folder, embedded into the binary with `rust-embed`.
 
-| Entry                  | Loaded by                      | Purpose                                         |
-| ---------------------- | ------------------------------ | ----------------------------------------------- |
-| `index.html`           | Tauri window `main`            | Full desktop control UI                         |
-| `overlay-control.html` | Tauri window `overlay-control` | Compact floating controls `[OPTIONAL]`          |
-| `overlay-preview.html` | Tauri window `overlay-preview` | Floating scoreboard preview `[OPTIONAL]`        |
-| `video-generator.html` | Tauri window `video-generator` | Video generation UI `[OPTIONAL]`                |
-| `scoreboard.html`      | HTTP `GET /scoreboard`         | OBS Browser Source `[NEW: replaces SSR]`        |
-| `control.html`         | HTTP `GET /control`            | Mobile remote `[NEW: replaces the HTML string]` |
+| Entry                  | Loaded by                      | Purpose                                             |
+| ---------------------- | ------------------------------ | --------------------------------------------------- |
+| `index.html`           | Tauri window `main`            | Scoreboard values, their buttons, and the status bar |
+| `settings.html`        | Tauri window `settings`        | All settings tabs `[NEW]`                            |
+| `outputs.html`         | Tauri window `outputs`         | Preview, LAN URLs, QR, token `[NEW]`                 |
+| `recording.html`       | Tauri window `recording`       | Recording controls `[OPTIONAL]`                      |
+| `overlay-control.html` | Tauri window `overlay-control` | Compact floating controls `[OPTIONAL]`               |
+| `overlay-preview.html` | Tauri window `overlay-preview` | Floating scoreboard preview `[OPTIONAL]`             |
+| `video-generator.html` | Tauri window `video-generator` | Video generation UI `[OPTIONAL]`                     |
+| `scoreboard.html`      | HTTP `GET /scoreboard`         | OBS Browser Source `[NEW: replaces SSR]`             |
+| `control.html`         | HTTP `GET /control`            | Mobile remote `[NEW: replaces the HTML string]`      |
 
 `scoreboard.html` and `control.html` must not import `@tauri-apps/api` — they run in a
 plain browser. They talk to the backend **only** over WebSocket + REST. Enforce this with
@@ -155,6 +180,8 @@ scoreboard entry.
 | React SSR (`ssr.ts`)                 | Client-rendered embedded bundle served by axum                  |
 | `ffmpeg-static` + `fluent-ffmpeg`    | `externalBin` sidecar + `tauri-plugin-shell`                    |
 | `os.networkInterfaces()`             | `if-addrs` crate                                                |
+| `Menu.setApplicationMenu`            | `tauri::menu::{MenuBuilder, SubmenuBuilder}` + `on_menu_event`   |
+| `webContents.setZoomLevel`           | `WebviewWindow::set_zoom`                                       |
 | `electron-builder`                   | `tauri build` (NSIS/MSI, AppImage/deb)                          |
 | `setInterval` timer in main          | `tauri::async_runtime::spawn` + `tokio::time::interval`         |
 | `backgroundThrottling: false`        | Not needed — the timer never lives in a webview                 |
@@ -227,12 +254,22 @@ pub type Shared = std::sync::Arc<AppState>;
 
 ## 7. Windows created
 
-| Label             | Size                                  | Flags                                                                                             | Created                                   |
+Only `main` is declared in `tauri.conf.json`. Everything else is created on demand by the
+window manager (§9.2) and is a **singleton**: opening an already-open window focuses it.
+
+| Label             | Size                                  | Flags                                                                                             | Opened by                                 |
 | ----------------- | ------------------------------------- | ------------------------------------------------------------------------------------------------- | ----------------------------------------- |
-| `main`            | 900×670, maximized on show            | decorated, resizable                                                                              | At startup, declared in `tauri.conf.json` |
-| `overlay-preview` | 600×80 at (50,50)                     | `decorations:false`, `transparent:true`, `alwaysOnTop:true`, `skipTaskbar:true`, `resizable:true` | On enable overlay `[OPTIONAL]`            |
-| `overlay-control` | 500×250, bottom-right minus (550,250) | same as above                                                                                     | On enable overlay `[OPTIONAL]`            |
-| `video-generator` | 900×700                               | decorated, resizable                                                                              | On demand `[OPTIONAL]`                    |
+| `main`            | 720×560, min 640×480, not maximized   | decorated, resizable, has the menu bar                                                            | At startup, declared in `tauri.conf.json` |
+| `settings`        | 760×620, min 640×520                  | decorated, resizable, no menu                                                                     | `File › Settings…` `[NEW]`                |
+| `outputs`         | 820×640, min 700×520                  | decorated, resizable, no menu                                                                     | `View › Outputs & Sharing…` `[NEW]`       |
+| `recording`       | 560×420                               | decorated, resizable, no menu                                                                     | `Tools › Recording…` `[OPTIONAL]`         |
+| `video-generator` | 900×700                               | decorated, resizable, no menu                                                                     | `Tools › Video Generator…` `[OPTIONAL]`   |
+| `overlay-preview` | 600×80 at (50,50)                     | `decorations:false`, `transparent:true`, `alwaysOnTop:true`, `skipTaskbar:true`, `resizable:true` | `Tools › Overlay Mode` `[OPTIONAL]`       |
+| `overlay-control` | 500×250, bottom-right minus (550,250) | same as above                                                                                     | `Tools › Overlay Mode` `[OPTIONAL]`       |
+
+`[NEW]` The main window shrinks from 900×670-maximized to 720×560-windowed because it no
+longer hosts settings, a preview or recording controls. Do not maximize it on show — an
+operator wants it small and parked next to OBS. Persist its size and position in settings.
 
 `[RISK]` Transparent windows on Linux require a running compositor; on some GNOME/Wayland
 setups `transparent: true` yields a black background. Document a fallback: a solid dark
@@ -241,13 +278,91 @@ instruct the user to use the OBS browser source instead.
 
 ## 8. What gets deleted relative to Electron
 
-| Deleted                                                                                                                                         | Why                                                     |
-| ----------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------- |
-| `src/preload/**`                                                                                                                                | No preload bridge in Tauri                              |
-| `src/main/ssr.ts`                                                                                                                               | No SSR; client bundle embedded instead                  |
-| `src/main/controlPage.ts`                                                                                                                       | `/control` is a React app now                           |
-| `vite.scoreboard.config.ts` + the `build:scoreboard` scripts                                                                                    | Single Vite build                                       |
-| `scoreboard-renderer.html` + the offscreen render window                                                                                        | Frames come from a canvas in the video-generator window |
-| Timer handoff IPC (`surrender-timer-control`, `overlay-ready`, `receive-timer-control`, `timer-control-surrendered`, `overlay-timer-surrender`) | Rust owns the timer; no ownership to hand over          |
-| `useScoreboardData` hook                                                                                                                        | Superseded by the single Zustand store fed by events    |
-| `electron-builder.yml`, `build/entitlements.mac.plist`                                                                                          | Replaced by `tauri.conf.json`                           |
+| Deleted                                                                                                                                         | Why                                                                     |
+| ----------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------- |
+| `src/preload/**`                                                                                                                                | No preload bridge in Tauri                                              |
+| `src/main/ssr.ts`                                                                                                                               | No SSR; client bundle embedded instead                                  |
+| `src/main/controlPage.ts`                                                                                                                       | `/control` is a React app now                                           |
+| `vite.scoreboard.config.ts` + the `build:scoreboard` scripts                                                                                    | Single Vite build                                                       |
+| `scoreboard-renderer.html` + the offscreen render window                                                                                        | Frames come from a canvas in the video-generator window                 |
+| Timer handoff IPC (`surrender-timer-control`, `overlay-ready`, `receive-timer-control`, `timer-control-surrendered`, `overlay-timer-surrender`) | Rust owns the timer; no ownership to hand over                          |
+| `useScoreboardData` hook                                                                                                                        | Superseded by the single Zustand store fed by events                    |
+| `electron-builder.yml`, `build/entitlements.mac.plist`                                                                                          | Replaced by `tauri.conf.json`                                           |
+| The `Settings` card and its tab bar inside the main window                                                                                      | Moved to the `settings` window `[NEW]`                                  |
+| `ScoreboardFeedback` card (local preview + LAN addresses) inside the main window                                                                | Moved to the `outputs` window; the main window keeps status badges only `[NEW]` |
+| `RecordingControls` card inside the main window                                                                                                 | Moved to the `recording` window `[NEW]`                                 |
+| `ScoreboardMain` two-column dashboard layout                                                                                                    | The main window is a single control surface now `[NEW]`                 |
+
+## 9. Menu bar & window manager `[NEW]`
+
+### 9.1 Menu structure
+
+A native menu bar is attached to the `main` window only. It is the sole entry point to
+every non-core feature.
+
+| Menu       | Item                  | Id                 | Accelerator    | Effect                                             |
+| ---------- | --------------------- | ------------------ | -------------- | -------------------------------------------------- |
+| **File**   | Settings…             | `open:settings`    | `Ctrl+,`       | Opens/focuses the `settings` window                |
+|            | —                    |                    |                | separator                                          |
+|            | Quit                  | `app:quit`         | `Ctrl+Q`       | Exits the app                                      |
+| **View**   | Outputs & Sharing…    | `open:outputs`     | `Ctrl+O`       | Opens/focuses the `outputs` window                 |
+|            | —                    |                    |                | separator                                          |
+|            | Zoom In               | `view:zoom-in`     | `Ctrl+Plus`    | `set_zoom(+0.1)` on the focused window             |
+|            | Zoom Out              | `view:zoom-out`    | `Ctrl+-`       | `set_zoom(-0.1)`                                   |
+|            | Reset Zoom            | `view:zoom-reset`  | `Ctrl+0`       | `set_zoom(1.0)`                                    |
+| **Tools**  | Overlay Mode          | `tools:overlay`    | `F9`           | **Checkable.** Toggles overlay mode `[OPTIONAL]`   |
+|            | —                    |                    |                | separator                                          |
+|            | Recording…            | `open:recording`   | `Ctrl+R`       | Opens/focuses the `recording` window `[OPTIONAL]`  |
+|            | Video Generator…      | `open:video`       |                | Opens/focuses the `video-generator` window `[OPTIONAL]` |
+| **Help**   | Documentation         | `help:docs`        |                | Opens the README URL via `tauri-plugin-opener`     |
+|            | About                 | `open:about`       |                | Version, licences, ffmpeg credit                   |
+
+Items belonging to a feature that was not compiled in are simply not added to the menu —
+not greyed out. Gate them behind `#[cfg(feature = "overlay")]` / `"recording"` /
+`"video"` Cargo features so an optional-feature-free build has a clean menu.
+
+`[PARITY]` Zoom In / Out / Reset preserves the Electron zoom feature. `[NEW]` The menu is
+always visible instead of being auto-hidden behind <kbd>Alt</kbd>.
+
+### 9.2 Window manager
+
+```rust
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, TS)]
+#[serde(rename_all = "kebab-case")]
+pub enum AppWindow { Settings, Outputs, Recording, VideoGenerator, About }
+
+pub fn open(app: &AppHandle, which: AppWindow) -> tauri::Result<()> {
+    if let Some(w) = app.get_webview_window(which.label()) {
+        w.unminimize().ok();
+        w.set_focus()?;                 // singleton: never open twice
+        return Ok(());
+    }
+    WebviewWindowBuilder::new(app, which.label(), WebviewUrl::App(which.url().into()))
+        .title(which.title())
+        .inner_size(which.width(), which.height())
+        .min_inner_size(which.min_width(), which.min_height())
+        .resizable(true)
+        .center()
+        .build()?;
+    Ok(())
+}
+```
+
+Rules:
+
+- Every feature window is a singleton keyed by its label.
+- Feature windows are **not** children of `main` and are not always-on-top; they are
+  ordinary windows the operator can park on a second monitor.
+- Closing `main` closes every other window and exits the app.
+- <kbd>Esc</kbd> closes `settings`, `outputs` and `about` (not `recording` or
+  `video-generator`, where it could interrupt work).
+- The window manager is also reachable from the UI via `invoke("window_open", { which })`
+  — e.g. the status bar's server badge opens `outputs`, and the recording window's
+  "Generate Video…" button opens `video-generator`.
+- Emit `window:opened` / `window:closed` with the label so the main window can reflect
+  state (e.g. the Overlay Mode check mark).
+
+`[RISK]` On Windows and Linux a Tauri menu is per-window. Build the menu and attach it
+with `main_window.set_menu(menu)`; do **not** use `app.set_menu(...)`, or the overlay
+windows will grow a menu bar and stop being frameless.
+

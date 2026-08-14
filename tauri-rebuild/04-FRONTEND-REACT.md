@@ -35,8 +35,11 @@ export default defineConfig({
 		rollupOptions: {
 			input: {
 				main: resolve(__dirname, "index.html"),
+				settings: resolve(__dirname, "settings.html"),
+				outputs: resolve(__dirname, "outputs.html"),
 				scoreboard: resolve(__dirname, "scoreboard.html"),
 				control: resolve(__dirname, "control.html"),
+				recording: resolve(__dirname, "recording.html"), // [OPTIONAL]
 				overlayControl: resolve(__dirname, "overlay-control.html"), // [OPTIONAL]
 				overlayPreview: resolve(__dirname, "overlay-preview.html"), // [OPTIONAL]
 				videoGenerator: resolve(__dirname, "video-generator.html"), // [OPTIONAL]
@@ -151,10 +154,27 @@ be silently blocked on iOS Safari.
 
 ### 4.4 `serverStore`
 
-`ServerInfo` mirror + `showAddresses: boolean` (UI-only). Populated by
-`invoke("server_get_info")` and the `server:info` event.
+`ServerInfo` mirror + `ServerStatus` mirror + `showAddresses: boolean` (UI-only).
+Populated by `invoke("server_get_info")` / `invoke("server_get_status")` and kept current
+by the `server:info` and `server:status` events.
 
-### 4.5 Optional stores
+`ServerInfo` is heavy (it carries a QR SVG) and rarely changes; `ServerStatus` is light and
+changes often. Keep them in separate slices so a client connecting on the LAN does not
+re-render the QR code.
+
+### 4.5 `windowStore` `[NEW]`
+
+```ts
+interface WindowStore {
+	open: AppWindow[]; // fed by window:opened / window:closed
+	show(which: AppWindow): Promise<void>; // invoke("window_open")
+}
+```
+
+Used by the status bar (clicking a badge opens the relevant window) and by cross-window
+navigation such as the recording window's "Generate Video…" button.
+
+### 4.6 Optional stores
 
 `overlayStore` (doc 05), `recordingStore` and `videoGeneratorStore` (doc 06).
 
@@ -162,13 +182,21 @@ be silently blocked on iOS Safari.
 
 ```
 src/entries/
-  main.tsx              → index.html            (Tauri, full UI)
+  main.tsx              → index.html            (Tauri, controls + status bar)
+  settings.tsx          → settings.html         (Tauri, feature window)
+  outputs.tsx           → outputs.html          (Tauri, feature window)
   scoreboard.tsx        → scoreboard.html       (HTTP, OBS)
   control.tsx           → control.html          (HTTP, phone)
+  recording.tsx         → recording.html        [OPTIONAL]
   overlay-control.tsx   → overlay-control.html  [OPTIONAL]
   overlay-preview.tsx   → overlay-preview.html  [OPTIONAL]
   video-generator.tsx   → video-generator.html  [OPTIONAL]
 ```
+
+Every Tauri-side entry mounts the same `<TauriApp>` shell: `TauriTransport` provider,
+theme, and a `useEscapeToClose()` hook on `settings`, `outputs` and `about`. Feature
+windows subscribe to `state:changed` like any other window, so a value edited in Settings
+is reflected in the main window before the field loses focus.
 
 `scoreboard.tsx` is tiny:
 
@@ -276,39 +304,77 @@ correctly on a machine that does not have them installed. Verify the font files 
 Preload them in `scoreboard.html` with `<link rel="preload" as="font" crossorigin>` so the
 first painted frame is not in a fallback face — a real problem for video generation.
 
-## 7. Main window UI
+## 7. Main window UI `[NEW: restructured]`
 
-### 7.1 Layout `[PARITY]`
+The main window contains **only** the scoreboard values, the buttons that change them, and
+a status bar. No settings, no preview, no recording panel. Everything else opens from the
+native menu (doc 01 §9).
+
+### 7.1 Layout
 
 ```
-Layout: flex h-screen w-screen flex-col overflow-hidden p-4
-└── ScoreboardMain: two w-1/2 columns, gap-4
-    ├── Left  : ScoreboardFeedback (auto height), Settings (flex-1)
-    └── Right : ScoreboardControl (flex-1), RecordingControls (auto) [OPTIONAL]
+Layout: flex h-screen w-screen flex-col overflow-hidden
+├── <main class="flex-1 overflow-auto p-4">
+│     └── ScoreboardControl        ← single column, fills the window
+└── <StatusBar class="h-8 shrink-0 border-t">
 ```
+
+No `Card` chrome around the control block — the window *is* the card. Drop the title
+header the Electron version had; the window title bar already says it.
+
+Sizing: designed for 720×560, usable down to 640×480. The control block scales by clamping
+its own type (`text-6xl` at ≥ 700 px height, `text-5xl` below) rather than by scrolling.
+A scrollbar in the main window during a live match is a failure.
 
 ### 7.2 `ScoreboardControl`
 
-A titled card containing:
-
 - A bordered row: home `TeamControl` | `HalfControl` | away `TeamControl`.
   Each has an uppercase label, a `text-7xl` value, a default `+1` button and a destructive
-  `-1` button; buttons are `h-16 flex-1 text-xl`.
+  `-1` button; buttons are `h-16 flex-1 text-xl`. `[PARITY]`
 - Timer region: label, `text-4xl tabular-nums` `MM:SS`, Start/Pause button, destructive
   Reset button, and five `h-11` buttons: `+1s`, `+1m`, `-1s`, `-1m`, outlined `Buzzer`.
-  Start and Reset are disabled when `timer === 0 && !isTimerRunning`.
+  Start and Reset are disabled when `timer === 0 && !isTimerRunning`. `[PARITY]`
 - Three outlined loadout buttons in `grid grid-cols-3 gap-2`, `h-11` — now dispatching
-  `TimerLoadout { slot }` instead of an absolute value `[NEW]`.
+  `TimerLoadout { slot }` instead of an absolute value `[NEW]`. Each button label shows the
+  configured duration (`L1 15:00`) so the operator does not have to open Settings to
+  remember what a slot holds `[NEW]`.
 - Full-width destructive `Reset Scoreboard`, `h-12`.
+- `[NEW]` Team names and colours are **displayed** here (the label above each score shows
+  the team name, tinted with the team colour) but are **edited** in the Settings window.
+  Double-clicking a team label is a shortcut that opens Settings on the Scoreboard tab.
 
 Every button with a bound hotkey shows a `HotkeyBadge` and a native tooltip
 (`Hotkey: Ctrl + 1`).
 
-### 7.3 `Settings` card — tabs
+### 7.3 `StatusBar` `[NEW]`
+
+A single `h-8` strip reporting the status of everything the app exposes. This is what
+replaces the removed preview and feedback cards.
+
+| Badge         | Source                                    | States                                                            | Click action                    |
+| ------------- | ----------------------------------------- | ----------------------------------------------------------------- | ------------------------------- |
+| Server        | `ServerStatus.running` + `port`           | green `● :3001` / red `● server down`                             | Opens the Outputs window        |
+| Clients       | `ServerStatus.wsClients`                  | grey `○ no clients` / green `● 2 clients`                         | Opens the Outputs window        |
+| Control token | `ServerInfo.tokenRequired`                | `🔒 protected` / amber `🔓 open`                                   | Opens Settings › Server         |
+| Overlay       | `ServerStatus.overlayActive` `[OPTIONAL]` | grey `○ overlay` / blue `● overlay`                               | Toggles overlay mode            |
+| Recording     | `ServerStatus.recording*` `[OPTIONAL]`    | hidden when idle / pulsing red `● REC 12:04`                      | Opens the Recording window      |
+| Timer source  | `state.isTimerRunning`                    | `▶ running` / `⏸ paused`                                          | —                               |
+
+Rules:
+
+- Text is `text-xs`, badges separated by a `VerticalDivider`. The bar never wraps; below
+  640 px width, drop labels and keep the dots, with the full text in a `title` tooltip.
+- Every badge is a real `<button>` with an accessible name, not a decorative `<div>`.
+- The bar must not re-render the control block. Subscribe to `serverStore` with a
+  selector, not to the whole store.
+
+### 7.4 Settings window (`settings.html`) `[NEW]`
+
+The old `Settings` card, moved into its own window and given room to breathe. Same tab bar
+as the Electron version, plus a Server tab.
 
 **Scoreboard tab**
 
-- Overlay Mode ON/OFF `[OPTIONAL]`
 - `Team Home Name`, `Team Away Name`, `Half Prefix` text inputs — dispatch on change
 - Home/Away colour pickers: preset swatches `#ffffff`, `#000000`, `#ffcc00`, `#0066cc`,
   `#00cc00`, plus `<input type="color">`
@@ -316,10 +382,17 @@ Every button with a bound hotkey shows a `HotkeyBadge` and a native tooltip
   minute digits and ≤ 2 second digits. On blur, validate against
   `^([0-9]{1,3})(?::([0-5]?[0-9]))?$`; empty means zero; invalid reverts to the stored
   value; valid commits.
-- `[NEW]` Server section: port input with a restart-server button, and the current bound
-  port when it differs from the requested one.
+- Overlay Mode ON/OFF `[OPTIONAL]` — mirrors the `Tools › Overlay Mode` menu item
 
-**Keyboard Shortcuts tab** `[OPTIONAL]` — see doc 05 §5.
+**Server tab** `[NEW]`
+
+- Port input + `Apply & Restart Server`; shows the actually-bound port when it differs
+  from the requested one
+- `Require control token` toggle, with a plain-language warning when off
+- `Regenerate token` button
+- Read-only bound-address list
+
+**Keyboard Shortcuts tab** `[OPTIONAL]` — see doc 05 §7.
 
 **Buzzer tab**
 
@@ -328,18 +401,26 @@ Every button with a bound hotkey shows a `HotkeyBadge` and a native tooltip
 - `Choose File…`, `Use Default` (disabled when already default), `Test`
 - Supported formats note: MP3, WAV, OGG, M4A, AAC, FLAC
 
-### 7.4 `ScoreboardFeedback`
+The window has no Save button: every change dispatches immediately, exactly as the
+Electron panel did. <kbd>Esc</kbd> closes it.
 
-Two tabs.
+### 7.5 Outputs & Sharing window (`outputs.html`) `[NEW]`
 
-- **Local** — `http://localhost:<port>/scoreboard`, copy button, explanatory text, and a
-  live preview: a `580 × 64` container wrapping a `560 × 80` iframe.
-- **External** — LAN addresses from `server_get_info`, hidden behind an eye toggle
-  (hidden by default) `[PARITY]`. Each address opens in the browser via
-  `tauri-plugin-opener`.
-  `[NEW]` A QR code (SVG from `ServerInfo.controlQrSvg`) for the `/control` URL, plus a
-  "Copy control link" button and a "Regenerate token" button. The token itself is masked
-  until revealed.
+Everything the old `ScoreboardFeedback` card held, minus the cramped iframe.
+
+- **Preview** — a live `560 × 80` iframe of `/scoreboard` on a checkerboard background so
+  transparency is visible, with a scale selector (50 % / 100 % / 200 %).
+- **Local output** — `http://localhost:<port>/scoreboard` with a copy button and OBS setup
+  instructions (recommended browser-source width/height).
+- **LAN outputs** — addresses from `server_get_info`, hidden behind an eye toggle, hidden
+  by default `[PARITY]`. Each row has copy and open-in-browser actions
+  (`tauri-plugin-opener`).
+- **Remote control** — the `/control` URL, a QR code rendered from
+  `ServerInfo.controlQrSvg`, `Copy control link`, and `Regenerate token`. The token string
+  is masked until revealed by the same eye toggle.
+- **Single-value outputs** — a small builder that produces `/value/:property` URLs from a
+  dropdown, for operators who composite individual fields in OBS. `[NEW]` The endpoint
+  exists today but is undiscoverable.
 
 ## 8. LAN remote (`/control`) `[NEW: rewritten as React]`
 

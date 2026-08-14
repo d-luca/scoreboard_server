@@ -122,17 +122,27 @@ idle. Starting while already recording returns `"Recording already in progress"`
 On app exit with an active recording, flush and write the trailer in the
 `RunEvent::ExitRequested` handler. `[NEW]`
 
-## A6. UI `[PARITY]`
+## A6. UI `[NEW: own window]`
 
-**`RecordingControls` card**
+Recording has **no card in the main window**. It gets a dedicated `recording` window
+(560×420, `recording.html`) opened from `Tools › Recording…` (`Ctrl+R`) or by clicking the
+REC badge in the main status bar.
+
+**Recording window contents** `[PARITY]` with the old card:
 
 - Output directory display + `Change` (disabled while recording)
 - Start/Stop button, showing `Starting...` / `Stopping...` while the call is in flight
-- Header shows a pulsing red dot and `REC MM:SS` while recording
-- `Generate Video from Recording` opens the video generator (disabled while recording)
+- A pulsing red dot and `REC MM:SS` while recording
+- Recent recordings list with `Reveal in folder` `[NEW]` — the window has the space for it
+- `Generate Video from Recording…` opens the video-generator window (disabled while
+  recording)
+
+**Main window status bar** — while recording, the REC badge shows `● REC MM:SS`, driven by
+`ServerStatus.recordingSeconds` (doc 02 §7.1.1). The operator therefore never needs the
+recording window open during a match; closing it does **not** stop the recording.
 
 **Compact variant** (overlay control strip): status text + `Start Rec` / destructive
-`Stop Rec`.
+`Stop Rec`. `[PARITY]`
 
 ---
 
@@ -278,7 +288,9 @@ child, delete the partial output file, emit `{ step: "error", error: "Generation
 
 ## B7. UI `[PARITY]`
 
-Two-column card layout in the `video-generator` window (900×700).
+Two-column card layout in the `video-generator` window (900×700), opened from
+`Tools › Video Generator…` or from the recording window's
+`Generate Video from Recording…` button (which pre-fills the input path). `[NEW]`
 
 **Recording File card** — read-only path + `Browse`, error box on load failure, loaded
 metadata (teams, snapshot count, started, ended), and a read-only preview of the parsed
@@ -301,3 +313,7 @@ The scale control is commented out in the Electron UI. `[NEW]` Enable it as a se
 - Generating twice in a row without restarting the app works.
 - A v1 `.json` recording from the Electron app imports and generates correctly.
 - Peak memory stays flat regardless of recording length (proves the streaming works).
+- Closing the recording window mid-recording keeps recording; the main status bar keeps
+  counting and re-opening the window shows the correct elapsed time.
+- With the `recording` and `video` Cargo features disabled, the `Tools` menu contains no
+  entries for them and the corresponding windows cannot be opened.

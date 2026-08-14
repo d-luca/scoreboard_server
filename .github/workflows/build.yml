@@ -1,0 +1,31 @@
+name: build
+on: [push, pull_request]
+
+jobs:
+  # Phase 0 gate: pnpm check must be green on both target OSes (doc 07 §7).
+  check:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 20, cache: pnpm }
+      - uses: dtolnay/rust-toolchain@stable
+        with: { components: rustfmt, clippy }
+      - uses: swatinem/rust-cache@v2
+        with: { workspaces: "src-tauri -> target" }
+      - if: runner.os == 'Linux'
+        run: >
+          sudo apt-get update && sudo apt-get install -y
+          libwebkit2gtk-4.1-dev libxdo-dev libssl-dev
+          libayatana-appindicator3-dev librsvg2-dev
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm bindings
+      - run: git diff --exit-code src/bindings # bindings must be committed and current
+      - run: pnpm check
+      # The OBS/phone bundles must not reference the Tauri IPC bridge (doc 04 §2).
+      - if: runner.os == 'Linux'
+        run: grep -L "__TAURI__" dist/assets/scoreboard-*.js dist/assets/control-*.js

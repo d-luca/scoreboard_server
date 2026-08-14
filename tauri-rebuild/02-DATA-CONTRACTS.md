@@ -279,6 +279,49 @@ pub struct ServerInfo {
 }
 ```
 
+### 7.1.1 Live status `[NEW]`
+
+The main window's status bar needs cheap, frequently-changing counters that do not belong
+in `ServerInfo` (which contains a QR SVG and is expensive to re-emit).
+
+| Command             | Args | Returns        |
+| ------------------- | ---- | -------------- |
+| `server_get_status` | —    | `ServerStatus` |
+
+```rust
+#[derive(Serialize, Clone, PartialEq, TS)]
+#[serde(rename_all = "camelCase")]
+pub struct ServerStatus {
+    pub running: bool,
+    pub port: u16,
+    pub ws_clients: u32,          // currently connected WebSocket clients
+    pub authorized_clients: u32,  // of which may send commands
+    pub overlay_active: bool,     // [OPTIONAL]
+    pub recording_active: bool,   // [OPTIONAL]
+    pub recording_seconds: u64,   // [OPTIONAL]
+}
+```
+
+Emitted as `server:status` whenever it changes, coalesced to at most 2 Hz. The WS handler
+increments/decrements an `AtomicU32` on connect/disconnect.
+
+### 7.1.2 Window management `[NEW]`
+
+| Command        | Args               | Returns             | Notes                                    |
+| -------------- | ------------------ | ------------------- | ---------------------------------------- |
+| `window_open`  | `which: AppWindow` | `()`                | Creates or focuses the singleton window  |
+| `window_close` | `which: AppWindow` | `()`                | Closes it if open; no-op otherwise       |
+| `window_list`  | —                  | `Vec<AppWindow>`    | Currently open feature windows           |
+
+```rust
+#[derive(Serialize, Deserialize, Clone, Copy, TS)]
+#[serde(rename_all = "kebab-case")]
+pub enum AppWindow { Settings, Outputs, Recording, VideoGenerator, About }
+```
+
+The native menu calls the same functions, so a menu item and an in-app button cannot
+diverge. See doc 01 §9.
+
 ### 7.2 Buzzer
 
 | Command               | Args | Returns                                              |
@@ -305,7 +348,9 @@ and `video_*`. They are listed in their own documents so v1 can ignore them.
 | `timer:finished`                    | —                    | all windows                         |
 | `buzzer:play`                       | —                    | `main` only                         |
 | `server:info`                       | `ServerInfo`         | all windows                         |
+| `server:status`                     | `ServerStatus`       | all windows `[NEW]`                 |
 | `settings:changed`                  | `Settings`           | all windows                         |
+| `window:opened` / `window:closed`   | `AppWindow`          | all windows `[NEW]`                 |
 | `overlay:opened` / `overlay:closed` | —                    | `main` `[OPTIONAL]`                 |
 | `hotkey:action`                     | `Action`             | focused control window `[OPTIONAL]` |
 | `recording:status`                  | `RecordingStatus`    | all windows `[OPTIONAL]`            |
@@ -335,17 +380,26 @@ pub struct Settings {
     pub team_home_color: String,
     pub team_away_color: String,
     pub timer_loadouts: [u32; 3],        // [900, 2700, 1200]
+    pub window_geometry: BTreeMap<String, WindowGeometry>,  // keyed by window label
     pub hotkeys: HotkeyMap,              // [OPTIONAL]
     pub hotkeys_enabled: bool,           // [OPTIONAL]
     pub recording_output_dir: Option<String>,  // [OPTIONAL]
 }
+
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+pub struct WindowGeometry { pub x: i32, pub y: i32, pub width: u32, pub height: u32 }
 ```
 
-`[NEW]` Two changes worth noting:
+`[NEW]` Three changes worth noting:
 
 1. **Team/colour/prefix/loadout settings are persisted.** The Electron app forgets them
    on restart, so the operator retypes them before every match.
-2. **Hotkeys move from `localStorage` to `settings.json`.** In the Electron app they live
+2. **Window geometry is persisted per label**, saved on `WindowEvent::Moved`/`Resized`
+   (debounced) and restored on open. With several feature windows the operator now has a
+   layout worth preserving. Clamp restored positions to a visible monitor, or a window
+   from a disconnected second screen becomes unreachable.
+3. **Hotkeys move from `localStorage` to `settings.json`.** In the Electron app they live
    in the renderer's persisted Zustand store and are pushed to the main process on every
    change via `notifyHotkeyUpdate`; on cold start the main process has no hotkeys until a
    renderer tells it. Storing them in Rust removes that startup race.

@@ -71,11 +71,13 @@ to support, in a container.
 			{
 				"label": "main",
 				"title": "Scoreboard Server",
-				"width": 900,
-				"height": 670,
+				"width": 720,
+				"height": 560,
+				"minWidth": 640,
+				"minHeight": 480,
 				"resizable": true,
 				"visible": false,
-				"maximized": true,
+				"maximized": false,
 			},
 		],
 		"security": {
@@ -102,8 +104,16 @@ to support, in a container.
 
 Notes:
 
-- `visible: false` + show on ready avoids the white flash. Show and maximize from the
-  `setup` hook.
+- `visible: false` + show on ready avoids the white flash. Show it from the `setup` hook,
+  after `main_window.set_menu(menu)` — so the menu bar is never seen popping in.
+- `main` is the **only** window declared in the config. `settings`, `outputs`,
+  `recording`, `video-generator`, `about` and the overlays are all created at runtime by
+  `windows.rs` (doc 03 §7bis) because their existence depends on menu actions and on which
+  Cargo features were compiled in.
+- The main window is small on purpose: it holds the controls and the status bar only
+  (doc 00 §3.1). Do not re-add `maximized: true`.
+- Window geometry for `main` and for every feature window is persisted in `settings.json`
+  (doc 02 §9) and restored on next open, so the config values are first-run defaults only.
 - `assetProtocol.scope` starts empty; the buzzer directory is added at runtime when the
   user picks a file (`app.asset_protocol_scope().allow_file(path)`).
 - `externalBin` is only needed with the video feature; drop it in v1.
@@ -223,7 +233,12 @@ Electron equivalent today: ~150 MB per platform.
 2. Version bumped in `tauri.conf.json`, `package.json`, `Cargo.toml`.
 3. Fresh-install test on a clean Windows VM: server starts, firewall prompt appears,
    `/scoreboard` renders in OBS, `/control` works from a phone with the token.
-4. Timer accuracy: run 10 minutes against a stopwatch, drift < 1 s.
-5. Overlay mode `[OPTIONAL]`: windows appear, global hotkeys fire, no leftovers on quit.
-6. Recording + generation `[OPTIONAL]`: short match end-to-end, output has alpha.
-7. Uninstall leaves no stray processes and no leftover firewall rules.
+4. Every menu entry opens its window once, focuses it on a second invocation, and every
+   accelerator fires (`Ctrl+,`, `Ctrl+O`, `Ctrl+R`, `F9`, zoom).
+5. Window geometry survives a quit/restart cycle; a window saved on a disconnected second
+   monitor still opens on screen.
+6. Timer accuracy: run 10 minutes against a stopwatch, drift < 1 s.
+7. Overlay mode `[OPTIONAL]`: windows appear with no menu bar, global hotkeys fire, no
+   leftovers on quit.
+8. Recording + generation `[OPTIONAL]`: short match end-to-end, output has alpha.
+9. Uninstall leaves no stray processes and no leftover firewall rules.

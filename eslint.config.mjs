@@ -28,5 +28,11 @@ export default defineConfig(
 			...eslintPluginReactRefresh.configs.vite.rules,
 		},
 	},
+	// The scoreboard/control entries are served over plain HTTP to LAN clients
+	// (OBS, phones). They must never pull in the Tauri IPC API (doc 04 §2).
+	{
+		files: ["src/entries/scoreboard.tsx", "src/entries/control.tsx", "src/features/remote/**"],
+		rules: { "no-restricted-imports": ["error", { patterns: ["@tauri-apps/*"] }] },
+	},
 	eslintConfigPrettier,
 );

@@ -22,6 +22,9 @@ This folder contains everything needed to rebuild **Scoreboard Server** from zer
 - **Target platforms:** Windows, Linux
 - **Backend:** Pure Rust (axum + tokio), no Node runtime at runtime
 - **Frontend:** React 19 + Vite 7 + TypeScript + Tailwind 4 + Zustand 5
+- **UI shape:** the main window holds **only** the scoreboard values, their buttons and a
+  status bar. Settings, Outputs & Sharing, Recording, Video Generator and the overlay each
+  live in their own window, opened from the native menu bar (00 §3.1, 01 §9).
 - **Optional features:** Overlay mode (05), Recording + Video generation (06)
 - **Scope stance:** open rebuild — improvements are proposed and marked `[NEW]`
 

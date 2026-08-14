@@ -35,7 +35,9 @@ which window has focus or whether the machine is under load.
 | REST API                 | `GET /api/scoreboard`, `GET /api/scoreboard/:property`, `POST /api/scoreboard`          |
 | LAN remote control       | `GET /control` — mobile-first remote for the whole match state                          |
 | Buzzer                   | Plays a sound at 00:00; manual trigger; auto-play toggle; custom audio file             |
-| LAN discovery UI         | Lists the machine's LAN URLs, hidden behind a show/hide toggle                          |
+| LAN discovery UI         | Lists the machine's LAN URLs, hidden behind a show/hide toggle (Outputs window)         |
+| Native menu bar          | Sole entry point to Settings, Outputs, Overlay, Recording, Video, Zoom, About `[NEW]`   |
+| Status bar               | Server / clients / overlay / recording status reported in the main window `[NEW]`       |
 | Settings persistence     | Survives restarts                                                                       |
 
 ### 2.2 Optional — Overlay (doc 05)
@@ -71,6 +73,30 @@ which window has focus or whether the machine is under load.
 | D8  | **Token-protected `/control`**                                              | The Electron version lets anyone on the network change the score                                                                                |
 | D9  | **Configurable port** with automatic fallback                               | 3001 collides more often than you'd think                                                                                                       |
 | D10 | **ffmpeg via sidecar binary**, frames produced by an offscreen canvas       | No Node, no headless browser, no `capturePage`                                                                                                  |
+| D11 | **The main window is a control surface, not a dashboard**                   | Only scoreboard values, the buttons that change them, and a status bar. Settings, preview, sharing and recording move out                       |
+| D12 | **Every other feature gets a dedicated window opened from a native menu**   | Keeps the operating surface small and glanceable during a live match; secondary windows can be parked on another monitor or closed entirely     |
+
+### 3.1 UI shape `[NEW]`
+
+```
+┌─ main window (720×560) ───────────────────────────┐
+│ File   View   Tools   Help          ← native menu │
+├───────────────────────────────────────────┤
+│  HOME   3    |  PERIODO 2  |    1   AWAY      │
+│  [+1][-1]    |  [+1][-1]   |  [+1][-1]        │
+│                                                 │
+│            14:59   [Start][Reset]               │
+│     [+1s][-1s][+1m][-1m][Buzzer]                │
+│     [L1 15:00][L2 45:00][L3 20:00]              │
+│            [Reset Scoreboard]                   │
+├───────────────────────────────────────────┤
+│ ● :3001  ● 2 clients  ○ overlay  ● REC 12:04    │  ← status bar
+└───────────────────────────────────────────┘
+```
+
+"Status of the exposed scoreboard elements" means: is the server up and on which port, how
+many clients are consuming it, is overlay mode on, is a recording running. It does **not**
+mean a rendered preview — that lives in the Outputs window. Full spec in doc 04 §7.
 
 ## 4. Why not Next.js
 
@@ -89,8 +115,8 @@ Everything Next.js is good at requires that Node process:
 
 You would be forced into `output: 'export'`, which strips it down to "a React SPA with a
 file-system router" — while still paying for a much heavier toolchain, slower HMR, and a
-build pipeline that fights Tauri's multi-entry HTML requirement (this app needs 6 separate
-HTML entry points, which is trivial in Vite and awkward in Next).
+build pipeline that fights Tauri's multi-entry HTML requirement (this app needs nine
+separate HTML entry points, which is trivial in Vite and awkward in Next).
 
 There is also a positive reason to choose Vite: the current app **already uses Vite**, so
 every `.tsx` component, the Tailwind 4 setup, and the Zustand stores port over with
@@ -112,8 +138,8 @@ essentially no changes.
 | **Match state**   | The single authoritative `ScoreboardState` struct owned by Rust              |
 | **Loadout**       | A preset timer duration, in seconds                                          |
 | **Half / period** | Integer ≥ 1, displayed after `halfPrefix`                                    |
-| **Overlay mode**  | Optional mode with two frameless always-on-top windows + global hotkeys      |
-| **Snapshot**      | One per-second capture of the match state during a recording                 |
+| **Overlay mode**  | Optional mode with two frameless always-on-top windows + global hotkeys      || **Feature window**| A singleton secondary window (Settings, Outputs, Recording, Video Generator)  |
+| **Status bar**    | The strip at the bottom of the main window reporting server/client/feature state || **Snapshot**      | One per-second capture of the match state during a recording                 |
 | **Sidecar**       | An external binary bundled with the app and launched by Rust (here: ffmpeg)  |
 | **Capability**    | Tauri v2's permission manifest granting a window access to specific commands |
 | **Control token** | Random secret required by the LAN `/control` page                            |
