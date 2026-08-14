@@ -10,7 +10,7 @@
 		"build:debug": "tauri build --debug",
 		"vite:dev": "vite",
 		"vite:build": "tsc --noEmit && vite build",
-		"bindings": "cargo test --manifest-path src-tauri/Cargo.toml export_bindings",
+		"bindings": "cargo test --manifest-path src-tauri/Cargo.toml export_bindings && prettier --write src/bindings",
 		"lint": "eslint .",
 		"format": "prettier --write .",
 		"rust:fmt": "cargo fmt --manifest-path src-tauri/Cargo.toml",
@@ -30,7 +30,8 @@
 		"react": "^19.1.0",
 		"react-dom": "^19.1.0",
 		"tailwind-merge": "^3.6.0",
-		"tailwindcss": "^4.3.3"
+		"tailwindcss": "^4.3.3",
+		"zustand": "^5.0.15"
 	},
 	"devDependencies": {
 		"@electron-toolkit/eslint-config-prettier": "^3.0.0",
