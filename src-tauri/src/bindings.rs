@@ -8,6 +8,7 @@
 #[cfg(test)]
 mod tests {
     use crate::state::{Action, ScoreboardPatch, ScoreboardState};
+    use crate::windows::AppWindow;
     use ts_rs::TS;
 
     #[test]
@@ -15,5 +16,6 @@ mod tests {
         ScoreboardState::export().expect("failed to export ScoreboardState");
         ScoreboardPatch::export().expect("failed to export ScoreboardPatch");
         Action::export().expect("failed to export Action");
+        AppWindow::export().expect("failed to export AppWindow");
     }
 }

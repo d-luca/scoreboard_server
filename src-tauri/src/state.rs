@@ -5,17 +5,15 @@
 //! timer engine all call it.
 
 use std::sync::Arc;
-
-#[cfg(not(test))]
 use std::sync::OnceLock;
 
 use serde::{Deserialize, Serialize};
-#[cfg(not(test))]
 use tauri::{AppHandle, Emitter, Manager};
 use tokio::sync::{broadcast, Mutex, RwLock};
 use ts_rs::TS;
 
 use crate::timer::TimerEngine;
+use crate::windows::AppWindow;
 
 pub const MAX_NAME_LEN: usize = 32;
 pub const MAX_PREFIX_LEN: usize = 24;
@@ -35,6 +33,77 @@ pub enum ServerEvent {
     State(ScoreboardState),
     TimerFinished,
     Buzzer,
+    /// A feature window was opened or closed (doc 03 §7bis). Payload is the
+    /// window label; emitted to all windows as `window:opened` /
+    /// `window:closed`.
+    Window(AppWindow, bool),
+}
+
+/// Geometry of one window, persisted in `window-geometry.json` under the
+/// window label (tauri-rebuild doc 03 §7bis).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct WindowGeometry {
+    pub x: i32,
+    pub y: i32,
+    pub width: u32,
+    pub height: u32,
+}
+
+/// Small persisted app preferences. Written atomically (tmp + rename) and
+/// debounced by the callers that mutate it frequently (window moves).
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", default)]
+pub struct AppPrefs {
+    pub window_geometry: std::collections::HashMap<String, WindowGeometry>,
+    pub zoom_levels: std::collections::HashMap<String, f64>,
+}
+
+impl AppPrefs {
+    /// Load from the app config dir; missing or corrupt file yields defaults
+    /// (a corrupt file is renamed aside so it is not lost).
+    pub fn load(app: &AppHandle) -> Self {
+        let path = Self::path(app);
+        let Ok(raw) = std::fs::read_to_string(&path) else {
+            return Self::default();
+        };
+        match serde_json::from_str::<Self>(&raw) {
+            Ok(prefs) => prefs,
+            Err(error) => {
+                let backup = path.with_extension("corrupt.json");
+                tracing::warn!(
+                    ?error,
+                    ?backup,
+                    "window-geometry.json is corrupt; resetting"
+                );
+                let _ = std::fs::rename(&path, backup);
+                Self::default()
+            }
+        }
+    }
+
+    pub fn save(&self, app: &AppHandle) {
+        let path = Self::path(app);
+        if let Some(dir) = path.parent() {
+            let _ = std::fs::create_dir_all(dir);
+        }
+        let tmp = path.with_extension("tmp");
+        match serde_json::to_string_pretty(self) {
+            Ok(json) => {
+                if std::fs::write(&tmp, json).is_ok() {
+                    let _ = std::fs::rename(&tmp, &path);
+                }
+            }
+            Err(error) => tracing::warn!(?error, "failed to serialize app prefs"),
+        }
+    }
+
+    fn path(app: &AppHandle) -> std::path::PathBuf {
+        app.path()
+            .app_config_dir()
+            .unwrap_or_else(|_| std::path::PathBuf::from("."))
+            .join("window-geometry.json")
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
@@ -159,31 +228,79 @@ pub struct AppState {
     pub scoreboard: RwLock<ScoreboardState>,
     pub timer: Mutex<TimerEngine>,
     pub events: broadcast::Sender<ServerEvent>,
-    #[cfg(not(test))]
-    pub app: OnceLock<AppHandle>, // set once during setup
+    /// Persisted window geometry + zoom levels (doc 03 §7bis/§7ter).
+    pub prefs: RwLock<AppPrefs>,
+    /// Set once during setup. Tests never set it, so emits are no-ops there.
+    pub app: OnceLock<AppHandle>,
 }
 
 pub type Shared = Arc<AppState>;
 
 impl AppState {
+    /// Used by tests; the app uses [`AppState::with_prefs`].
+    #[cfg(test)]
     pub fn new() -> Shared {
+        Self::with_prefs(AppPrefs::default())
+    }
+
+    pub fn with_prefs(prefs: AppPrefs) -> Shared {
         let (events, _rx) = broadcast::channel(EVENT_CHANNEL_CAPACITY);
         Arc::new(AppState {
             scoreboard: RwLock::new(ScoreboardState::default()),
             timer: Mutex::new(TimerEngine::new()),
             events,
-            #[cfg(not(test))]
+            prefs: RwLock::new(prefs),
             app: OnceLock::new(),
         })
     }
 
-    #[cfg(not(test))]
     pub fn attach_app(&self, app: AppHandle) {
         let _ = self.app.set(app);
     }
 
     pub async fn current(&self) -> ScoreboardState {
         self.scoreboard.read().await.clone()
+    }
+
+    /// Record a window's geometry; the caller debounces and persists.
+    pub async fn remember_geometry(&self, label: &str, geometry: WindowGeometry) {
+        self.prefs
+            .write()
+            .await
+            .window_geometry
+            .insert(label.to_string(), geometry);
+    }
+
+    pub async fn geometry_for(&self, label: &str) -> Option<WindowGeometry> {
+        self.prefs.read().await.window_geometry.get(label).copied()
+    }
+
+    /// Persist a window's zoom level and return the clamped value applied.
+    pub async fn set_zoom(&self, label: &str, zoom: f64) -> f64 {
+        let zoom = zoom.clamp(0.5, 2.0);
+        self.prefs
+            .write()
+            .await
+            .zoom_levels
+            .insert(label.to_string(), zoom);
+        zoom
+    }
+
+    pub async fn zoom_for(&self, label: &str) -> f64 {
+        self.prefs
+            .read()
+            .await
+            .zoom_levels
+            .get(label)
+            .copied()
+            .unwrap_or(1.0)
+    }
+
+    pub async fn persist_prefs(&self) {
+        let prefs = self.prefs.read().await.clone();
+        if let Some(app) = self.app.get() {
+            prefs.save(app);
+        }
     }
 
     #[cfg(test)]
@@ -305,7 +422,7 @@ impl AppState {
         // `send` returns `Err` when there are no receivers — normal when no
         // LAN clients are connected.
         let _ = self.events.send(ev.clone());
-        #[cfg(not(test))]
+        // In tests no app handle is attached, so emits are no-ops.
         if let Some(app) = self.app.get() {
             match ev {
                 ServerEvent::State(s) => {
@@ -318,6 +435,14 @@ impl AppState {
                     if let Some(w) = app.get_webview_window("main") {
                         let _ = w.emit("buzzer:play", ());
                     }
+                }
+                ServerEvent::Window(which, open) => {
+                    let event = if open {
+                        "window:opened"
+                    } else {
+                        "window:closed"
+                    };
+                    let _ = app.emit(event, which.label());
                 }
             }
         }

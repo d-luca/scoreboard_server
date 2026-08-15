@@ -3,17 +3,15 @@ import ReactDOM from "react-dom/client";
 import "../global.css";
 import { useEscapeToClose } from "../lib/use-escape-to-close";
 
-/**
- * Shell for the Outputs & Sharing window (content lands in Phase 3/4,
- * doc 04 §7.5). Exists now so the window plumbing is proven in Phase 2.
- */
-function OutputsShell(): React.JSX.Element {
+/** About window: version, licences, ffmpeg credit (doc 01 §9.1). */
+function AboutShell(): React.JSX.Element {
 	useEscapeToClose();
 	return (
 		<div className="flex h-screen w-screen flex-col items-center justify-center gap-2 p-6 text-center">
-			<h1 className="font-[Poppins] text-2xl font-semibold">Outputs &amp; Sharing</h1>
-			<p className="text-app-tertiary text-sm">
-				Preview, local/LAN URLs, OBS instructions and the remote QR arrive in Phase 3/4.
+			<h1 className="font-[Anton] text-3xl">Scoreboard Server</h1>
+			<p className="text-app-tertiary text-sm">Version 0.1.0</p>
+			<p className="text-app-quaternary max-w-xs text-xs">
+				A live scoreboard for OBS over the LAN. Rebuilt on Tauri.
 			</p>
 			<p className="text-app-quaternary text-xs">Press Esc to close</p>
 		</div>
@@ -22,6 +20,6 @@ function OutputsShell(): React.JSX.Element {
 
 ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
 	<React.StrictMode>
-		<OutputsShell />
+		<AboutShell />
 	</React.StrictMode>,
 );

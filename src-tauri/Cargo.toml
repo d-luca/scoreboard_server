@@ -17,6 +17,13 @@ crate-type = ["staticlib", "cdylib", "rlib"]
 [build-dependencies]
 tauri-build = { version = "2", features = [] }
 
+[features]
+# Optional features (doc 08 phases 7-9). Each gates its menu entries and
+# windows so an optional-feature-free build has a clean menu.
+overlay = []
+recording = []
+video = []
+
 [dependencies]
 tauri = { version = "2", features = [] }
 tauri-plugin-opener = "2"
@@ -26,6 +33,7 @@ ts-rs = { version = "10", features = ["serde-compat", "no-serde-warnings"] }
 tokio = { version = "1", features = ["rt-multi-thread", "macros", "sync", "time"] }
 thiserror = "2"
 tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 
 [dev-dependencies]
 tokio = { version = "1", features = ["test-util", "macros", "rt"] }

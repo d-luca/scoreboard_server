@@ -54,6 +54,7 @@ export default defineConfig(async () => ({
 				main: fileURLToPath(new URL("./index.html", import.meta.url)),
 				settings: fileURLToPath(new URL("./settings.html", import.meta.url)),
 				outputs: fileURLToPath(new URL("./outputs.html", import.meta.url)),
+				about: fileURLToPath(new URL("./about.html", import.meta.url)),
 				scoreboard: fileURLToPath(new URL("./scoreboard.html", import.meta.url)),
 				control: fileURLToPath(new URL("./control.html", import.meta.url)),
 				recording: fileURLToPath(new URL("./recording.html", import.meta.url)),

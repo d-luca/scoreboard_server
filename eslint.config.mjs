@@ -34,5 +34,11 @@ export default defineConfig(
 		files: ["src/entries/scoreboard.tsx", "src/entries/control.tsx", "src/features/remote/**"],
 		rules: { "no-restricted-imports": ["error", { patterns: ["@tauri-apps/*"] }] },
 	},
+	// Entry files are app roots mounted once; they are not fast-refresh
+	// boundaries, so the only-export-components rule does not apply to them.
+	{
+		files: ["src/entries/**/*.tsx", "src/main.tsx"],
+		rules: { "react-refresh/only-export-components": "off" },
+	},
 	eslintConfigPrettier,
 );
