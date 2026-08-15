@@ -34,6 +34,15 @@ tokio = { version = "1", features = ["rt-multi-thread", "macros", "sync", "time"
 thiserror = "2"
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+axum = { version = "0.8", features = ["ws", "json"] }
+tower-http = { version = "0.6", features = ["cors"] }
+rust-embed = { version = "8", features = ["debug-embed", "interpolate-folder-path"] }
+mime_guess = "2"
+if-addrs = "0.13"
+futures = "0.3"
+anyhow = "1"
 
 [dev-dependencies]
 tokio = { version = "1", features = ["test-util", "macros", "rt"] }
+tower = { version = "0.5", features = ["util"] }
+http-body-util = "0.1"

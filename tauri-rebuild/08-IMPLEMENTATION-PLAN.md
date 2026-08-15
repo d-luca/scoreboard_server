@@ -96,7 +96,7 @@ later.
 
 ---
 
-## Phase 3 — HTTP server & OBS page `L`
+## Phase 3 — HTTP server & OBS page `L` ✅ **IMPLEMENTED**
 
 **Goal:** OBS can consume the scoreboard over the LAN.
 
@@ -122,6 +122,33 @@ later.
 - Starting the app while port 3001 is occupied still works, on the fallback port, and the
   UI shows the real port.
 - An unknown field in a POST returns 400 with a useful message.
+
+**Implementation notes (decisions taken during P3):**
+
+- **Auth is deferred to Phase 4, as planned.** `POST` routes and WS commands are open for
+  now; the WS handler accepts (and ignores) a `?t=` query param so the protocol does not
+  change when the token lands. `ServerInfo` therefore omits `controlUrl` / `controlQrSvg` /
+  `tokenRequired` until P4 — the Outputs window renders a "Remote control arrives in
+  Phase 4" placeholder card.
+- **`ServerStatus.authorizedClients` is omitted** until P4 (no auth → the counter would
+  always be 0). The struct carries `overlayActive` / `recordingActive` / `recordingSeconds`
+  as `false`/`0` placeholders so the status-bar shape is stable for P7/P8.
+- **WS close-code flush:** tungstenite drops the queued close frame if the socket is torn
+  down immediately after a policy violation, so the client saw `1006` instead of `1008`.
+  The handler now `sink.close()`es and waits 50 ms before breaking the loop — verified
+  `1003` on a bad frame and `1008` on rate-limit via `scripts/ws-smoke.mjs`.
+- **WS envelope:** `Action` is internally tagged, so it cannot be flattened into the
+  externally tagged `{type:"command"}` envelope; the handler captures the raw value and
+  deserializes the `Action` in a second step.
+- **`dist/.gitkeep` is committed** (`.gitignore` ignores `dist/*` but not the placeholder)
+  so a bare `cargo check` works on a clean checkout (doc 03 §4.3).
+- **`examples/serve.rs`** starts the real axum stack without the Tauri shell — used to
+  smoke-test REST/WS/pages with curl + Node. `scripts/ws-smoke.mjs` and
+  `scripts/ws-timer-smoke.mjs` are the smoke harnesses (lint-excluded).
+- Verified on Linux: all REST routes, page bootstrap injection, static assets, `/`
+  redirect, 404s, port fallback 3001→3002, WS initial-state/fanout/ping/rate-limit, and
+  live timer ticks + `timer-finished` over WS. **Windows manual verification still
+  pending** (cross-cutting DoD).
 
 ---
 

@@ -5,6 +5,11 @@ import type { ScoreboardState } from "../bindings/ScoreboardState";
 import { tauriTransport } from "./tauri-transport";
 import type { ConnectionStatus, Transport } from "./transport";
 
+/** Optional live status feed; implemented by `WsTransport`. */
+interface StatusAwareTransport extends Transport {
+	onStatus?(callback: (status: ConnectionStatus) => void): () => void;
+}
+
 const initialState: ScoreboardState = {
 	teamHomeName: "HOME",
 	teamAwayName: "AWAY",
@@ -46,8 +51,11 @@ export interface ScoreboardStore {
 	reset(): Promise<void>;
 }
 
-export function createScoreboardStore(transport: Transport): UseBoundStore<StoreApi<ScoreboardStore>> {
+export function createScoreboardStore(
+	transport: StatusAwareTransport,
+): UseBoundStore<StoreApi<ScoreboardStore>> {
 	let unsubscribe: (() => void) | undefined;
+	let unsubscribeStatus: (() => void) | undefined;
 
 	return create<ScoreboardStore>((set, get) => {
 		const acceptState = (next: ScoreboardState): void => {
@@ -61,6 +69,10 @@ export function createScoreboardStore(transport: Transport): UseBoundStore<Store
 			connect: async () => {
 				try {
 					unsubscribe ??= transport.subscribe(acceptState);
+					// Live connection status (WS reconnects, drops) when the
+					// transport provides it; the Tauri transport is always
+					// "connected" and never calls back.
+					unsubscribeStatus ??= transport.onStatus?.((status) => set({ connection: status }));
 					acceptState(await transport.getState());
 					set({ connection: transport.status, error: null });
 				} catch (error) {

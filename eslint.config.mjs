@@ -6,7 +6,7 @@ import eslintPluginReactHooks from "eslint-plugin-react-hooks";
 import eslintPluginReactRefresh from "eslint-plugin-react-refresh";
 
 export default defineConfig(
-	{ ignores: ["**/node_modules", "**/dist", "**/out"] },
+	{ ignores: ["**/node_modules", "**/dist", "**/out", "scripts/**"] },
 	tseslint.configs.recommended,
 	eslintPluginReact.configs.flat.recommended,
 	eslintPluginReact.configs.flat["jsx-runtime"],
@@ -28,10 +28,16 @@ export default defineConfig(
 			...eslintPluginReactRefresh.configs.vite.rules,
 		},
 	},
-	// The scoreboard/control entries are served over plain HTTP to LAN clients
-	// (OBS, phones). They must never pull in the Tauri IPC API (doc 04 §2).
+	// The scoreboard/control/value entries are served over plain HTTP to LAN
+	// clients (OBS, phones). They must never pull in the Tauri IPC API
+	// (doc 04 §2).
 	{
-		files: ["src/entries/scoreboard.tsx", "src/entries/control.tsx", "src/features/remote/**"],
+		files: [
+			"src/entries/scoreboard.tsx",
+			"src/entries/control.tsx",
+			"src/entries/value.tsx",
+			"src/features/remote/**",
+		],
 		rules: { "no-restricted-imports": ["error", { patterns: ["@tauri-apps/*"] }] },
 	},
 	// Entry files are app roots mounted once; they are not fast-refresh

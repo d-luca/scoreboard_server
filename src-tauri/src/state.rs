@@ -4,14 +4,17 @@
 //! Commands, the WS handler, the REST handler, the hotkey handler and the
 //! timer engine all call it.
 
+use std::sync::atomic::{AtomicU32, Ordering};
 use std::sync::Arc;
 use std::sync::OnceLock;
+use std::time::Duration;
 
 use serde::{Deserialize, Serialize};
 use tauri::{AppHandle, Emitter, Manager};
 use tokio::sync::{broadcast, Mutex, RwLock};
 use ts_rs::TS;
 
+use crate::net::{self, LanAddress};
 use crate::timer::TimerEngine;
 use crate::windows::AppWindow;
 
@@ -224,12 +227,52 @@ pub enum Action {
     Reset,
 }
 
+/// Lightweight, frequently-changing server counters for the status bar
+/// (doc 02 §7.1.1). Emitted as `server:status`, coalesced to 2 Hz.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export, export_to = "../../src/bindings/")]
+pub struct ServerStatus {
+    pub running: bool,
+    pub port: u16,
+    /// Currently connected WebSocket clients.
+    pub ws_clients: u32,
+    /// [OPTIONAL] Overlay mode (Phase 7).
+    pub overlay_active: bool,
+    /// [OPTIONAL] Match recording (Phase 8).
+    pub recording_active: bool,
+    /// [OPTIONAL] Elapsed recording seconds (Phase 8).
+    #[ts(type = "number")]
+    pub recording_seconds: u64,
+}
+
+/// Heavy server description for the Outputs window (doc 02 §7.1): carries
+/// the LAN URLs and changes rarely. Emitted as `server:info`.
+#[derive(Debug, Clone, Serialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export, export_to = "../../src/bindings/")]
+pub struct ServerInfo {
+    pub running: bool,
+    pub port: u16,
+    pub addresses: Vec<LanAddress>,
+    /// `http://<lan-ip>:<port>/scoreboard` for the first LAN address.
+    pub scoreboard_url: String,
+    /// `http://localhost:<port>/scoreboard`.
+    pub local_url: String,
+}
+
 pub struct AppState {
     pub scoreboard: RwLock<ScoreboardState>,
     pub timer: Mutex<TimerEngine>,
     pub events: broadcast::Sender<ServerEvent>,
     /// Persisted window geometry + zoom levels (doc 03 §7bis/§7ter).
     pub prefs: RwLock<AppPrefs>,
+    /// Port the HTTP server actually bound (0 until it is up).
+    pub server_port: AtomicU32,
+    /// Currently connected WebSocket clients.
+    pub ws_clients: AtomicU32,
+    /// Last emitted `server:status`, to suppress redundant emissions.
+    last_status: Mutex<Option<ServerStatus>>,
     /// Set once during setup. Tests never set it, so emits are no-ops there.
     pub app: OnceLock<AppHandle>,
 }
@@ -250,6 +293,9 @@ impl AppState {
             timer: Mutex::new(TimerEngine::new()),
             events,
             prefs: RwLock::new(prefs),
+            server_port: AtomicU32::new(0),
+            ws_clients: AtomicU32::new(0),
+            last_status: Mutex::new(None),
             app: OnceLock::new(),
         })
     }
@@ -306,6 +352,113 @@ impl AppState {
     #[cfg(test)]
     pub fn subscribe(&self) -> broadcast::Receiver<ServerEvent> {
         self.events.subscribe()
+    }
+
+    /// Snapshot of the live server counters (doc 02 §7.1.1).
+    pub fn server_status(&self) -> ServerStatus {
+        let port = self.server_port.load(Ordering::Relaxed);
+        ServerStatus {
+            running: port != 0,
+            port: u16::try_from(port).unwrap_or(0),
+            ws_clients: self.ws_clients.load(Ordering::Relaxed),
+            overlay_active: false,
+            recording_active: false,
+            recording_seconds: 0,
+        }
+    }
+
+    /// Record the bound port and announce it (`server:status` +
+    /// `server:info`). Called once by the server task after binding.
+    pub async fn set_server_port(self: &Arc<Self>, port: u16) {
+        self.server_port.store(u32::from(port), Ordering::Relaxed);
+        self.publish_server_status().await;
+        self.publish_server_info().await;
+    }
+
+    /// Bump the connected-client gauge and republish `server:status`.
+    pub async fn ws_client_connected(self: &Arc<Self>) {
+        self.ws_clients.fetch_add(1, Ordering::Relaxed);
+        self.publish_server_status().await;
+    }
+
+    pub async fn ws_client_disconnected(self: &Arc<Self>) {
+        self.ws_clients
+            .fetch_update(Ordering::Relaxed, Ordering::Relaxed, |n| n.checked_sub(1))
+            .ok();
+        self.publish_server_status().await;
+    }
+
+    /// Emit `server:status` if it changed since the last emission. A
+    /// debounce task coalesces bursts (connect storms) to 2 Hz.
+    pub async fn publish_server_status(self: &Arc<Self>) {
+        let status = self.server_status();
+        let changed = {
+            let mut last = self.last_status.lock().await;
+            if last.as_ref() == Some(&status) {
+                false
+            } else {
+                *last = Some(status.clone());
+                true
+            }
+        };
+        if changed {
+            self.emit_app("server:status", status);
+        }
+        self.spawn_status_debounce();
+    }
+
+    /// After 500 ms of quiet, re-check whether the last emitted status is
+    /// still current and emit if not. This bounds the emission rate of
+    /// connect/disconnect storms without dropping the final state.
+    fn spawn_status_debounce(self: &Arc<Self>) {
+        if self.app.get().is_none() {
+            return;
+        }
+        let shared = Arc::clone(self);
+        tauri::async_runtime::spawn(async move {
+            tokio::time::sleep(Duration::from_millis(500)).await;
+            let status = shared.server_status();
+            let changed = {
+                let mut last = shared.last_status.lock().await;
+                if last.as_ref() == Some(&status) {
+                    false
+                } else {
+                    *last = Some(status.clone());
+                    true
+                }
+            };
+            if changed {
+                shared.emit_app("server:status", status);
+            }
+        });
+    }
+
+    /// Heavy server description for the Outputs window (doc 02 §7.1).
+    pub fn server_info(&self) -> ServerInfo {
+        let status = self.server_status();
+        let addresses = net::lan_addresses();
+        let host = addresses
+            .first()
+            .map(|entry| entry.address.as_str())
+            .unwrap_or("127.0.0.1");
+        ServerInfo {
+            running: status.running,
+            port: status.port,
+            scoreboard_url: format!("http://{host}:{}/scoreboard", status.port),
+            local_url: format!("http://localhost:{}/scoreboard", status.port),
+            addresses,
+        }
+    }
+
+    pub async fn publish_server_info(&self) {
+        self.emit_app("server:info", self.server_info());
+    }
+
+    /// Emit to all webviews when an app handle is attached; no-op in tests.
+    fn emit_app<T: Serialize + Clone>(&self, event: &str, payload: T) {
+        if let Some(app) = self.app.get() {
+            let _ = app.emit(event, payload);
+        }
     }
 
     /// The one mutation path.

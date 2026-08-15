@@ -8,7 +8,10 @@ pnpm-debug.log*
 lerna-debug.log*
 
 node_modules
-dist
+# `rust-embed` requires `dist/` to exist for a bare `cargo check`
+# (doc 03 §4.3); ignore the bundle contents but keep the placeholder.
+dist/*
+!dist/.gitkeep
 dist-ssr
 *.local
 

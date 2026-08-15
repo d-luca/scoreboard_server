@@ -7,7 +7,8 @@
 
 #[cfg(test)]
 mod tests {
-    use crate::state::{Action, ScoreboardPatch, ScoreboardState};
+    use crate::net::LanAddress;
+    use crate::state::{Action, ScoreboardPatch, ScoreboardState, ServerInfo, ServerStatus};
     use crate::windows::AppWindow;
     use ts_rs::TS;
 
@@ -17,5 +18,8 @@ mod tests {
         ScoreboardPatch::export().expect("failed to export ScoreboardPatch");
         Action::export().expect("failed to export Action");
         AppWindow::export().expect("failed to export AppWindow");
+        LanAddress::export().expect("failed to export LanAddress");
+        ServerInfo::export().expect("failed to export ServerInfo");
+        ServerStatus::export().expect("failed to export ServerStatus");
     }
 }

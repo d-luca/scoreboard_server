@@ -4,6 +4,26 @@
 		<meta charset="UTF-8" />
 		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
 		<title>Scoreboard</title>
+		<style>
+			/* OBS composites this page over the game feed: transparent, no
+			   scrollbars (doc 04 §5/§6.3). The board is skewed -15°, which widens
+			   its bounding box by 80·tan(15°) ≈ 21.4 px, so the body pads the
+			   600×80 board by ~11 px on each side to keep the corners visible. */
+			html,
+			body {
+				background: transparent;
+				margin: 0;
+				overflow: hidden;
+				width: 622px;
+				height: 80px;
+			}
+			#root {
+				box-sizing: border-box;
+				width: 622px;
+				height: 80px;
+				padding: 0 11px;
+			}
+		</style>
 	</head>
 
 	<body>

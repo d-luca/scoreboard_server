@@ -1,12 +1,26 @@
 mod bindings;
 mod menu;
+mod net;
+mod server;
 mod state;
 mod timer;
 mod windows;
 
-use state::{Action, AppPrefs, AppState, ScoreboardState, Shared};
+pub use state::{AppPrefs, AppState, Shared};
+
+use state::{Action, ScoreboardState, ServerInfo, ServerStatus};
 use tauri::Manager;
 use windows::AppWindow;
+
+/// Preferred HTTP port until the Settings schema lands in Phase 5
+/// (doc 02 §9: `server_port` default 3001).
+pub const DEFAULT_SERVER_PORT: u16 = 3001;
+
+/// Start the embedded LAN server (doc 03 §4). Exposed for the
+/// `examples/serve.rs` smoke-test binary; the app calls it from `setup`.
+pub async fn start_server(shared: Shared, preferred_port: u16) -> anyhow::Result<u16> {
+    server::start(shared, preferred_port).await
+}
 
 #[tauri::command]
 async fn sb_get_state(state: tauri::State<'_, Shared>) -> Result<ScoreboardState, String> {
@@ -39,6 +53,16 @@ fn window_list(app: tauri::AppHandle) -> Vec<AppWindow> {
     windows::list_open(&app)
 }
 
+#[tauri::command]
+async fn server_get_info(state: tauri::State<'_, Shared>) -> Result<ServerInfo, String> {
+    Ok(state.server_info())
+}
+
+#[tauri::command]
+async fn server_get_status(state: tauri::State<'_, Shared>) -> Result<ServerStatus, String> {
+    Ok(state.server_status())
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tracing_subscriber::fmt()
@@ -69,6 +93,16 @@ pub fn run() {
 
                 main_window.show()?;
             }
+
+            // Embedded LAN server (doc 03 §4). The bound port is published
+            // as `server:status` / `server:info` once known.
+            let shared_for_server = app.state::<Shared>().inner().clone();
+            tauri::async_runtime::spawn(async move {
+                match server::start(shared_for_server.clone(), DEFAULT_SERVER_PORT).await {
+                    Ok(port) => shared_for_server.set_server_port(port).await,
+                    Err(error) => tracing::error!(?error, "HTTP server failed to start"),
+                }
+            });
             Ok(())
         })
         .on_menu_event(menu::on_menu_event)
@@ -86,6 +120,8 @@ pub fn run() {
             window_open,
             window_close,
             window_list,
+            server_get_info,
+            server_get_status,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

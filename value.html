@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="UTF-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+		<title>Scoreboard Value</title>
+		<style>
+			/* Single-value output for OBS (doc 02 §5.1): transparent, no
+			   scrollbars; the entry centres one 48 px value. */
+			html,
+			body {
+				background: transparent;
+				margin: 0;
+				overflow: hidden;
+			}
+		</style>
+	</head>
+
+	<body>
+		<div id="root"></div>
+		<script type="module" src="/src/entries/value.tsx"></script>
+	</body>
+</html>
