@@ -5,6 +5,7 @@
 //! third-party dashboards all talk to this — the Tauri webviews do not.
 
 pub mod assets;
+pub mod auth;
 pub mod routes;
 pub mod ws;
 
@@ -52,8 +53,8 @@ pub fn router(shared: Shared) -> Router {
         .route("/control", get(assets::control_page))
         .route("/value/{property}", get(assets::value_page))
         .fallback(assets::static_handler)
-        // Permissive CORS is acceptable because writes will require the
-        // control token (Phase 4); OBS Browser Source needs it [PARITY].
+        // Permissive CORS is safe because every write requires the control
+        // token; OBS Browser Source needs public reads [PARITY].
         .layer(
             CorsLayer::new()
                 .allow_origin(Any)
@@ -130,6 +131,21 @@ mod tests {
             .unwrap()
     }
 
+    fn authorized_post(
+        shared: &Shared,
+        uri: &str,
+        body: &str,
+    ) -> axum::http::Request<axum::body::Body> {
+        let token = shared.control_token_for_test();
+        axum::http::Request::builder()
+            .method("POST")
+            .uri(uri)
+            .header("content-type", "application/json")
+            .header("authorization", format!("Bearer {token}"))
+            .body(axum::body::Body::from(body.to_string()))
+            .unwrap()
+    }
+
     #[tokio::test]
     async fn health_reports_ok_and_version() {
         let app = router(AppState::new());
@@ -173,7 +189,11 @@ mod tests {
         let shared = AppState::new();
         let app = router(shared.clone());
         let response = app
-            .oneshot(post("/api/scoreboard", r#"{"teamHomeScore":3}"#))
+            .oneshot(authorized_post(
+                &shared,
+                "/api/scoreboard",
+                r#"{"teamHomeScore":3}"#,
+            ))
             .await
             .unwrap();
         assert_eq!(response.status(), 200);
@@ -184,9 +204,14 @@ mod tests {
 
     #[tokio::test]
     async fn post_patch_rejects_unknown_field_with_400() {
-        let app = router(AppState::new());
+        let shared = AppState::new();
+        let app = router(shared.clone());
         let response = app
-            .oneshot(post("/api/scoreboard", r#"{"teamHomeScre":3}"#))
+            .oneshot(authorized_post(
+                &shared,
+                "/api/scoreboard",
+                r#"{"teamHomeScre":3}"#,
+            ))
             .await
             .unwrap();
         assert_eq!(response.status(), 400);
@@ -199,7 +224,8 @@ mod tests {
         let shared = AppState::new();
         let app = router(shared.clone());
         let response = app
-            .oneshot(post(
+            .oneshot(authorized_post(
+                &shared,
                 "/api/scoreboard",
                 r#"{"teamHomeName":"LIONS","teamHomeColor":"red"}"#,
             ))
@@ -217,20 +243,173 @@ mod tests {
         let app = router(shared.clone());
         let response = app
             .clone()
-            .oneshot(post("/api/action", r#"{"action":"score-away-inc"}"#))
+            .oneshot(authorized_post(
+                &shared,
+                "/api/action",
+                r#"{"action":"score-away-inc"}"#,
+            ))
             .await
             .unwrap();
         assert_eq!(response.status(), 200);
         assert_eq!(shared.current().await.team_away_score, 1);
 
         let response = app
-            .oneshot(post(
+            .oneshot(authorized_post(
+                &shared,
                 "/api/action",
                 r#"{"action":"timer-loadout","data":{"slot":9}}"#,
             ))
             .await
             .unwrap();
         assert_eq!(response.status(), 400);
+    }
+
+    #[tokio::test]
+    async fn post_routes_reject_missing_or_invalid_auth_without_mutation() {
+        let shared = AppState::new();
+        let app = router(shared.clone());
+
+        let response = app
+            .clone()
+            .oneshot(post("/api/scoreboard", r#"{"teamHomeScore":99}"#))
+            .await
+            .unwrap();
+        assert_eq!(response.status(), axum::http::StatusCode::UNAUTHORIZED);
+
+        let request = axum::http::Request::builder()
+            .method("POST")
+            .uri("/api/action")
+            .header("content-type", "application/json")
+            .header("authorization", "Bearer invalid")
+            .body(axum::body::Body::from(r#"{"action":"score-away-inc"}"#))
+            .unwrap();
+        let response = app.oneshot(request).await.unwrap();
+        assert_eq!(response.status(), axum::http::StatusCode::UNAUTHORIZED);
+
+        let state = shared.current().await;
+        assert_eq!(state.team_home_score, 0);
+        assert_eq!(state.team_away_score, 0);
+    }
+
+    #[tokio::test]
+    async fn post_action_accepts_control_cookie() {
+        let shared = AppState::new();
+        let token = shared.control_token_for_test();
+        let request = axum::http::Request::builder()
+            .method("POST")
+            .uri("/api/action")
+            .header("content-type", "application/json")
+            .header("cookie", format!("sb_token={token}"))
+            .body(axum::body::Body::from(r#"{"action":"score-home-inc"}"#))
+            .unwrap();
+        let response = router(shared.clone()).oneshot(request).await.unwrap();
+        assert_eq!(response.status(), axum::http::StatusCode::OK);
+        assert_eq!(shared.current().await.team_home_score, 1);
+    }
+
+    #[tokio::test]
+    async fn control_query_sets_strict_cookie_and_redirects_to_token_free_url() {
+        let shared = AppState::new();
+        let token = shared.control_token_for_test();
+        let app = router(shared);
+        let response = app
+            .clone()
+            .oneshot(get(&format!("/control?t={token}")))
+            .await
+            .unwrap();
+        assert_eq!(response.status(), axum::http::StatusCode::SEE_OTHER);
+        assert_eq!(
+            response
+                .headers()
+                .get(axum::http::header::LOCATION)
+                .and_then(|value| value.to_str().ok()),
+            Some("/control")
+        );
+        let set_cookie = response
+            .headers()
+            .get(axum::http::header::SET_COOKIE)
+            .unwrap()
+            .to_str()
+            .unwrap()
+            .to_string();
+        assert_eq!(
+            set_cookie,
+            format!("sb_token={token}; HttpOnly; SameSite=Strict; Path=/; Max-Age=86400")
+        );
+        assert!(!response
+            .headers()
+            .get(axum::http::header::LOCATION)
+            .unwrap()
+            .to_str()
+            .unwrap()
+            .contains(&token));
+
+        let cookie = set_cookie.split(';').next().unwrap();
+        let request = axum::http::Request::builder()
+            .uri("/control")
+            .header("cookie", cookie)
+            .body(axum::body::Body::empty())
+            .unwrap();
+        let response = app.oneshot(request).await.unwrap();
+        assert_eq!(response.status(), axum::http::StatusCode::OK);
+    }
+
+    #[tokio::test]
+    async fn control_without_valid_auth_shows_ask_operator_page() {
+        let app = router(AppState::new());
+        let response = app.clone().oneshot(get("/control")).await.unwrap();
+        assert_eq!(response.status(), axum::http::StatusCode::UNAUTHORIZED);
+        assert!(body_string(response).await.contains("Ask the operator"));
+
+        let response = app
+            .clone()
+            .oneshot(get("/control?t=invalid"))
+            .await
+            .unwrap();
+        assert_eq!(response.status(), axum::http::StatusCode::UNAUTHORIZED);
+
+        let response = app.oneshot(get("/control?t=%FF")).await.unwrap();
+        assert_eq!(response.status(), axum::http::StatusCode::UNAUTHORIZED);
+    }
+
+    #[tokio::test]
+    async fn regeneration_replaces_urls_qr_and_rest_credentials() {
+        let shared = AppState::new();
+        shared.set_server_port(3010).await;
+        let old_token = shared.control_token_for_test();
+        let old_info = shared.server_info();
+        let new_info = shared.regenerate_control_token().await;
+        let new_token = shared.control_token_for_test();
+
+        assert_ne!(old_token, new_token);
+        assert_ne!(old_info.control_url, new_info.control_url);
+        assert!(new_info
+            .control_url
+            .ends_with(&format!("/control?t={new_token}")));
+        assert!(new_info.control_qr_svg.contains("<svg"));
+        assert!(new_info.token_required);
+
+        let old_request = axum::http::Request::builder()
+            .method("POST")
+            .uri("/api/action")
+            .header("content-type", "application/json")
+            .header("authorization", format!("Bearer {old_token}"))
+            .body(axum::body::Body::from(r#"{"action":"score-home-inc"}"#))
+            .unwrap();
+        let app = router(shared.clone());
+        let response = app.clone().oneshot(old_request).await.unwrap();
+        assert_eq!(response.status(), axum::http::StatusCode::UNAUTHORIZED);
+
+        let response = app
+            .oneshot(authorized_post(
+                &shared,
+                "/api/action",
+                r#"{"action":"score-home-inc"}"#,
+            ))
+            .await
+            .unwrap();
+        assert_eq!(response.status(), axum::http::StatusCode::OK);
+        assert_eq!(shared.current().await.team_home_score, 1);
     }
 
     #[tokio::test]

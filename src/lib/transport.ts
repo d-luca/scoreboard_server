@@ -2,6 +2,7 @@ import type { Action } from "../bindings/Action";
 import type { ScoreboardState } from "../bindings/ScoreboardState";
 
 export type ConnectionStatus = "connected" | "connecting" | "disconnected";
+export type AuthorizationStatus = "unknown" | "authorized" | "unauthorized";
 export type TransportEvent = "timer-finished" | "buzzer";
 
 export interface Transport {

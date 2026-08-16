@@ -13,6 +13,7 @@ mod tests {
     use ts_rs::TS;
 
     #[test]
+    #[ignore = "run explicitly via `pnpm bindings`"]
     fn export_bindings() {
         ScoreboardState::export().expect("failed to export ScoreboardState");
         ScoreboardPatch::export().expect("failed to export ScoreboardPatch");

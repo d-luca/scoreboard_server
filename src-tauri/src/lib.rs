@@ -63,6 +63,11 @@ async fn server_get_status(state: tauri::State<'_, Shared>) -> Result<ServerStat
     Ok(state.server_status())
 }
 
+#[tauri::command]
+async fn server_regenerate_token(state: tauri::State<'_, Shared>) -> Result<ServerInfo, String> {
+    Ok(state.inner().regenerate_control_token().await)
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tracing_subscriber::fmt()
@@ -122,6 +127,7 @@ pub fn run() {
             window_list,
             server_get_info,
             server_get_status,
+            server_regenerate_token,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

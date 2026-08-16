@@ -154,11 +154,15 @@ All frames are JSON text. Every frame has a `type`.
 // on connect, and after any mutation
 { "type": "state", "data": { /* ScoreboardState */ } }
 
+// authorization state, sent after the initial state and again after token rotation
+{ "type": "authorization", "authorized": true | false }
+
 // discrete notifications
 { "type": "event", "event": "timer-finished" }
 { "type": "event", "event": "buzzer" }
 
-// protocol / auth failures, sent right before close
+// protocol / auth failures; unauthorized leaves the socket read-only,
+// bad-request and rate-limited are sent before close
 { "type": "error", "code": "unauthorized" | "bad-request" | "rate-limited", "message": "..." }
 ```
 
@@ -176,7 +180,8 @@ All frames are JSON text. Every frame has a `type`.
 
 ### 4.2 Rules
 
-- Server sends a full `state` frame immediately after a successful upgrade.
+- Server sends a full `state` frame immediately after a successful upgrade, followed by
+  the socket's `authorization` state.
 - Server sends a full `state` frame after every mutation, from any source. No deltas —
   the payload is under 400 bytes and this removes an entire class of bugs.
 - Read-only clients (OBS, `/scoreboard`) need no token. **Write commands require a valid

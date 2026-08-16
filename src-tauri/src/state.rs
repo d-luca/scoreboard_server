@@ -15,6 +15,7 @@ use tokio::sync::{broadcast, Mutex, RwLock};
 use ts_rs::TS;
 
 use crate::net::{self, LanAddress};
+use crate::server::auth::{self, Authorization};
 use crate::timer::TimerEngine;
 use crate::windows::AppWindow;
 
@@ -36,6 +37,9 @@ pub enum ServerEvent {
     State(ScoreboardState),
     TimerFinished,
     Buzzer,
+    /// The control secret changed. The payload is a non-secret generation
+    /// number used to revoke already-connected authorized WebSockets.
+    ControlTokenRegenerated(u64),
     /// A feature window was opened or closed (doc 03 §7bis). Payload is the
     /// window label; emitted to all windows as `window:opened` /
     /// `window:closed`.
@@ -111,7 +115,7 @@ impl AppPrefs {
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
-#[ts(export, export_to = "../../src/bindings/")]
+#[ts(export_to = "../../src/bindings/")]
 pub struct ScoreboardState {
     pub team_home_name: String,
     pub team_away_name: String,
@@ -163,7 +167,7 @@ impl Default for ScoreboardState {
 /// typos in `POST /api/scoreboard`. Return 400 with the offending field.
 #[derive(Debug, Clone, Default, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase", deny_unknown_fields, default)]
-#[ts(export, export_to = "../../src/bindings/")]
+#[ts(export_to = "../../src/bindings/")]
 pub struct ScoreboardPatch {
     #[ts(optional)]
     pub team_home_name: Option<String>,
@@ -200,7 +204,7 @@ pub struct ScoreboardPatch {
 /// handle it.
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 #[serde(tag = "action", content = "data", rename_all = "kebab-case")]
-#[ts(export, export_to = "../../src/bindings/")]
+#[ts(export_to = "../../src/bindings/")]
 pub enum Action {
     Patch(ScoreboardPatch),
     ScoreHomeInc,
@@ -231,12 +235,14 @@ pub enum Action {
 /// (doc 02 §7.1.1). Emitted as `server:status`, coalesced to 2 Hz.
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
-#[ts(export, export_to = "../../src/bindings/")]
+#[ts(export_to = "../../src/bindings/")]
 pub struct ServerStatus {
     pub running: bool,
     pub port: u16,
     /// Currently connected WebSocket clients.
     pub ws_clients: u32,
+    /// Connected WebSocket clients currently permitted to send commands.
+    pub authorized_clients: u32,
     /// [OPTIONAL] Overlay mode (Phase 7).
     pub overlay_active: bool,
     /// [OPTIONAL] Match recording (Phase 8).
@@ -250,7 +256,7 @@ pub struct ServerStatus {
 /// the LAN URLs and changes rarely. Emitted as `server:info`.
 #[derive(Debug, Clone, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
-#[ts(export, export_to = "../../src/bindings/")]
+#[ts(export_to = "../../src/bindings/")]
 pub struct ServerInfo {
     pub running: bool,
     pub port: u16,
@@ -259,6 +265,17 @@ pub struct ServerInfo {
     pub scoreboard_url: String,
     /// `http://localhost:<port>/scoreboard`.
     pub local_url: String,
+    /// Token-bearing LAN URL used by the remote-control QR code.
+    pub control_url: String,
+    /// Inline SVG encoding [`Self::control_url`].
+    pub control_qr_svg: String,
+    /// Always true until the Phase 5 settings toggle lands.
+    pub token_required: bool,
+}
+
+struct ControlToken {
+    value: String,
+    generation: u64,
 }
 
 pub struct AppState {
@@ -271,6 +288,13 @@ pub struct AppState {
     pub server_port: AtomicU32,
     /// Currently connected WebSocket clients.
     pub ws_clients: AtomicU32,
+    /// Connected WebSocket clients currently permitted to send commands.
+    pub authorized_clients: AtomicU32,
+    /// Startup-generated control secret and its revocation generation.
+    control_token: std::sync::RwLock<ControlToken>,
+    /// Commands take a read guard; regeneration takes the write guard so no
+    /// old authorization can race rotation and mutate after it returns.
+    control_mutation_gate: RwLock<()>,
     /// Last emitted `server:status`, to suppress redundant emissions.
     last_status: Mutex<Option<ServerStatus>>,
     /// Set once during setup. Tests never set it, so emits are no-ops there.
@@ -295,6 +319,12 @@ impl AppState {
             prefs: RwLock::new(prefs),
             server_port: AtomicU32::new(0),
             ws_clients: AtomicU32::new(0),
+            authorized_clients: AtomicU32::new(0),
+            control_token: std::sync::RwLock::new(ControlToken {
+                value: auth::generate_token(),
+                generation: 0,
+            }),
+            control_mutation_gate: RwLock::new(()),
             last_status: Mutex::new(None),
             app: OnceLock::new(),
         })
@@ -361,6 +391,7 @@ impl AppState {
             running: port != 0,
             port: u16::try_from(port).unwrap_or(0),
             ws_clients: self.ws_clients.load(Ordering::Relaxed),
+            authorized_clients: self.authorized_clients.load(Ordering::Relaxed),
             overlay_active: false,
             recording_active: false,
             recording_seconds: 0,
@@ -375,17 +406,51 @@ impl AppState {
         self.publish_server_info().await;
     }
 
-    /// Bump the connected-client gauge and republish `server:status`.
-    pub async fn ws_client_connected(self: &Arc<Self>) {
+    /// Bump the connected-client gauges and republish `server:status`.
+    /// Authorization registration is serialized with token replacement so an
+    /// old handshake cannot increment the new generation's gauge.
+    pub async fn ws_client_connected(
+        self: &Arc<Self>,
+        authorization: Option<Authorization>,
+    ) -> Option<Authorization> {
         self.ws_clients.fetch_add(1, Ordering::Relaxed);
+        let authorization = {
+            let token = self
+                .control_token
+                .read()
+                .unwrap_or_else(std::sync::PoisonError::into_inner);
+            let current =
+                authorization.filter(|candidate| token.generation == candidate.generation());
+            if current.is_some() {
+                self.authorized_clients.fetch_add(1, Ordering::Relaxed);
+            }
+            current
+        };
+        self.publish_server_status().await;
+        authorization
+    }
+
+    pub async fn ws_client_deauthorized(self: &Arc<Self>, authorization: Authorization) {
+        self.decrement_authorized_if_current(authorization);
         self.publish_server_status().await;
     }
 
-    pub async fn ws_client_disconnected(self: &Arc<Self>) {
-        self.ws_clients
-            .fetch_update(Ordering::Relaxed, Ordering::Relaxed, |n| n.checked_sub(1))
-            .ok();
+    pub async fn ws_client_disconnected(self: &Arc<Self>, authorization: Option<Authorization>) {
+        decrement_gauge(&self.ws_clients);
+        if let Some(authorization) = authorization {
+            self.decrement_authorized_if_current(authorization);
+        }
         self.publish_server_status().await;
+    }
+
+    fn decrement_authorized_if_current(&self, authorization: Authorization) {
+        let token = self
+            .control_token
+            .read()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        if token.generation == authorization.generation() {
+            decrement_gauge(&self.authorized_clients);
+        }
     }
 
     /// Emit `server:status` if it changed since the last emission. A
@@ -441,13 +506,64 @@ impl AppState {
             .first()
             .map(|entry| entry.address.as_str())
             .unwrap_or("127.0.0.1");
+        let (token, _) = self.control_token_snapshot();
+        let control_url = format!("http://{host}:{}/control?t={token}", status.port);
+        let control_qr_svg = auth::qr_svg(&control_url);
         ServerInfo {
             running: status.running,
             port: status.port,
             scoreboard_url: format!("http://{host}:{}/scoreboard", status.port),
             local_url: format!("http://localhost:{}/scoreboard", status.port),
+            control_url,
+            control_qr_svg,
+            token_required: true,
             addresses,
         }
+    }
+
+    pub(crate) fn control_token_snapshot(&self) -> (String, u64) {
+        let token = self
+            .control_token
+            .read()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        (token.value.clone(), token.generation)
+    }
+
+    pub(crate) fn authorization_is_current(&self, authorization: Authorization) -> bool {
+        let token = self
+            .control_token
+            .read()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        token.generation == authorization.generation()
+    }
+
+    /// Replace the control secret, revoke old socket authorization, and
+    /// publish the newly generated sharing information.
+    pub async fn regenerate_control_token(self: &Arc<Self>) -> ServerInfo {
+        let generation = {
+            let _mutation_guard = self.control_mutation_gate.write().await;
+            let mut token = self
+                .control_token
+                .write()
+                .unwrap_or_else(std::sync::PoisonError::into_inner);
+            token.value = auth::generate_token();
+            token.generation = token
+                .generation
+                .checked_add(1)
+                .expect("control token generation overflow");
+            self.authorized_clients.store(0, Ordering::Relaxed);
+            token.generation
+        };
+        self.publish(ServerEvent::ControlTokenRegenerated(generation));
+        self.publish_server_status().await;
+        let info = self.server_info();
+        self.emit_app("server:info", info.clone());
+        info
+    }
+
+    #[cfg(test)]
+    pub(crate) fn control_token_for_test(&self) -> String {
+        self.control_token_snapshot().0
     }
 
     pub async fn publish_server_info(&self) {
@@ -459,6 +575,20 @@ impl AppState {
         if let Some(app) = self.app.get() {
             let _ = app.emit(event, payload);
         }
+    }
+
+    /// Dispatch only while the supplied control authorization remains valid.
+    /// The read barrier closes the check/dispatch race with token rotation.
+    pub async fn dispatch_authorized(
+        self: &Arc<Self>,
+        authorization: Authorization,
+        action: Action,
+    ) -> Result<Option<ScoreboardState>, DomainError> {
+        let _mutation_guard = self.control_mutation_gate.read().await;
+        if !self.authorization_is_current(authorization) {
+            return Ok(None);
+        }
+        self.dispatch(action).await.map(Some)
     }
 
     /// The one mutation path.
@@ -589,6 +719,7 @@ impl AppState {
                         let _ = w.emit("buzzer:play", ());
                     }
                 }
+                ServerEvent::ControlTokenRegenerated(_) => {}
                 ServerEvent::Window(which, open) => {
                     let event = if open {
                         "window:opened"
@@ -600,6 +731,12 @@ impl AppState {
             }
         }
     }
+}
+
+fn decrement_gauge(gauge: &AtomicU32) {
+    let _ = gauge.fetch_update(Ordering::Relaxed, Ordering::Relaxed, |value| {
+        value.checked_sub(1)
+    });
 }
 
 fn validate_name(raw: &str) -> Result<String, DomainError> {

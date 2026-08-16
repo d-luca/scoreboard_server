@@ -17,4 +17,16 @@ export type ServerInfo = {
 	 * `http://localhost:<port>/scoreboard`.
 	 */
 	localUrl: string;
+	/**
+	 * Token-bearing LAN URL used by the remote-control QR code.
+	 */
+	controlUrl: string;
+	/**
+	 * Inline SVG encoding [`Self::control_url`].
+	 */
+	controlQrSvg: string;
+	/**
+	 * Always true until the Phase 5 settings toggle lands.
+	 */
+	tokenRequired: boolean;
 };

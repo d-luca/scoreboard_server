@@ -17,6 +17,7 @@ interface ServerStore {
 	status: ServerStatus | null;
 	showAddresses: boolean;
 	refresh(): Promise<void>;
+	regenerateToken(): Promise<ServerInfo>;
 	toggleShowAddresses(): void;
 }
 
@@ -37,6 +38,11 @@ export const useServerStore = create<ServerStore>((set, get) => ({
 			invoke<ServerStatus>("server_get_status"),
 		]);
 		set({ info, status });
+	},
+	regenerateToken: async () => {
+		const info = await invoke<ServerInfo>("server_regenerate_token");
+		set({ info });
+		return info;
 	},
 	toggleShowAddresses: () => set({ showAddresses: !get().showAddresses }),
 }));

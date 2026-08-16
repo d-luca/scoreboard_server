@@ -1,5 +1,5 @@
 import { JSX, useEffect } from "react";
-import { useScoreboardStore } from "../../lib/scoreboard-store";
+import { useScoreboardStore } from "../../lib/desktop-scoreboard-store";
 import { useServerStore } from "../../lib/server-store";
 import { useWindowStore } from "../../lib/window-store";
 import { VerticalDivider } from "../ui/VerticalDivider";
@@ -7,14 +7,15 @@ import { VerticalDivider } from "../ui/VerticalDivider";
 /**
  * Status strip at the bottom of the main window (doc 04 §7.3).
  *
- * Live in Phase 3: connection, timer state, server and client badges. The
- * control-token, overlay and REC badges are wired as Phases 4/7/8 land.
+ * Live connection, timer, server, client, and control-token badges. Overlay
+ * and recording badges are added by their optional phases.
  */
 export function StatusBar(): JSX.Element {
 	const isTimerRunning = useScoreboardStore((store) => store.state.isTimerRunning);
 	const connection = useScoreboardStore((store) => store.connection);
 	const openWindow = useWindowStore((store) => store.openWindow);
 	const serverStatus = useServerStore((store) => store.status);
+	const serverInfo = useServerStore((store) => store.info);
 	const refreshServer = useServerStore((store) => store.refresh);
 
 	useEffect(() => {
@@ -24,6 +25,8 @@ export function StatusBar(): JSX.Element {
 	const running = serverStatus?.running ?? false;
 	const port = serverStatus?.port ?? 0;
 	const clients = serverStatus?.wsClients ?? 0;
+	const authorizedClients = serverStatus?.authorizedClients ?? 0;
+	const tokenRequired = serverInfo?.tokenRequired;
 
 	return (
 		<div className="border-app-primary bg-app-secondary flex h-8 shrink-0 items-center gap-3 border-t px-3 text-xs">
@@ -61,8 +64,25 @@ export function StatusBar(): JSX.Element {
 				active={clients > 0}
 				activeColor="bg-success-500"
 				label={clients === 0 ? "no clients" : `${clients} client${clients === 1 ? "" : "s"}`}
-				title={`${clients} WebSocket client${clients === 1 ? "" : "s"} connected`}
+				title={`${clients} WebSocket client${clients === 1 ? "" : "s"} connected; ${authorizedClients} authorized`}
 				onClick={() => void openWindow("outputs")}
+			/>
+
+			<VerticalDivider />
+
+			{/* Control token — Settings is currently the Phase 5 shell. */}
+			<StatusButton
+				active={tokenRequired !== undefined}
+				activeColor={tokenRequired ? "bg-success-500" : "bg-warning-500"}
+				label={tokenRequired === undefined ? "token…" : tokenRequired ? "🔒 protected" : "🔓 open"}
+				title={
+					tokenRequired === undefined
+						? "Loading control-token status"
+						: tokenRequired
+							? "Remote control requires a token"
+							: "Remote control is open to the LAN"
+				}
+				onClick={() => void openWindow("settings")}
 			/>
 		</div>
 	);

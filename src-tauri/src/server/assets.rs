@@ -8,12 +8,12 @@
 //! config (`window.__SCOREBOARD__`), so the same bundle works on any
 //! host/port without a rebuild.
 
-use axum::extract::{Path, State};
+use axum::extract::{Path, RawQuery, State};
 use axum::http::{header, HeaderMap, StatusCode};
 use axum::response::{Html, IntoResponse};
 use rust_embed::RustEmbed;
 
-use super::routes;
+use super::{auth, routes};
 use crate::state::Shared;
 
 #[derive(RustEmbed)]
@@ -28,11 +28,44 @@ pub async fn scoreboard_page(
     serve_page(&shared, &headers, "scoreboard.html", "scoreboard", None)
 }
 
-/// `GET /control` — the phone remote. The full page (with token
-/// validation) lands in Phase 4; for now it serves the placeholder bundle
-/// in `control` mode.
-pub async fn control_page(State(shared): State<Shared>, headers: HeaderMap) -> impl IntoResponse {
+/// `GET /control?t=<token>` exchanges a valid URL token for an HttpOnly
+/// cookie, then redirects so the secret leaves the address bar. Subsequent
+/// cookie-authenticated requests serve the remote page.
+pub async fn control_page(
+    State(shared): State<Shared>,
+    headers: HeaderMap,
+    RawQuery(raw_query): RawQuery,
+) -> impl IntoResponse {
+    if let Some(query_token) = auth::query_token(raw_query.as_deref()) {
+        if auth::check(&shared, &headers, Some(query_token)).is_none() {
+            return unauthorized_control_page();
+        }
+        let mut response = axum::response::Redirect::to("/control").into_response();
+        response
+            .headers_mut()
+            .insert(header::SET_COOKIE, auth::control_cookie(&shared));
+        response.headers_mut().insert(
+            header::CACHE_CONTROL,
+            header::HeaderValue::from_static("no-store"),
+        );
+        return response;
+    }
+
+    if auth::check(&shared, &headers, None).is_none() {
+        return unauthorized_control_page();
+    }
     serve_page(&shared, &headers, "control.html", "control", None)
+}
+
+fn unauthorized_control_page() -> axum::response::Response {
+    (
+        StatusCode::UNAUTHORIZED,
+        [(header::CACHE_CONTROL, "no-store")],
+        Html(
+            "<!doctype html><html><head><meta charset=\"utf-8\"><title>Remote control access required</title></head><body><main><h1>Remote control access required</h1><p>Ask the operator for the current control link.</p></main></body></html>",
+        ),
+    )
+        .into_response()
 }
 
 /// `GET /value/{property}` — transparent single-value page (doc 02 §5.1).

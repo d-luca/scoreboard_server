@@ -41,8 +41,12 @@ mime_guess = "2"
 if-addrs = "0.13"
 futures = "0.3"
 anyhow = "1"
+rand = "0.8"
+subtle = "2"
+qrcode = { version = "0.14", default-features = false, features = ["svg"] }
 
 [dev-dependencies]
 tokio = { version = "1", features = ["test-util", "macros", "rt"] }
 tower = { version = "0.5", features = ["util"] }
 http-body-util = "0.1"
+tokio-tungstenite = "0.29"

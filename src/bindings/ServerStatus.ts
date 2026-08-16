@@ -12,6 +12,10 @@ export type ServerStatus = {
 	 */
 	wsClients: number;
 	/**
+	 * Connected WebSocket clients currently permitted to send commands.
+	 */
+	authorizedClients: number;
+	/**
 	 * [OPTIONAL] Overlay mode (Phase 7).
 	 */
 	overlayActive: boolean;

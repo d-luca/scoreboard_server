@@ -18,7 +18,7 @@ const GEOMETRY_SAVE_DEBOUNCE: Duration = Duration::from_millis(500);
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "kebab-case")]
-#[ts(export, export_to = "../../src/bindings/")]
+#[ts(export_to = "../../src/bindings/")]
 pub enum AppWindow {
     Settings,
     Outputs,

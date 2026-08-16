@@ -1,7 +1,7 @@
 import { JSX, useEffect } from "react";
 import { ScoreboardControl } from "./components/ScoreboardControl";
 import { StatusBar } from "./components/StatusBar";
-import { useScoreboardStore } from "./lib/scoreboard-store";
+import { useScoreboardStore } from "./lib/desktop-scoreboard-store";
 import { useWindowStore } from "./lib/window-store";
 import { useLocalHotkeys } from "./lib/use-local-hotkeys";
 

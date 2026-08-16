@@ -1,16 +1,25 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
+import { RemoteControl } from "../features/remote/RemoteControl";
+import { createControlWsUrl } from "../features/remote/control-url";
+import { createScoreboardStore } from "../lib/scoreboard-store";
+import { WsTransport } from "../lib/ws-transport";
 import "../global.css";
 
-/**
- * Placeholder for the phone remote page (Phase 4, doc 04 §8).
- *
- * Served over plain HTTP by the embedded axum server, so this entry must
- * never import `@tauri-apps/*` — enforced by an ESLint `no-restricted-imports`
- * rule.
- */
+/** Browser-only phone remote. This dependency graph intentionally contains no Tauri modules. */
+const config = window.__SCOREBOARD__;
+const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+const wsUrl = createControlWsUrl(
+	config?.wsUrl ?? `${protocol}//${window.location.host}/ws`,
+	config?.token ?? null,
+);
+const transport = new WsTransport(wsUrl);
+const store = createScoreboardStore(transport);
+
+window.addEventListener("pagehide", () => transport.close(), { once: true });
+
 ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
 	<React.StrictMode>
-		<div className="font-[Poppins] text-2xl text-white">control entry — Phase 4</div>
+		<RemoteControl store={store} transport={transport} />
 	</React.StrictMode>,
 );

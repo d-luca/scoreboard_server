@@ -10,7 +10,7 @@
 		"build:debug": "tauri build --debug",
 		"vite:dev": "vite",
 		"vite:build": "tsc --noEmit && vite build",
-		"bindings": "cargo test --manifest-path src-tauri/Cargo.toml export_bindings && prettier --write src/bindings",
+		"bindings": "cargo test --manifest-path src-tauri/Cargo.toml export_bindings -- --ignored && prettier --write --ignore-path .prettierignore src/bindings",
 		"lint": "eslint .",
 		"format": "prettier --write .",
 		"rust:fmt": "cargo fmt --manifest-path src-tauri/Cargo.toml",

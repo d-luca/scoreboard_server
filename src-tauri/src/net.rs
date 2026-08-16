@@ -9,7 +9,7 @@ use ts_rs::TS;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
-#[ts(export, export_to = "../../src/bindings/")]
+#[ts(export_to = "../../src/bindings/")]
 pub struct LanAddress {
     /// Interface name, e.g. `eth0` / `Wi-Fi`.
     pub name: String,

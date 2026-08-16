@@ -152,7 +152,7 @@ later.
 
 ---
 
-## Phase 4 — LAN remote & access control `M`
+## Phase 4 — LAN remote & access control `M` ✅ **IMPLEMENTED**
 
 **Goal:** the phone remote, protected by a token.
 
@@ -163,6 +163,25 @@ later.
   copy link, regenerate token.
 - Read-only banner when unauthorized.
 - Status bar: control-token badge goes live.
+
+**Implementation notes (decisions taken during P4):**
+
+- The token requirement is always enabled in this phase; the persisted
+  `requireControlToken` toggle remains part of Phase 5 settings.
+- `/control?t=...` exchanges the query token for an `HttpOnly`, `SameSite=Strict` cookie
+  and redirects to `/control`, removing the secret from the address bar.
+- WebSockets receive an explicit `authorization` frame after initial state. Token
+  regeneration revokes existing write access immediately and pushes a read-only state to
+  connected remotes without disrupting public scoreboard clients.
+- The QR SVG is generated locally in Rust; no URL or token is sent to a third-party QR
+  service.
+- `scoreboard-store.ts` is transport-only, while the Tauri-backed singleton lives in
+  `desktop-scoreboard-store.ts`; this keeps all browser-served entry dependency graphs free
+  of `@tauri-apps/*` imports.
+- Verified on Linux with the full `pnpm check` gate, including real WebSocket integration
+  coverage for anonymous read-only access, authenticated writes, cookies, token rotation,
+  REST authorization, and generated bindings. Phone/Windows manual verification remains
+  pending under the cross-cutting definition of done.
 
 **Done when:**
 

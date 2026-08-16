@@ -1,7 +1,7 @@
 import { JSX } from "react";
 import { Button } from "../ui/Button/Button";
 import { HotkeyBadge } from "../ui/HotkeyBadge";
-import { useScoreboardStore } from "../../lib/scoreboard-store";
+import { useScoreboardStore } from "../../lib/desktop-scoreboard-store";
 import { DEFAULT_HOTKEYS, hotkeyLabel } from "../../lib/hotkeys";
 
 export function HalfControl(): JSX.Element {

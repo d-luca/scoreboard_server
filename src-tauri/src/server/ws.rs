@@ -7,12 +7,14 @@
 use std::time::{Duration, Instant};
 
 use axum::extract::ws::{CloseCode, CloseFrame, Message, WebSocket, WebSocketUpgrade};
-use axum::extract::State;
+use axum::extract::{RawQuery, State};
+use axum::http::HeaderMap;
 use axum::response::IntoResponse;
 use futures::{SinkExt, StreamExt};
 use serde::Deserialize;
 use tokio::sync::broadcast::error::RecvError;
 
+use super::auth::{self, Authorization};
 use crate::state::{Action, ScoreboardState, ServerEvent, Shared};
 
 /// Server-side heartbeat interval (doc 02 §4.2).
@@ -27,14 +29,6 @@ const CLOSE_RATE_LIMITED: CloseCode = 1008;
 const CLOSE_BAD_FRAME: CloseCode = 1003;
 
 #[derive(Deserialize)]
-pub struct WsQuery {
-    /// Control token; validated in Phase 4. Accepted now so the protocol
-    /// does not change when auth lands.
-    #[allow(dead_code)]
-    t: Option<String>,
-}
-
-#[derive(Deserialize)]
 #[serde(tag = "type", rename_all = "kebab-case")]
 enum ClientFrame {
     /// `Action` is internally tagged (`{"action": ..., "data": ...}`), so
@@ -47,35 +41,61 @@ enum ClientFrame {
 pub async fn handler(
     ws: WebSocketUpgrade,
     State(shared): State<Shared>,
-    axum::extract::Query(query): axum::extract::Query<WsQuery>,
+    headers: HeaderMap,
+    RawQuery(raw_query): RawQuery,
 ) -> impl IntoResponse {
-    let _ = query;
-    ws.on_upgrade(move |socket| client_loop(socket, shared))
+    let query_token = auth::query_token(raw_query.as_deref());
+    let authorization = auth::check(&shared, &headers, query_token);
+    ws.on_upgrade(move |socket| client_loop(socket, shared, authorization))
 }
 
 /// Decrements the client gauge on drop, even if the loop panics — a
 /// panicking or abruptly closed connection cannot leak the count [NEW].
-struct ClientGuard(Shared);
+struct ClientGuard {
+    shared: Shared,
+    authorization: Option<Authorization>,
+}
 
-impl Drop for ClientGuard {
-    fn drop(&mut self) {
-        let shared = self.0.clone();
-        // `Drop` is sync; spawn the counter update + status emission.
-        tauri::async_runtime::spawn(async move { shared.ws_client_disconnected().await });
+impl ClientGuard {
+    async fn downgrade(&mut self) {
+        if let Some(authorization) = self.authorization.take() {
+            self.shared.ws_client_deauthorized(authorization).await;
+        }
     }
 }
 
-async fn client_loop(socket: WebSocket, shared: Shared) {
-    shared.ws_client_connected().await;
-    let _guard = ClientGuard(shared.clone());
+impl Drop for ClientGuard {
+    fn drop(&mut self) {
+        let shared = self.shared.clone();
+        let authorization = self.authorization;
+        // `Drop` is sync; spawn the counter update + status emission.
+        tauri::async_runtime::spawn(async move {
+            shared.ws_client_disconnected(authorization).await;
+        });
+    }
+}
 
+async fn client_loop(socket: WebSocket, shared: Shared, authorization: Option<Authorization>) {
     let (mut sink, mut stream) = socket.split();
+    // Subscribe before validating the generation so regeneration cannot land
+    // in the gap and leave an old authorization active.
     let mut events = shared.events.subscribe();
+    let mut authorization = shared.ws_client_connected(authorization).await;
+    let mut guard = ClientGuard {
+        shared: shared.clone(),
+        authorization,
+    };
     let mut heartbeat = tokio::time::interval(HEARTBEAT_INTERVAL);
     let mut bucket = TokenBucket::new();
 
     // 1. Send the current state frame immediately after the upgrade.
     if send_state(&mut sink, &shared.current().await)
+        .await
+        .is_err()
+    {
+        return;
+    }
+    if send_authorization(&mut sink, authorization.is_some())
         .await
         .is_err()
     {
@@ -100,11 +120,22 @@ async fn client_loop(socket: WebSocket, shared: Shared) {
                             "type": "event", "event": "buzzer"
                         })).await.is_err() { break; }
                     }
+                    Ok(ServerEvent::ControlTokenRegenerated(generation)) => {
+                        if authorization.is_some_and(|current| current.generation() != generation) {
+                            authorization = None;
+                            guard.downgrade().await;
+                            if send_authorization(&mut sink, false).await.is_err() { break; }
+                        }
+                    }
                     Ok(ServerEvent::Window(..)) => {} // desktop-only
                     // A lagging client missed frames: resync with a fresh
                     // full state instead of replaying the backlog.
                     Err(RecvError::Lagged(skipped)) => {
                         tracing::debug!(skipped, "ws client lagged; resyncing");
+                        if authorization.is_some_and(|current| !shared.authorization_is_current(current)) {
+                            authorization = None;
+                            guard.downgrade().await;
+                        }
                         if send_state(&mut sink, &shared.current().await).await.is_err() { break; }
                     }
                     Err(RecvError::Closed) => break,
@@ -124,20 +155,42 @@ async fn client_loop(socket: WebSocket, shared: Shared) {
                             break;
                         }
                         match serde_json::from_str::<ClientFrame>(&text) {
-                            Ok(ClientFrame::Command(raw)) => match serde_json::from_value::<Action>(raw) {
-                                Ok(action) => {
-                                    if let Err(error) = shared.dispatch(action).await {
-                                        if send_error(&mut sink, "bad-request", &error.to_string()).await.is_err() {
-                                            break;
+                            Ok(ClientFrame::Command(raw)) => {
+                                if authorization.is_some_and(|current| !shared.authorization_is_current(current)) {
+                                    authorization = None;
+                                    guard.downgrade().await;
+                                }
+                                let Some(current_authorization) = authorization else {
+                                    if send_error(&mut sink, "unauthorized", "control token required").await.is_err() {
+                                        break;
+                                    }
+                                    continue;
+                                };
+                                match serde_json::from_value::<Action>(raw) {
+                                    Ok(action) => {
+                                        match shared.dispatch_authorized(current_authorization, action).await {
+                                            Ok(Some(_)) => {}
+                                            Ok(None) => {
+                                                authorization = None;
+                                                guard.downgrade().await;
+                                                if send_error(&mut sink, "unauthorized", "control token required").await.is_err() {
+                                                    break;
+                                                }
+                                            }
+                                            Err(error) => {
+                                                if send_error(&mut sink, "bad-request", &error.to_string()).await.is_err() {
+                                                    break;
+                                                }
+                                            }
                                         }
                                     }
-                                }
-                                Err(error) => {
-                                    tracing::debug!(?error, "bad ws action; closing");
-                                    let _ = send_error(&mut sink, "bad-request", "invalid action").await;
-                                    close(&mut sink, CLOSE_BAD_FRAME, "bad action").await;
-                                    tokio::time::sleep(Duration::from_millis(50)).await;
-                                    break;
+                                    Err(error) => {
+                                        tracing::debug!(?error, "bad ws action; closing");
+                                        let _ = send_error(&mut sink, "bad-request", "invalid action").await;
+                                        close(&mut sink, CLOSE_BAD_FRAME, "bad action").await;
+                                        tokio::time::sleep(Duration::from_millis(50)).await;
+                                        break;
+                                    }
                                 }
                             },
                             Ok(ClientFrame::Ping) => {
@@ -177,6 +230,17 @@ async fn send_state(
     state: &ScoreboardState,
 ) -> Result<(), axum::Error> {
     send_json(sink, &serde_json::json!({ "type": "state", "data": state })).await
+}
+
+async fn send_authorization(
+    sink: &mut futures::stream::SplitSink<WebSocket, Message>,
+    authorized: bool,
+) -> Result<(), axum::Error> {
+    send_json(
+        sink,
+        &serde_json::json!({ "type": "authorization", "authorized": authorized }),
+    )
+    .await
 }
 
 async fn send_error(
@@ -289,5 +353,108 @@ mod tests {
             panic!("expected command frame");
         };
         assert!(serde_json::from_value::<Action>(raw).is_err());
+    }
+
+    async fn receive_json(
+        socket: &mut tokio_tungstenite::WebSocketStream<
+            tokio_tungstenite::MaybeTlsStream<tokio::net::TcpStream>,
+        >,
+    ) -> serde_json::Value {
+        loop {
+            let message = socket.next().await.unwrap().unwrap();
+            if let tokio_tungstenite::tungstenite::Message::Text(text) = message {
+                return serde_json::from_str(&text).unwrap();
+            }
+        }
+    }
+
+    #[tokio::test]
+    async fn sockets_are_read_only_without_auth_and_revoked_on_regeneration() {
+        use tokio_tungstenite::connect_async;
+        use tokio_tungstenite::tungstenite::client::IntoClientRequest;
+        use tokio_tungstenite::tungstenite::Message as ClientMessage;
+
+        let shared = crate::state::AppState::new();
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let address = listener.local_addr().unwrap();
+        let app = crate::server::router(shared.clone());
+        let server = tokio::spawn(async move {
+            axum::serve(listener, app).await.unwrap();
+        });
+
+        let (mut read_only, _) = connect_async(format!("ws://{address}/ws")).await.unwrap();
+        let initial = receive_json(&mut read_only).await;
+        assert_eq!(initial["type"], "state");
+        assert_eq!(initial["data"]["teamHomeScore"], 0);
+        assert_eq!(receive_json(&mut read_only).await["authorized"], false);
+
+        read_only
+            .send(ClientMessage::Text(
+                r#"{"type":"command","action":"score-home-inc"}"#.into(),
+            ))
+            .await
+            .unwrap();
+        let error = receive_json(&mut read_only).await;
+        assert_eq!(error["code"], "unauthorized");
+        assert_eq!(shared.current().await.team_home_score, 0);
+
+        let token = shared.control_token_for_test();
+        let (mut authorized, _) = connect_async(format!("ws://{address}/ws?t={token}"))
+            .await
+            .unwrap();
+        assert_eq!(receive_json(&mut authorized).await["type"], "state");
+        assert_eq!(receive_json(&mut authorized).await["authorized"], true);
+        assert_eq!(shared.server_status().ws_clients, 2);
+        assert_eq!(shared.server_status().authorized_clients, 1);
+
+        authorized
+            .send(ClientMessage::Text(
+                r#"{"type":"command","action":"score-home-inc"}"#.into(),
+            ))
+            .await
+            .unwrap();
+        let update = receive_json(&mut authorized).await;
+        assert_eq!(update["type"], "state");
+        assert_eq!(update["data"]["teamHomeScore"], 1);
+        assert_eq!(shared.current().await.team_home_score, 1);
+
+        shared.regenerate_control_token().await;
+        assert_eq!(shared.server_status().authorized_clients, 0);
+        assert_eq!(receive_json(&mut authorized).await["authorized"], false);
+        authorized
+            .send(ClientMessage::Text(
+                r#"{"type":"command","action":"score-home-inc"}"#.into(),
+            ))
+            .await
+            .unwrap();
+        let error = receive_json(&mut authorized).await;
+        assert_eq!(error["code"], "unauthorized");
+        assert_eq!(shared.current().await.team_home_score, 1);
+        assert_eq!(shared.server_status().authorized_clients, 0);
+
+        let new_token = shared.control_token_for_test();
+        let mut cookie_request = format!("ws://{address}/ws").into_client_request().unwrap();
+        cookie_request.headers_mut().insert(
+            axum::http::header::COOKIE,
+            axum::http::HeaderValue::from_str(&format!("sb_token={new_token}")).unwrap(),
+        );
+        let (mut cookie_authorized, _) = connect_async(cookie_request).await.unwrap();
+        assert_eq!(receive_json(&mut cookie_authorized).await["type"], "state");
+        assert_eq!(
+            receive_json(&mut cookie_authorized).await["authorized"],
+            true
+        );
+        assert_eq!(shared.server_status().authorized_clients, 1);
+
+        cookie_authorized
+            .send(ClientMessage::Text(
+                r#"{"type":"command","action":"score-away-inc"}"#.into(),
+            ))
+            .await
+            .unwrap();
+        let update = receive_json(&mut cookie_authorized).await;
+        assert_eq!(update["data"]["teamAwayScore"], 1);
+
+        server.abort();
     }
 }

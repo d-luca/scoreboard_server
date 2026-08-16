@@ -2,12 +2,13 @@ import { create, type StoreApi, type UseBoundStore } from "zustand";
 import type { Action } from "../bindings/Action";
 import type { ScoreboardPatch } from "../bindings/ScoreboardPatch";
 import type { ScoreboardState } from "../bindings/ScoreboardState";
-import { tauriTransport } from "./tauri-transport";
-import type { ConnectionStatus, Transport } from "./transport";
+import type { AuthorizationStatus, ConnectionStatus, Transport } from "./transport";
 
-/** Optional live status feed; implemented by `WsTransport`. */
+/** Optional live status feeds implemented by reconnecting transports. */
 interface StatusAwareTransport extends Transport {
+	readonly authorization?: AuthorizationStatus;
 	onStatus?(callback: (status: ConnectionStatus) => void): () => void;
+	onAuthorization?(callback: (status: AuthorizationStatus) => void): () => void;
 }
 
 const initialState: ScoreboardState = {
@@ -31,6 +32,7 @@ const initialState: ScoreboardState = {
 export interface ScoreboardStore {
 	state: ScoreboardState;
 	connection: ConnectionStatus;
+	authorization: AuthorizationStatus;
 	error: string | null;
 	connect(): Promise<void>;
 	dispatch(action: Action): Promise<void>;
@@ -56,6 +58,7 @@ export function createScoreboardStore(
 ): UseBoundStore<StoreApi<ScoreboardStore>> {
 	let unsubscribe: (() => void) | undefined;
 	let unsubscribeStatus: (() => void) | undefined;
+	let unsubscribeAuthorization: (() => void) | undefined;
 
 	return create<ScoreboardStore>((set, get) => {
 		const acceptState = (next: ScoreboardState): void => {
@@ -65,6 +68,7 @@ export function createScoreboardStore(
 		return {
 			state: initialState,
 			connection: "connecting",
+			authorization: transport.authorization ?? "authorized",
 			error: null,
 			connect: async () => {
 				try {
@@ -73,6 +77,7 @@ export function createScoreboardStore(
 					// transport provides it; the Tauri transport is always
 					// "connected" and never calls back.
 					unsubscribeStatus ??= transport.onStatus?.((status) => set({ connection: status }));
+					unsubscribeAuthorization ??= transport.onAuthorization?.((authorization) => set({ authorization }));
 					acceptState(await transport.getState());
 					set({ connection: transport.status, error: null });
 				} catch (error) {
@@ -109,5 +114,3 @@ export function createScoreboardStore(
 		};
 	});
 }
-
-export const useScoreboardStore = createScoreboardStore(tauriTransport);

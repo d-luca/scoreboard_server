@@ -42,11 +42,14 @@ function OutputsWindow(): React.JSX.Element {
 	const status = useServerStore((store) => store.status);
 	const showAddresses = useServerStore((store) => store.showAddresses);
 	const refresh = useServerStore((store) => store.refresh);
+	const regenerateToken = useServerStore((store) => store.regenerateToken);
 	const toggleShowAddresses = useServerStore((store) => store.toggleShowAddresses);
 
 	const [scale, setScale] = React.useState<(typeof PREVIEW_SCALES)[number]>(100);
 	const [valueProperty, setValueProperty] = React.useState<string>("timer");
 	const [copied, setCopied] = React.useState<string | null>(null);
+	const [regeneratingToken, setRegeneratingToken] = React.useState(false);
+	const [remoteError, setRemoteError] = React.useState<string | null>(null);
 
 	React.useEffect(() => {
 		void refresh();
@@ -56,6 +59,7 @@ function OutputsWindow(): React.JSX.Element {
 	const running = status?.running ?? info?.running ?? false;
 	const localScoreboardUrl = port ? `http://localhost:${port}/scoreboard` : null;
 	const valueUrl = port ? `http://localhost:${port}/value/${valueProperty}` : null;
+	const controlUrl = info?.controlUrl || null;
 
 	const copy = async (key: string, text: string): Promise<void> => {
 		try {
@@ -65,6 +69,19 @@ function OutputsWindow(): React.JSX.Element {
 		} catch {
 			// Clipboard can fail when the window is unfocused; the URL stays
 			// visible for manual selection.
+		}
+	};
+
+	const handleRegenerateToken = async (): Promise<void> => {
+		setRegeneratingToken(true);
+		setRemoteError(null);
+		setCopied(null);
+		try {
+			await regenerateToken();
+		} catch (error) {
+			setRemoteError(error instanceof Error ? error.message : String(error));
+		} finally {
+			setRegeneratingToken(false);
 		}
 	};
 
@@ -118,7 +135,7 @@ function OutputsWindow(): React.JSX.Element {
 								}}
 							/>
 						) : (
-							<div className="text-app-tertiary flex h-20 w-[600px] items-center justify-center text-sm">
+							<div className="text-app-tertiary flex h-20 w-150 items-center justify-center text-sm">
 								Waiting for the server…
 							</div>
 						)}
@@ -188,15 +205,68 @@ function OutputsWindow(): React.JSX.Element {
 				</CardContent>
 			</Card>
 
-			{/* Remote control — Phase 4 */}
+			{/* Remote control */}
 			<Card>
-				<CardHeader className="p-4 pb-2">
+				<CardHeader className="flex-row items-center justify-between space-y-0 p-4 pb-2">
 					<CardTitle className="text-base">Remote control</CardTitle>
+					<button
+						type="button"
+						onClick={toggleShowAddresses}
+						aria-label={showAddresses ? "Mask control token" : "Reveal control token"}
+						title={showAddresses ? "Mask control token" : "Reveal control token"}
+						className="text-app-tertiary hover:text-app-primary px-2 text-base transition-colors"
+					>
+						{showAddresses ? "🙈" : "👁"}
+					</button>
 				</CardHeader>
-				<CardContent className="p-4 pt-0">
-					<p className="text-app-quaternary text-xs">
-						The phone remote, QR code and access token arrive in Phase 4.
-					</p>
+				<CardContent className="grid gap-4 p-4 pt-0 sm:grid-cols-[9rem_minmax(0,1fr)]">
+					<div className="bg-white p-2">
+						{info?.controlQrSvg ? (
+							<img
+								src={`data:image/svg+xml;charset=utf-8,${encodeURIComponent(info.controlQrSvg)}`}
+								alt="QR code for the remote control link"
+								className="aspect-square size-full"
+							/>
+						) : (
+							<div className="text-secondary-700 flex aspect-square items-center justify-center text-center text-xs">
+								Waiting for server…
+							</div>
+						)}
+					</div>
+					<div className="flex min-w-0 flex-col gap-3">
+						<p className="text-app-tertiary text-xs">
+							Scan the QR code on a phone connected to this network, or use the token-bearing link below.
+						</p>
+						<code className="text-app-secondary bg-app-tertiary min-h-8 rounded px-2 py-1.5 text-xs break-all">
+							{controlUrl ? (showAddresses ? controlUrl : maskControlToken(controlUrl)) : "server starting…"}
+						</code>
+						<div className="flex flex-wrap gap-2">
+							<SmallButton
+								disabled={!controlUrl}
+								onClick={() => controlUrl && void copy("control", controlUrl)}
+							>
+								{copied === "control" ? "Copied!" : "Copy control link"}
+							</SmallButton>
+							<SmallButton disabled={!controlUrl} onClick={() => controlUrl && void openUrl(controlUrl)}>
+								Open
+							</SmallButton>
+							<SmallButton disabled={!info || regeneratingToken} onClick={() => void handleRegenerateToken()}>
+								{regeneratingToken ? "Regenerating…" : "Regenerate token"}
+							</SmallButton>
+						</div>
+						<p className={`text-xs ${info?.tokenRequired ? "text-success-400" : "text-warning-400"}`}>
+							{info
+								? info.tokenRequired
+									? "🔒 Control token required"
+									: "🔓 Control is open to the LAN"
+								: ""}
+						</p>
+						{remoteError ? (
+							<p className="text-error-400 text-xs" role="alert">
+								{remoteError}
+							</p>
+						) : null}
+					</div>
 				</CardContent>
 			</Card>
 
@@ -232,6 +302,10 @@ function OutputsWindow(): React.JSX.Element {
 			</Card>
 		</div>
 	);
+}
+
+function maskControlToken(url: string): string {
+	return url.replace(/([?&]t=)[^&]+/, "$1••••••••••••");
 }
 
 function UrlRow({

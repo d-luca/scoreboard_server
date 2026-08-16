@@ -1,0 +1,51 @@
+.remote-page {
+	min-height: 100vh;
+	min-height: 100dvh;
+	padding-top: max(1rem, env(safe-area-inset-top));
+	padding-right: max(1rem, env(safe-area-inset-right));
+	padding-bottom: max(1rem, env(safe-area-inset-bottom));
+	padding-left: max(1rem, env(safe-area-inset-left));
+}
+
+.remote-page button,
+.remote-page input {
+	border-radius: 8px;
+}
+
+.remote-page button {
+	min-height: 48px;
+	touch-action: manipulation;
+	-webkit-tap-highlight-color: transparent;
+}
+
+.remote-page input {
+	min-height: 44px;
+}
+
+.remote-page button:not(:disabled) {
+	transition:
+		background-color 150ms ease,
+		border-color 150ms ease,
+		color 150ms ease,
+		transform 80ms ease;
+}
+
+.remote-page button:not(:disabled):active {
+	transform: scale(0.97);
+}
+
+.remote-page button:focus-visible,
+.remote-page input:focus-visible {
+	outline: 3px solid #fbbf24;
+	outline-offset: 2px;
+}
+
+.remote-page button:disabled,
+.remote-page input:disabled {
+	cursor: not-allowed;
+	opacity: 0.45;
+}
+
+.remote-timer {
+	font-family: Consolas, Monaco, "Courier New", monospace;
+}

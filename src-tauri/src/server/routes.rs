@@ -1,11 +1,12 @@
 //! REST handlers (tauri-rebuild doc 03 §4.4, doc 02 §5).
 
 use axum::extract::{Path, State};
-use axum::http::StatusCode;
+use axum::http::{HeaderMap, StatusCode};
 use axum::response::IntoResponse;
 use axum::Json;
 use serde::Serialize;
 
+use super::auth;
 use crate::state::{Action, ScoreboardPatch, ScoreboardState, Shared};
 
 #[derive(Serialize)]
@@ -50,13 +51,21 @@ pub async fn get_property(
 /// swallowed typos).
 pub async fn post_patch(
     State(shared): State<Shared>,
+    headers: HeaderMap,
     body: axum::body::Bytes,
 ) -> impl IntoResponse {
+    let Some(authorization) = auth::check(&shared, &headers, None) else {
+        return unauthorized();
+    };
     match serde_json::from_slice::<ScoreboardPatch>(&body) {
-        Ok(patch) => match shared.dispatch(Action::Patch(patch)).await {
-            Ok(state) => {
+        Ok(patch) => match shared
+            .dispatch_authorized(authorization, Action::Patch(patch))
+            .await
+        {
+            Ok(Some(state)) => {
                 Json(serde_json::json!({ "success": true, "data": state })).into_response()
             }
+            Ok(None) => unauthorized(),
             Err(error) => bad_request(error.to_string()),
         },
         Err(error) => bad_request(serde_error_message(&error)),
@@ -66,17 +75,30 @@ pub async fn post_patch(
 /// `POST /api/action` — dispatch any `Action`, return the new state.
 pub async fn post_action(
     State(shared): State<Shared>,
+    headers: HeaderMap,
     body: axum::body::Bytes,
 ) -> impl IntoResponse {
+    let Some(authorization) = auth::check(&shared, &headers, None) else {
+        return unauthorized();
+    };
     match serde_json::from_slice::<Action>(&body) {
-        Ok(action) => match shared.dispatch(action).await {
-            Ok(state) => {
+        Ok(action) => match shared.dispatch_authorized(authorization, action).await {
+            Ok(Some(state)) => {
                 Json(serde_json::json!({ "success": true, "data": state })).into_response()
             }
+            Ok(None) => unauthorized(),
             Err(error) => bad_request(error.to_string()),
         },
         Err(error) => bad_request(serde_error_message(&error)),
     }
+}
+
+fn unauthorized() -> axum::response::Response {
+    (
+        StatusCode::UNAUTHORIZED,
+        Json(serde_json::json!({ "error": "unauthorized" })),
+    )
+        .into_response()
 }
 
 fn bad_request(message: String) -> axum::response::Response {
