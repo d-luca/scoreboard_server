@@ -1,4 +1,5 @@
 import React from "react";
+import { useStore } from "zustand";
 import type { ScoreboardPatch } from "../../bindings/ScoreboardPatch";
 
 import { formatTimer } from "../../lib/format";
@@ -21,10 +22,10 @@ interface RemoteControlProps {
 }
 
 export function RemoteControl({ store, transport }: RemoteControlProps): React.JSX.Element {
-	const connect = store((current) => current.connect);
-	const connection = store((current) => current.connection);
-	const authorization = store((current) => current.authorization);
-	const error = store((current) => current.error);
+	const connect = useStore(store, (current) => current.connect);
+	const connection = useStore(store, (current) => current.connection);
+	const authorization = useStore(store, (current) => current.authorization);
+	const error = useStore(store, (current) => current.error);
 	const disabled = connection !== "connected" || authorization !== "authorized";
 
 	React.useEffect(() => {
@@ -107,12 +108,12 @@ function TeamEditor({ store, side, disabled }: SectionProps & { side: "home" | "
 	const isHome = side === "home";
 	const nameKey = isHome ? "teamHomeName" : "teamAwayName";
 	const colorKey = isHome ? "teamHomeColor" : "teamAwayColor";
-	const name = store((current) => current.state[nameKey]);
-	const color = store((current) => current.state[colorKey]);
-	const score = store((current) => current.state[isHome ? "teamHomeScore" : "teamAwayScore"]);
-	const patch = store((current) => current.patch);
-	const increase = store((current) => (isHome ? current.incHome : current.incAway));
-	const decrease = store((current) => (isHome ? current.decHome : current.decAway));
+	const name = useStore(store, (current) => current.state[nameKey]);
+	const color = useStore(store, (current) => current.state[colorKey]);
+	const score = useStore(store, (current) => current.state[isHome ? "teamHomeScore" : "teamAwayScore"]);
+	const patch = useStore(store, (current) => current.patch);
+	const increase = useStore(store, (current) => (isHome ? current.incHome : current.incAway));
+	const decrease = useStore(store, (current) => (isHome ? current.decHome : current.decAway));
 
 	const update = (next: ScoreboardPatch): void => {
 		void patch(next).catch(() => undefined);
@@ -194,18 +195,18 @@ function TeamEditor({ store, side, disabled }: SectionProps & { side: "home" | "
 }
 
 function TimerSection({ store, disabled }: SectionProps): React.JSX.Element {
-	const timer = store((current) => current.state.timer);
-	const running = store((current) => current.state.isTimerRunning);
-	const timerLoadout1 = store((current) => current.state.timerLoadout1);
-	const timerLoadout2 = store((current) => current.state.timerLoadout2);
-	const timerLoadout3 = store((current) => current.state.timerLoadout3);
+	const timer = useStore(store, (current) => current.state.timer);
+	const running = useStore(store, (current) => current.state.isTimerRunning);
+	const timerLoadout1 = useStore(store, (current) => current.state.timerLoadout1);
+	const timerLoadout2 = useStore(store, (current) => current.state.timerLoadout2);
+	const timerLoadout3 = useStore(store, (current) => current.state.timerLoadout3);
 	const loadouts = [timerLoadout1, timerLoadout2, timerLoadout3];
-	const start = store((current) => current.startTimer);
-	const pause = store((current) => current.pauseTimer);
-	const stop = store((current) => current.stopTimer);
-	const adjust = store((current) => current.adjustTimer);
-	const setTimer = store((current) => current.setTimer);
-	const applyLoadout = store((current) => current.applyLoadout);
+	const start = useStore(store, (current) => current.startTimer);
+	const pause = useStore(store, (current) => current.pauseTimer);
+	const stop = useStore(store, (current) => current.stopTimer);
+	const adjust = useStore(store, (current) => current.adjustTimer);
+	const setTimer = useStore(store, (current) => current.setTimer);
+	const applyLoadout = useStore(store, (current) => current.applyLoadout);
 
 	return (
 		<section className={`${PANEL_CLASS} col-span-12 min-[720px]:col-span-5`} aria-labelledby="timer-heading">
@@ -291,10 +292,10 @@ function TimerSection({ store, disabled }: SectionProps): React.JSX.Element {
 }
 
 function HalfSection({ store, disabled }: SectionProps): React.JSX.Element {
-	const half = store((current) => current.state.half);
-	const prefix = store((current) => current.state.halfPrefix);
-	const increase = store((current) => current.incHalf);
-	const decrease = store((current) => current.decHalf);
+	const half = useStore(store, (current) => current.state.half);
+	const prefix = useStore(store, (current) => current.state.halfPrefix);
+	const increase = useStore(store, (current) => current.incHalf);
+	const decrease = useStore(store, (current) => current.decHalf);
 
 	return (
 		<section className={`${PANEL_CLASS} col-span-12 min-[720px]:col-span-5`} aria-labelledby="half-heading">
@@ -323,9 +324,9 @@ function HalfSection({ store, disabled }: SectionProps): React.JSX.Element {
 }
 
 function SettingsSection({ store, disabled }: SectionProps): React.JSX.Element {
-	const state = store((current) => current.state);
-	const patch = store((current) => current.patch);
-	const reset = store((current) => current.reset);
+	const state = useStore(store, (current) => current.state);
+	const patch = useStore(store, (current) => current.patch);
+	const reset = useStore(store, (current) => current.reset);
 
 	const commitPatch = (next: ScoreboardPatch): void => {
 		void patch(next).catch(() => undefined);
@@ -405,7 +406,7 @@ function BuzzerSection({
 	transport,
 	disabled,
 }: SectionProps & { transport: WsTransport }): React.JSX.Element {
-	const playBuzzer = store((current) => current.playBuzzer);
+	const playBuzzer = useStore(store, (current) => current.playBuzzer);
 	const [autoPlay, setAutoPlay] = React.useState(true);
 	const audioRef = React.useRef<HTMLAudioElement>(null);
 	const autoPlayRef = React.useRef(autoPlay);
