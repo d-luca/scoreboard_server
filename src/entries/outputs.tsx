@@ -258,7 +258,7 @@ function OutputsWindow(): React.JSX.Element {
 							{info
 								? info.tokenRequired
 									? "🔒 Control token required"
-									: "🔓 Control is open to the LAN"
+									: "🔓 Control is open to the LAN (token disabled in Settings › Server)"
 								: ""}
 						</p>
 						{remoteError ? (

@@ -4,7 +4,7 @@
 //! Commands, the WS handler, the REST handler, the hotkey handler and the
 //! timer engine all call it.
 
-use std::sync::atomic::{AtomicU32, Ordering};
+use std::sync::atomic::{AtomicU32, AtomicU64, Ordering};
 use std::sync::Arc;
 use std::sync::OnceLock;
 use std::time::Duration;
@@ -16,6 +16,7 @@ use ts_rs::TS;
 
 use crate::net::{self, LanAddress};
 use crate::server::auth::{self, Authorization};
+use crate::settings::{self, Settings, SettingsPatch};
 use crate::timer::TimerEngine;
 use crate::windows::AppWindow;
 
@@ -44,6 +45,8 @@ pub enum ServerEvent {
     /// window label; emitted to all windows as `window:opened` /
     /// `window:closed`.
     Window(AppWindow, bool),
+    /// Settings were updated (doc 02 §8 `settings:changed`).
+    Settings(Settings),
 }
 
 /// Geometry of one window, persisted in `window-geometry.json` under the
@@ -280,6 +283,9 @@ struct ControlToken {
 
 pub struct AppState {
     pub scoreboard: RwLock<ScoreboardState>,
+    /// Persisted application settings (doc 02 §9). Mutations go through
+    /// [`AppState::settings_set`].
+    pub settings: RwLock<Settings>,
     pub timer: Mutex<TimerEngine>,
     pub events: broadcast::Sender<ServerEvent>,
     /// Persisted window geometry + zoom levels (doc 03 §7bis/§7ter).
@@ -290,13 +296,20 @@ pub struct AppState {
     pub ws_clients: AtomicU32,
     /// Connected WebSocket clients currently permitted to send commands.
     pub authorized_clients: AtomicU32,
-    /// Startup-generated control secret and its revocation generation.
+    /// Startup-generated (or pinned) control secret and its revocation
+    /// generation.
     control_token: std::sync::RwLock<ControlToken>,
     /// Commands take a read guard; regeneration takes the write guard so no
     /// old authorization can race rotation and mutate after it returns.
     control_mutation_gate: RwLock<()>,
     /// Last emitted `server:status`, to suppress redundant emissions.
     last_status: Mutex<Option<ServerStatus>>,
+    /// Handle of the running HTTP server task, so a port change can restart
+    /// it (Phase 5).
+    server_task: Mutex<Option<tauri::async_runtime::JoinHandle<()>>>,
+    /// Number of in-flight `set_timer_and_publish` / state writes queued
+    /// behind a settings save; used only to serialize persistence debounces.
+    settings_save_serial: AtomicU64,
     /// Set once during setup. Tests never set it, so emits are no-ops there.
     pub app: OnceLock<AppHandle>,
 }
@@ -307,13 +320,32 @@ impl AppState {
     /// Used by tests; the app uses [`AppState::with_prefs`].
     #[cfg(test)]
     pub fn new() -> Shared {
-        Self::with_prefs(AppPrefs::default())
+        Self::build(Settings::default(), AppPrefs::default())
     }
 
-    pub fn with_prefs(prefs: AppPrefs) -> Shared {
+    /// Test helper when a specific settings value is needed.
+    #[cfg(test)]
+    pub fn with_settings(settings: Settings, prefs: AppPrefs) -> Shared {
+        Self::build(settings, prefs)
+    }
+
+    /// Production constructor (called from `setup` in lib.rs).
+    pub fn with_prefs(prefs: AppPrefs, settings: Settings) -> Shared {
+        Self::build(settings, prefs)
+    }
+
+    fn build(settings: Settings, prefs: AppPrefs) -> Shared {
         let (events, _rx) = broadcast::channel(EVENT_CHANNEL_CAPACITY);
+        // Pinned tokens survive restarts (doc 02 §6); otherwise a fresh
+        // 128-bit token is generated every launch.
+        let initial_token = settings
+            .pinned_control_token
+            .clone()
+            .filter(|token| token.len() == auth::TOKEN_HEX_LEN)
+            .unwrap_or_else(auth::generate_token);
         Arc::new(AppState {
-            scoreboard: RwLock::new(ScoreboardState::default()),
+            scoreboard: RwLock::new(settings::seed_scoreboard(&settings)),
+            settings: RwLock::new(settings),
             timer: Mutex::new(TimerEngine::new()),
             events,
             prefs: RwLock::new(prefs),
@@ -321,11 +353,13 @@ impl AppState {
             ws_clients: AtomicU32::new(0),
             authorized_clients: AtomicU32::new(0),
             control_token: std::sync::RwLock::new(ControlToken {
-                value: auth::generate_token(),
+                value: initial_token,
                 generation: 0,
             }),
             control_mutation_gate: RwLock::new(()),
             last_status: Mutex::new(None),
+            server_task: Mutex::new(None),
+            settings_save_serial: AtomicU64::new(0),
             app: OnceLock::new(),
         })
     }
@@ -499,8 +533,9 @@ impl AppState {
     }
 
     /// Heavy server description for the Outputs window (doc 02 §7.1).
-    pub fn server_info(&self) -> ServerInfo {
+    pub async fn server_info(&self) -> ServerInfo {
         let status = self.server_status();
+        let token_required = self.settings.read().await.require_control_token;
         let addresses = net::lan_addresses();
         let host = addresses
             .first()
@@ -508,7 +543,11 @@ impl AppState {
             .unwrap_or("127.0.0.1");
         let (token, _) = self.control_token_snapshot();
         let control_url = format!("http://{host}:{}/control?t={token}", status.port);
-        let control_qr_svg = auth::qr_svg(&control_url);
+        let control_qr_svg = if token_required {
+            auth::qr_svg(&control_url)
+        } else {
+            String::new()
+        };
         ServerInfo {
             running: status.running,
             port: status.port,
@@ -516,7 +555,7 @@ impl AppState {
             local_url: format!("http://localhost:{}/scoreboard", status.port),
             control_url,
             control_qr_svg,
-            token_required: true,
+            token_required,
             addresses,
         }
     }
@@ -556,18 +595,125 @@ impl AppState {
         };
         self.publish(ServerEvent::ControlTokenRegenerated(generation));
         self.publish_server_status().await;
-        let info = self.server_info();
-        self.emit_app("server:info", info.clone());
-        info
+        self.publish_server_info().await;
+        self.server_info().await
+    }
+
+    /// Current settings snapshot (doc 02 §7.1 `settings_get`).
+    pub async fn settings_snapshot(&self) -> Settings {
+        self.settings.read().await.clone()
+    }
+
+    /// Apply a `SettingsPatch`, persist, and project identity fields onto the
+    /// live scoreboard so the main window and OBS update immediately — with
+    /// no Save button (doc 04 §7.4).
+    pub async fn settings_set(
+        self: &Arc<Self>,
+        patch: SettingsPatch,
+    ) -> Result<Settings, DomainError> {
+        // Whether the HTTP server must be restarted to honour a new port.
+        let port_changed = patch.server_port.is_some();
+        // Whether the token policy flipped (affects the emitted QR/URLs).
+        let token_policy_changed = patch.require_control_token.is_some();
+
+        let (updated, identity_changed) = {
+            let mut settings = self.settings.write().await;
+            let identity_changed = patch.team_home_name.is_some()
+                || patch.team_away_name.is_some()
+                || patch.team_home_color.is_some()
+                || patch.team_away_color.is_some()
+                || patch.half_prefix.is_some()
+                || patch.timer_loadouts.is_some();
+            settings::apply_patch(&mut settings, patch).map_err(DomainError::Validation)?;
+            (settings.clone(), identity_changed)
+        };
+
+        if identity_changed {
+            let snapshot = {
+                let mut sb = self.scoreboard.write().await;
+                settings::apply_to_scoreboard(&updated, &mut sb);
+                sb.revision += 1;
+                sb.clone()
+            };
+            self.publish(ServerEvent::State(snapshot));
+        }
+
+        // Persist (debounced — typing a team name saves 500 ms after the
+        // last keystroke, not on every keystroke).
+        self.schedule_settings_save();
+
+        self.publish(ServerEvent::Settings(updated.clone()));
+
+        if token_policy_changed {
+            self.publish_server_info().await;
+        }
+        if port_changed {
+            self.restart_server(updated.server_port).await;
+        }
+        Ok(updated)
+    }
+
+    /// Debounced settings persistence: coalesces rapid UI edits (typing a
+    /// team name) into one atomic write 500 ms after the last edit.
+    fn schedule_settings_save(self: &Arc<Self>) {
+        let serial = self.settings_save_serial.fetch_add(1, Ordering::Relaxed) + 1;
+        let shared = Arc::clone(self);
+        tauri::async_runtime::spawn(async move {
+            tokio::time::sleep(Duration::from_millis(500)).await;
+            if shared.settings_save_serial.load(Ordering::Relaxed) != serial {
+                return; // a newer edit superseded this save
+            }
+            let settings = shared.settings.read().await.clone();
+            if let Some(app) = shared.app.get() {
+                if let Err(error) = settings::save(app, &settings) {
+                    tracing::warn!(?error, "failed to save settings.json");
+                }
+            }
+        });
+    }
+
+    /// Record the running server's task so a port change can stop it.
+    pub async fn register_server_task(&self, handle: tauri::async_runtime::JoinHandle<()>) {
+        let mut slot = self.server_task.lock().await;
+        if let Some(previous) = slot.replace(handle) {
+            previous.abort();
+        }
+    }
+
+    /// Restart the HTTP server on a new preferred port. Old sockets drop,
+    /// clients reconnect on their exponential backoff (doc 02 §4.3).
+    async fn restart_server(self: &Arc<Self>, preferred_port: u16) {
+        {
+            let mut slot = self.server_task.lock().await;
+            if let Some(previous) = slot.take() {
+                previous.abort();
+            }
+        }
+        // Mark the server as down while it rebinds.
+        self.server_port.store(0, Ordering::Relaxed);
+        self.publish_server_status().await;
+        self.publish_server_info().await;
+
+        let shared = Arc::clone(self);
+        tauri::async_runtime::spawn(async move {
+            match crate::server::start(shared.clone(), preferred_port).await {
+                Ok((port, handle)) => {
+                    shared.register_server_task(handle).await;
+                    shared.set_server_port(port).await;
+                }
+                Err(error) => tracing::error!(?error, "HTTP server failed to restart"),
+            }
+        });
+    }
+
+    pub async fn publish_server_info(&self) {
+        let info = self.server_info().await;
+        self.emit_app("server:info", info);
     }
 
     #[cfg(test)]
     pub(crate) fn control_token_for_test(&self) -> String {
         self.control_token_snapshot().0
-    }
-
-    pub async fn publish_server_info(&self) {
-        self.emit_app("server:info", self.server_info());
     }
 
     /// Emit to all webviews when an app handle is attached; no-op in tests.
@@ -597,6 +743,20 @@ impl AppState {
         action: Action,
     ) -> Result<ScoreboardState, DomainError> {
         let mut emit_buzzer = false;
+        // A remote identity edit (LAN patch) is persisted so it survives a
+        // restart, just like an edit made in the Settings window.
+        let persist_identity = matches!(
+            &action,
+            Action::Patch(patch)
+                if patch.team_home_name.is_some()
+                    || patch.team_away_name.is_some()
+                    || patch.team_home_color.is_some()
+                    || patch.team_away_color.is_some()
+                    || patch.half_prefix.is_some()
+                    || patch.timer_loadout1.is_some()
+                    || patch.timer_loadout2.is_some()
+                    || patch.timer_loadout3.is_some()
+        );
         let snapshot = {
             let mut sb = self.scoreboard.write().await;
             match action {
@@ -668,6 +828,13 @@ impl AppState {
         if emit_buzzer {
             self.publish(ServerEvent::Buzzer);
         }
+        if persist_identity {
+            {
+                let mut settings = self.settings.write().await;
+                settings::sync_from_scoreboard(&mut settings, &snapshot);
+            }
+            self.schedule_settings_save();
+        }
         Ok(snapshot)
     }
 
@@ -720,6 +887,9 @@ impl AppState {
                     }
                 }
                 ServerEvent::ControlTokenRegenerated(_) => {}
+                ServerEvent::Settings(settings) => {
+                    let _ = app.emit("settings:changed", settings);
+                }
                 ServerEvent::Window(which, open) => {
                     let event = if open {
                         "window:opened"

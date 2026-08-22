@@ -2,7 +2,7 @@
 //! axum stack on the default port so the REST/WS/pages can be exercised
 //! with curl and a browser without launching the Tauri shell.
 
-use scoreboard_server_lib::{AppState, DEFAULT_SERVER_PORT};
+use scoreboard_server_lib::{AppPrefs, AppState, Settings};
 
 #[tokio::main]
 async fn main() {
@@ -13,10 +13,13 @@ async fn main() {
         )
         .init();
 
-    let shared = AppState::with_prefs(Default::default());
-    let port = scoreboard_server_lib::start_server(shared.clone(), DEFAULT_SERVER_PORT)
-        .await
-        .expect("server failed to start");
+    let shared = AppState::with_prefs(AppPrefs::default(), Settings::default());
+    let (port, _handle) = scoreboard_server_lib::start_server(
+        shared.clone(),
+        scoreboard_server_lib::Settings::default().server_port,
+    )
+    .await
+    .expect("server failed to start");
     shared.set_server_port(port).await;
     println!("listening on http://localhost:{port}");
 

@@ -70,7 +70,7 @@ export function StatusBar(): JSX.Element {
 
 			<VerticalDivider />
 
-			{/* Control token — Settings is currently the Phase 5 shell. */}
+			{/* Control token — opens Settings › Server. */}
 			<StatusButton
 				active={tokenRequired !== undefined}
 				activeColor={tokenRequired ? "bg-success-500" : "bg-warning-500"}

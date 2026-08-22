@@ -50,8 +50,19 @@ pub fn query_token(raw_query: Option<&str>) -> Option<&str> {
         .find_map(|(name, value)| (name == "t").then_some(value))
 }
 
-/// Authenticate a query token, bearer token, or control cookie, in that order.
-pub fn check(shared: &Shared, headers: &HeaderMap, query: Option<&str>) -> Option<Authorization> {
+/// Authenticate a query token, bearer token, or control cookie, in that
+/// order. When `require_control_token` is off (trusted LANs, doc 02 §6),
+/// every request is authorized — read-only pages like `/scoreboard` and the
+/// remote behave identically, writes are simply open.
+pub async fn check(
+    shared: &Shared,
+    headers: &HeaderMap,
+    query: Option<&str>,
+) -> Option<Authorization> {
+    if !shared.settings.read().await.require_control_token {
+        let (_, generation) = shared.control_token_snapshot();
+        return Some(Authorization { generation });
+    }
     let presented = query
         .or_else(|| bearer(headers))
         .or_else(|| cookie(headers, COOKIE_NAME))?;

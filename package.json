@@ -5,7 +5,8 @@
 	"type": "module",
 	"packageManager": "pnpm@10.12.1",
 	"scripts": {
-		"dev": "tauri dev",
+		"dev": "node scripts/dev.mjs",
+		"dev:raw": "tauri dev",
 		"build": "tauri build",
 		"build:debug": "tauri build --debug",
 		"vite:dev": "vite",

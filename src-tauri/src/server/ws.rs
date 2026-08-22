@@ -44,8 +44,8 @@ pub async fn handler(
     headers: HeaderMap,
     RawQuery(raw_query): RawQuery,
 ) -> impl IntoResponse {
-    let query_token = auth::query_token(raw_query.as_deref());
-    let authorization = auth::check(&shared, &headers, query_token);
+    let query_token = auth::query_token(raw_query.as_deref()).map(str::to_owned);
+    let authorization = auth::check(&shared, &headers, query_token.as_deref()).await;
     ws.on_upgrade(move |socket| client_loop(socket, shared, authorization))
 }
 
@@ -127,7 +127,9 @@ async fn client_loop(socket: WebSocket, shared: Shared, authorization: Option<Au
                             if send_authorization(&mut sink, false).await.is_err() { break; }
                         }
                     }
-                    Ok(ServerEvent::Window(..)) => {} // desktop-only
+                    // Desktop-only: LAN clients learn everything they need
+                    // from the full-state frames.
+                    Ok(ServerEvent::Window(..) | ServerEvent::Settings(_)) => {}
                     // A lagging client missed frames: resync with a fresh
                     // full state instead of replaying the backlog.
                     Err(RecvError::Lagged(skipped)) => {

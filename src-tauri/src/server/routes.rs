@@ -54,7 +54,7 @@ pub async fn post_patch(
     headers: HeaderMap,
     body: axum::body::Bytes,
 ) -> impl IntoResponse {
-    let Some(authorization) = auth::check(&shared, &headers, None) else {
+    let Some(authorization) = auth::check(&shared, &headers, None).await else {
         return unauthorized();
     };
     match serde_json::from_slice::<ScoreboardPatch>(&body) {
@@ -78,7 +78,7 @@ pub async fn post_action(
     headers: HeaderMap,
     body: axum::body::Bytes,
 ) -> impl IntoResponse {
-    let Some(authorization) = auth::check(&shared, &headers, None) else {
+    let Some(authorization) = auth::check(&shared, &headers, None).await else {
         return unauthorized();
     };
     match serde_json::from_slice::<Action>(&body) {
@@ -91,6 +91,50 @@ pub async fn post_action(
         },
         Err(error) => bad_request(serde_error_message(&error)),
     }
+}
+
+/// Bundled default buzzer, compiled into the binary so the LAN route and
+/// the desktop fallback work on a clean install without any web assets.
+const DEFAULT_BUZZER: &[u8] = include_bytes!("../../assets/buzzer.mp3");
+
+/// `GET /buzzer.mp3` — the user-selected buzzer track if one is configured
+/// and still readable, otherwise the bundled default (doc 02 §5).
+/// Unauthenticated: the remote page needs the audio before the operator has
+/// typed anything.
+pub async fn buzzer_audio(State(shared): State<Shared>) -> impl IntoResponse {
+    let track = shared.settings.read().await.buzzer_track_path.clone();
+    if let Some(path) = track {
+        match tokio::fs::read(&path).await {
+            Ok(bytes) => {
+                let mime = mime_guess::from_path(&path).first_or_octet_stream();
+                return (
+                    StatusCode::OK,
+                    [
+                        (axum::http::header::CONTENT_TYPE, mime.as_ref().to_string()),
+                        (axum::http::header::CACHE_CONTROL, "no-store".to_string()),
+                    ],
+                    bytes,
+                )
+                    .into_response();
+            }
+            Err(error) => {
+                tracing::warn!(
+                    ?error,
+                    path,
+                    "custom buzzer track unreadable; serving default"
+                );
+            }
+        }
+    }
+    (
+        StatusCode::OK,
+        [
+            (axum::http::header::CONTENT_TYPE, "audio/mpeg"),
+            (axum::http::header::CACHE_CONTROL, "public, max-age=3600"),
+        ],
+        DEFAULT_BUZZER,
+    )
+        .into_response()
 }
 
 fn unauthorized() -> axum::response::Response {

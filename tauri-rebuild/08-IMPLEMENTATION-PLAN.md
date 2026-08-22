@@ -194,7 +194,7 @@ later.
 
 ---
 
-## Phase 5 — Settings window, persistence & buzzer `M`
+## Phase 5 — Settings window, persistence & buzzer `M` ✅ **IMPLEMENTED**
 
 **Goal:** the app remembers everything and makes noise at the right time.
 
@@ -205,6 +205,38 @@ later.
   `MM:SS` inputs with their validation) and Server tab (port + restart, token toggle).
 - Buzzer tab: default asset, custom-track selection via dialog, asset-protocol playback,
   auto-play toggle, `Test` button, remote `BuzzerPlay` action routed to the main window.
+
+**Implementation notes (decisions taken during P5):**
+
+- **Settings live in `AppState`** alongside the scoreboard; `settings_set` is the single
+  mutation path, mirroring `dispatch` for the scoreboard. Identity fields (names,
+  colours, prefix, loadouts) are projected onto the live `ScoreboardState` immediately,
+  so the main window and OBS update with no Save button.
+- **Remote identity edits are persisted too**: an `Action::Patch` touching identity fields
+  over LAN syncs those values back into `settings.json` (debounced), so a phone edit
+  survives a restart just like a Settings-window edit.
+- **Debounced atomic saves**: a serial counter coalesces rapid edits (typing) into one
+  write 500 ms after the last keystroke; the write itself is tmp + fsync + rename.
+- **Port changes restart the server in place**: the axum serve task handle is stored in
+  `AppState`; a new `server_port` aborts it, marks the server down (status bar shows it),
+  rebinds with the usual fallback ladder, and republishes `server:info`/`server:status`.
+  LAN clients reconnect on their existing backoff.
+- **`require_control_token` toggle is live**: `auth::check` reads the setting, so turning
+  it off opens `/control`, POST routes, and WS writes immediately without a restart. The
+  QR code is omitted from `ServerInfo` while the policy is off (there is no secret to
+  encode), and the Outputs window shows an "open to the LAN" warning.
+- **Pinned token support exists in the schema** (`pinned_control_token`) but no UI in this
+  phase — the regenerate-every-launch default stands (doc 08 open question 2).
+- **Default buzzer is compiled in** (`include_bytes!` from `src-tauri/assets/buzzer.mp3`),
+  so `GET /buzzer.mp3` works even before the web bundle exists and the phone remote can
+  always play it. A custom track is served from disk at the same route (MIME-sniffed,
+  `no-store`); the desktop plays custom tracks through the asset protocol
+  (`convertFileSrc`) and the default through the local server URL.
+- **Desktop auto-play** lives in the main window: `timer:finished` plays when
+  `buzzerAutoPlay` is on; `buzzer:play` (manual desktop or remote press) always plays.
+  The phone keeps its own local auto toggle (doc 03 §3.4: clients decide for themselves).
+- **Loadout inputs** accept `15:00`, `900`, `2:5`; reject `1:75`; revert on invalid blur
+  (the shared `DraftInput` used by the remote, so focused-field protection matches).
 
 **Done when:**
 

@@ -18,7 +18,7 @@ use crate::state::Shared;
 
 #[derive(RustEmbed)]
 #[folder = "$CARGO_MANIFEST_DIR/../dist"]
-struct Assets;
+pub(crate) struct Assets;
 
 /// `GET /scoreboard` — the OBS browser-source page.
 pub async fn scoreboard_page(
@@ -37,7 +37,10 @@ pub async fn control_page(
     RawQuery(raw_query): RawQuery,
 ) -> impl IntoResponse {
     if let Some(query_token) = auth::query_token(raw_query.as_deref()) {
-        if auth::check(&shared, &headers, Some(query_token)).is_none() {
+        if auth::check(&shared, &headers, Some(query_token))
+            .await
+            .is_none()
+        {
             return unauthorized_control_page();
         }
         let mut response = axum::response::Redirect::to("/control").into_response();
@@ -51,7 +54,7 @@ pub async fn control_page(
         return response;
     }
 
-    if auth::check(&shared, &headers, None).is_none() {
+    if auth::check(&shared, &headers, None).await.is_none() {
         return unauthorized_control_page();
     }
     serve_page(&shared, &headers, "control.html", "control", None)

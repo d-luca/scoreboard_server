@@ -22,19 +22,23 @@ use crate::state::Shared;
 const PORT_FALLBACK_ATTEMPTS: u16 = 10;
 
 /// Start the HTTP server on `preferred_port` (or the next free one).
-/// Returns the port actually bound.
-pub async fn start(shared: Shared, preferred_port: u16) -> anyhow::Result<u16> {
+/// Returns the port actually bound and the serve task, so the caller can
+/// restart the server when the port setting changes (Phase 5).
+pub async fn start(
+    shared: Shared,
+    preferred_port: u16,
+) -> anyhow::Result<(u16, tauri::async_runtime::JoinHandle<()>)> {
     let app = router(shared);
 
     let listener = bind_with_fallback(preferred_port).await?;
     let port = listener.local_addr()?.port();
     tracing::info!(port, "HTTP server listening on 0.0.0.0:{port}");
-    tauri::async_runtime::spawn(async move {
+    let handle = tauri::async_runtime::spawn(async move {
         if let Err(error) = axum::serve(listener, app).await {
             tracing::error!(?error, "HTTP server stopped unexpectedly");
         }
     });
-    Ok(port)
+    Ok((port, handle))
 }
 
 /// The router, factored out of [`start`] so integration tests can drive it
@@ -52,6 +56,7 @@ pub fn router(shared: Shared) -> Router {
         .route("/scoreboard", get(assets::scoreboard_page))
         .route("/control", get(assets::control_page))
         .route("/value/{property}", get(assets::value_page))
+        .route("/buzzer.mp3", get(routes::buzzer_audio))
         .fallback(assets::static_handler)
         // Permissive CORS is safe because every write requires the control
         // token; OBS Browser Source needs public reads [PARITY].
@@ -377,7 +382,7 @@ mod tests {
         let shared = AppState::new();
         shared.set_server_port(3010).await;
         let old_token = shared.control_token_for_test();
-        let old_info = shared.server_info();
+        let old_info = shared.server_info().await;
         let new_info = shared.regenerate_control_token().await;
         let new_token = shared.control_token_for_test();
 
@@ -448,5 +453,129 @@ mod tests {
         let preferred = blocker.local_addr().unwrap().port();
         let listener = bind_with_fallback(preferred).await.unwrap();
         assert_ne!(listener.local_addr().unwrap().port(), preferred);
+    }
+
+    /* ---- Phase 5: settings-driven behaviour ---- */
+
+    #[tokio::test]
+    async fn disabled_token_policy_opens_writes_without_credentials() {
+        use crate::settings::{Settings, SettingsPatch};
+
+        let shared = AppState::with_settings(Settings::default(), Default::default());
+        // Turn the token requirement off through the same path the Settings
+        // window uses.
+        shared
+            .settings_set(SettingsPatch {
+                require_control_token: Some(false),
+                ..Default::default()
+            })
+            .await
+            .unwrap();
+
+        let app = router(shared.clone());
+        let response = app
+            .oneshot(post("/api/scoreboard", r#"{"teamHomeScore":5}"#))
+            .await
+            .unwrap();
+        assert_eq!(response.status(), axum::http::StatusCode::OK);
+        assert_eq!(shared.current().await.team_home_score, 5);
+
+        // `/control` is served without a token while the policy is off.
+        let app = router(shared);
+        let response = app.oneshot(get("/control")).await.unwrap();
+        assert_ne!(response.status(), axum::http::StatusCode::UNAUTHORIZED);
+    }
+
+    #[tokio::test]
+    async fn settings_identity_patch_updates_scoreboard_state() {
+        use crate::settings::SettingsPatch;
+
+        let shared = AppState::new();
+        shared
+            .settings_set(SettingsPatch {
+                team_home_name: Some("LIONS".into()),
+                team_away_color: Some("#0000FF".into()),
+                half_prefix: Some("TEMPO".into()),
+                timer_loadouts: Some([60, 120, 180]),
+                ..Default::default()
+            })
+            .await
+            .unwrap();
+
+        let sb = shared.current().await;
+        assert_eq!(sb.team_home_name, "LIONS");
+        assert_eq!(sb.team_away_color, "#0000ff");
+        assert_eq!(sb.half_prefix, "TEMPO");
+        assert_eq!(sb.timer_loadout1, 60);
+        assert_eq!(sb.timer_loadout3, 180);
+        // Match-progress fields untouched.
+        assert_eq!(sb.team_home_score, 0);
+        assert_eq!(sb.half, 1);
+
+        let settings = shared.settings_snapshot().await;
+        assert_eq!(settings.team_home_name, "LIONS");
+    }
+
+    #[tokio::test]
+    async fn remote_identity_patch_is_mirrored_into_settings() {
+        let shared = AppState::new();
+        let token = shared.control_token_for_test();
+        let app = router(shared.clone());
+        let response = app
+            .oneshot(authorized_post(
+                &shared,
+                "/api/scoreboard",
+                r#"{"teamHomeName":"REMOTE FC"}"#,
+            ))
+            .await
+            .unwrap();
+        assert_eq!(response.status(), 200);
+        let _ = token; // silence unused while keeping the auth path obvious
+
+        let settings = shared.settings_snapshot().await;
+        assert_eq!(settings.team_home_name, "REMOTE FC");
+    }
+
+    #[tokio::test]
+    async fn settings_event_is_broadcast_on_settings_set() {
+        use crate::settings::SettingsPatch;
+        use crate::state::ServerEvent;
+
+        let shared = AppState::new();
+        let mut rx = shared.subscribe();
+        shared
+            .settings_set(SettingsPatch {
+                buzzer_auto_play: Some(false),
+                ..Default::default()
+            })
+            .await
+            .unwrap();
+
+        // Find the Settings event among any state broadcasts.
+        let mut saw_settings = false;
+        while let Ok(event) = rx.try_recv() {
+            if matches!(event, ServerEvent::Settings(_)) {
+                saw_settings = true;
+                break;
+            }
+        }
+        assert!(saw_settings, "expected a Settings broadcast");
+        assert!(!shared.settings_snapshot().await.buzzer_auto_play);
+    }
+
+    #[tokio::test]
+    async fn buzzer_route_serves_default_asset_when_no_custom_track() {
+        let app = router(AppState::new());
+        let response = app.oneshot(get("/buzzer.mp3")).await.unwrap();
+        // The default buzzer is compiled into the binary (`include_bytes`),
+        // so it exists even without a Vite build.
+        assert_eq!(response.status(), axum::http::StatusCode::OK);
+        assert_eq!(
+            response
+                .headers()
+                .get(axum::http::header::CONTENT_TYPE)
+                .and_then(|value| value.to_str().ok()),
+            Some("audio/mpeg")
+        );
     }
 }
