@@ -47,8 +47,11 @@ for (const name of SNAP_MANAGED_VARS) {
 	}
 }
 
-const command = process.platform === "win32" ? "tauri.cmd" : "tauri";
-const child = spawn(command, ["dev"], { stdio: "inherit", env });
+// On Windows `tauri` is a .cmd shim; Node ≥20.12.2 refuses to spawn
+// batch files without a shell (EINVAL, CVE-2024-27980 fix).
+const isWindows = process.platform === "win32";
+const command = isWindows ? "tauri.cmd" : "tauri";
+const child = spawn(command, ["dev"], { stdio: "inherit", env, shell: isWindows });
 
 child.on("error", (error) => {
 	console.error(`failed to start \`${command} dev\`: ${error.message}`);

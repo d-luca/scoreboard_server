@@ -1,11 +1,13 @@
 mod bindings;
 mod menu;
-mod net;
+// `pub` so the `export_bindings` integration test (tests/export_bindings.rs)
+// can reach the ts-rs export surface.
+pub mod net;
 mod server;
-mod settings;
-mod state;
+pub mod settings;
+pub mod state;
 mod timer;
-mod windows;
+pub mod windows;
 
 pub use settings::{Settings, SettingsPatch};
 pub use state::{AppPrefs, AppState, Shared};

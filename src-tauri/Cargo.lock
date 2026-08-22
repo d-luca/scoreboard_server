@@ -3243,6 +3243,7 @@ version = "1.0.0"
 dependencies = [
  "anyhow",
  "axum",
+ "embed-resource",
  "futures",
  "http-body-util",
  "if-addrs",
