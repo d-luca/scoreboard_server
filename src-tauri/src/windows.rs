@@ -39,12 +39,15 @@ impl AppWindow {
     }
 
     pub fn url(self) -> &'static str {
+        // Root-absolute so resolution is independent of the `devUrl` shape:
+        // in dev `…/pages/x.html` hits the shells under pages/, and the
+        // flatten plugin in vite.config.ts emits dist/pages/x.html to match.
         match self {
-            Self::Settings => "settings.html",
-            Self::Outputs => "outputs.html",
-            Self::Recording => "recording.html",
-            Self::VideoGenerator => "video-generator.html",
-            Self::About => "about.html",
+            Self::Settings => "/pages/settings.html",
+            Self::Outputs => "/pages/outputs.html",
+            Self::Recording => "/pages/recording.html",
+            Self::VideoGenerator => "/pages/video-generator.html",
+            Self::About => "/pages/about.html",
         }
     }
 

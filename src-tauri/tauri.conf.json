@@ -1,11 +1,11 @@
 {
 	"$schema": "https://schema.tauri.app/config/2",
 	"productName": "Scoreboard Server",
-	"version": "0.1.0",
+	"version": "1.0.0",
 	"identifier": "dev.dluca.scoreboard-server",
 	"build": {
 		"beforeDevCommand": "pnpm bindings && pnpm vite:dev",
-		"devUrl": "http://localhost:1420",
+		"devUrl": "http://localhost:1420/pages/",
 		"beforeBuildCommand": "pnpm bindings && pnpm vite:build",
 		"frontendDist": "../dist"
 	},
@@ -24,22 +24,37 @@
 			}
 		],
 		"security": {
-			"csp": null,
+			"csp": "default-src 'self'; script-src 'self'; img-src 'self' asset: http://asset.localhost data:; media-src 'self' asset: http://asset.localhost http://localhost:*; style-src 'self' 'unsafe-inline'; font-src 'self' data:; connect-src 'self' ipc: http://ipc.localhost http://localhost:* ws://localhost:*; frame-src http://localhost:*",
 			"assetProtocol": {
 				"enable": true,
-				"scope": ["**"]
+				"scope": []
 			}
 		}
 	},
 	"bundle": {
 		"active": true,
-		"targets": "all",
+		"targets": ["nsis", "msi", "appimage", "deb"],
 		"icon": [
 			"icons/32x32.png",
+			"icons/64x64.png",
 			"icons/128x128.png",
 			"icons/128x128@2x.png",
 			"icons/icon.icns",
-			"icons/icon.ico"
-		]
+			"icons/icon.ico",
+			"icons/icon.png"
+		],
+		"windows": {
+			"webviewInstallMode": {
+				"type": "embedBootstrapper"
+			},
+			"nsis": {
+				"installMode": "perMachine"
+			}
+		},
+		"linux": {
+			"deb": {
+				"depends": ["libwebkit2gtk-4.1-0", "libgtk-3-0"]
+			}
+		}
 	}
 }

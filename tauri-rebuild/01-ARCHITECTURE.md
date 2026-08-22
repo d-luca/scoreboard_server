@@ -72,15 +72,16 @@ scoreboard-tauri/
 ├── package.json                 # frontend deps + scripts
 ├── vite.config.ts               # multi-entry build
 ├── tsconfig.json
-├── index.html                   # main window entry — controls + status bar only
-├── settings.html                # Settings window
-├── outputs.html                 # Outputs & Sharing window (preview, URLs, QR)
-├── recording.html               # [OPTIONAL] Recording window
-├── overlay-control.html         # [OPTIONAL]
-├── overlay-preview.html         # [OPTIONAL]
-├── video-generator.html         # [OPTIONAL]
-├── scoreboard.html              # served over HTTP to OBS
-├── control.html                 # served over HTTP to phones
+├── pages/                       # one HTML shell per entry, built to flat dist/<name>.html
+│   ├── index.html               # main window entry — controls + status bar only
+│   ├── settings.html            # Settings window
+│   ├── outputs.html             # Outputs & Sharing window (preview, URLs, QR)
+│   ├── recording.html           # [OPTIONAL] Recording window
+│   ├── overlay-control.html     # [OPTIONAL]
+│   ├── overlay-preview.html     # [OPTIONAL]
+│   ├── video-generator.html     # [OPTIONAL]
+│   ├── scoreboard.html          # served over HTTP to OBS
+│   └── control.html             # served over HTTP to phones
 ├── src/                         # React sources
 │   ├── entries/                 # one tsx per html entry
 │   ├── app/                     # per-window shells + layout

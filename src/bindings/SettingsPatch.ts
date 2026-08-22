@@ -14,6 +14,7 @@ export type SettingsPatch = {
 	 */
 	buzzerTrackPath?: string | null;
 	buzzerAutoPlay?: boolean;
+	firewallNoticeShown?: boolean;
 	halfPrefix?: string;
 	teamHomeName?: string;
 	teamAwayName?: string;

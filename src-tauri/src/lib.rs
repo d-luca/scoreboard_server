@@ -127,6 +127,11 @@ async fn buzzer_select_track(
         .map_err(|error| error.to_string())?
         .to_string_lossy()
         .into_owned();
+    // The configured asset-protocol scope starts empty (doc 07 §3); grant
+    // the picked file so `convertFileSrc` can play it.
+    if let Err(error) = app.asset_protocol_scope().allow_file(&path) {
+        tracing::warn!(?error, path, "failed to grant asset scope for buzzer track");
+    }
     let settings = state
         .inner()
         .settings_set(SettingsPatchInput {
@@ -161,6 +166,44 @@ fn track_file_name(path: &str) -> String {
         .unwrap_or_else(|| path.to_string())
 }
 
+/// Windows first-run firewall explainer (doc 07 §4.1): the first `0.0.0.0`
+/// bind raises the Windows Firewall prompt, and choosing the wrong network
+/// profile silently breaks OBS/phone access. Explain once, then persist the
+/// acknowledgement. The app never touches firewall rules itself.
+#[cfg(target_os = "windows")]
+fn firewall_notice(app: &tauri::AppHandle) {
+    use tauri_plugin_dialog::{DialogExt, MessageDialogKind};
+
+    app.dialog()
+        .message(
+            "Scoreboard Server runs a local web server so OBS and phones on your \
+             network can reach the scoreboard.\n\nWindows Firewall may ask for \
+             permission the first time the server starts. Select \"Private \
+             networks\" and allow access — otherwise OBS browser sources and the \
+             phone remote on your local network will not connect.",
+        )
+        .title("Allow network access")
+        .kind(MessageDialogKind::Info)
+        .blocking_show();
+
+    let shared = app.state::<Shared>().inner().clone();
+    tauri::async_runtime::spawn(async move {
+        let result = shared
+            .settings_set(SettingsPatchInput {
+                firewall_notice_shown: Some(true),
+                ..Default::default()
+            })
+            .await;
+        if let Err(error) = result {
+            tracing::warn!(?error, "failed to persist firewall notice acknowledgement");
+        }
+    });
+}
+
+/// No-op on platforms without a per-app firewall prompt.
+#[cfg(not(target_os = "windows"))]
+fn firewall_notice(_app: &tauri::AppHandle) {}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tracing_subscriber::fmt()
@@ -177,6 +220,22 @@ pub fn run() {
             let settings = settings::load(app.handle());
             let prefs = AppPrefs::load(app.handle());
             let server_port = settings.server_port;
+
+            // Re-grant the asset scope for a persisted custom buzzer track
+            // (grants are per-session; the configured scope starts empty).
+            if let Some(track) = settings.buzzer_track_path.as_deref() {
+                if let Err(error) = app.asset_protocol_scope().allow_file(track) {
+                    tracing::warn!(
+                        ?error,
+                        track,
+                        "failed to grant asset scope for buzzer track"
+                    );
+                }
+            }
+            // Windows first-run firewall explainer (doc 07 §4.1).
+            let show_firewall_notice =
+                cfg!(target_os = "windows") && !settings.firewall_notice_shown;
+
             let shared = AppState::with_prefs(prefs, settings);
             shared.attach_app(app.handle().clone());
             app.manage(shared);
@@ -207,6 +266,10 @@ pub fn run() {
                     Err(error) => tracing::error!(?error, "HTTP server failed to start"),
                 }
             });
+
+            if show_firewall_notice {
+                firewall_notice(app.handle());
+            }
             Ok(())
         })
         .on_menu_event(menu::on_menu_event)

@@ -1,5 +1,11 @@
 name: build
-on: [push, pull_request]
+on:
+  push:
+    branches: ["**"]
+    tags: ["v*"]
+  pull_request:
+  # Release flow (doc 07 §6): tag vX.Y.Z -> bundle job -> draft GitHub Release.
+  workflow_dispatch:
 
 jobs:
   # Phase 0 gate: pnpm check must be green on both target OSes (doc 07 §7).
@@ -29,3 +35,37 @@ jobs:
       # The OBS/phone bundles must not reference the Tauri IPC bridge (doc 04 §2).
       - if: runner.os == 'Linux'
         run: grep -L "__TAURI__" dist/assets/scoreboard-*.js dist/assets/control-*.js
+
+  # Release bundles (doc 07 §7): NSIS + MSI on Windows, AppImage + deb on
+  # Linux. Runs on vX.Y.Z tags (and manual dispatch) after the check gate;
+  # artifacts land in a draft GitHub Release.
+  bundle:
+    needs: check
+    if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch'
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-22.04]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 20, cache: pnpm }
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: swatinem/rust-cache@v2
+        with: { workspaces: "src-tauri -> target" }
+      # Build on 22.04 so the AppImage/deb run on the oldest supported distro
+      # (doc 07 §1 [RISK]).
+      - if: runner.os == 'Linux'
+        run: >
+          sudo apt-get update && sudo apt-get install -y
+          libwebkit2gtk-4.1-dev libxdo-dev libssl-dev
+          libayatana-appindicator3-dev librsvg2-dev
+      - run: pnpm install --frozen-lockfile
+      - uses: tauri-apps/tauri-action@v0
+        env: { GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }}" }
+        with:
+          tagName: ${{ github.ref_name }}
+          releaseName: "Scoreboard Server ${{ github.ref_name }}"
+          releaseDraft: true

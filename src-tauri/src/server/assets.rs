@@ -25,7 +25,7 @@ pub async fn scoreboard_page(
     State(shared): State<Shared>,
     headers: HeaderMap,
 ) -> impl IntoResponse {
-    serve_page(&shared, &headers, "scoreboard.html", "scoreboard", None)
+    serve_page(&shared, &headers, "pages/scoreboard.html", "scoreboard", None)
 }
 
 /// `GET /control?t=<token>` exchanges a valid URL token for an HttpOnly
@@ -57,7 +57,7 @@ pub async fn control_page(
     if auth::check(&shared, &headers, None).await.is_none() {
         return unauthorized_control_page();
     }
-    serve_page(&shared, &headers, "control.html", "control", None)
+    serve_page(&shared, &headers, "pages/control.html", "control", None)
 }
 
 fn unauthorized_control_page() -> axum::response::Response {
@@ -86,7 +86,7 @@ pub async fn value_page(
         )
             .into_response();
     }
-    serve_page(&shared, &headers, "value.html", "value", Some(&property))
+    serve_page(&shared, &headers, "pages/value.html", "value", Some(&property))
 }
 
 /// Everything else: look the path up in the embedded bundle, guess the

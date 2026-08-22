@@ -252,7 +252,7 @@ later.
 
 ---
 
-## Phase 6 — Packaging & v1.0 release gate `M`
+## Phase 6 — Packaging & v1.0 release gate `M` ✅ **IMPLEMENTED**
 
 **Goal:** installable, documented, shippable.
 
@@ -261,6 +261,44 @@ later.
 - First-run firewall explainer.
 - README rewrite: install, OBS setup, remote setup, troubleshooting.
 - Manual release checklist from doc 07 §9.
+
+**Implementation notes (decisions taken during P6):**
+
+- **Icons** are generated from the committed 1024×1024 source
+  (`src-tauri/icons/source.png`) via `tauri icon`; the full desktop set
+  (32/64/128/256/512 PNG, ICO, ICNS, Square logos) is committed. iOS/Android
+  icon folders were discarded — desktop only.
+- **Version is 1.0.0** in `tauri.conf.json`, `package.json` and `Cargo.toml`
+  (real description/authors replace the template values).
+- **CSP is now strict** (`default-src 'self'`). Two additions over the doc 07
+  §3 sketch, discovered while auditing actual webview traffic:
+  `media-src … http://localhost:*` (the built-in buzzer is played from the
+  embedded server URL) and `frame-src http://localhost:*` (the Outputs window
+  preview iframe loads `/scoreboard` from the embedded server).
+- **`assetProtocol.scope` is now empty.** The custom buzzer track only worked
+  before because the scope was `"**"`; the picked file is now granted at
+  runtime in `buzzer_select_track` and re-granted at startup from the
+  persisted setting, exactly as doc 07 §3 planned.
+- **First-run firewall explainer**: a Windows-only info dialog shown once
+  (`settings.firewall_notice_shown` persists the acknowledgement; new schema
+  field, bindings regenerated). It explains the *Private networks* choice; the
+  app never modifies firewall rules itself (doc 07 §4.1).
+- **Bundle config**: targets `["nsis", "msi", "appimage", "deb"]`, NSIS
+  per-machine, WebView2 `embedBootstrapper` (offline-friendly for venues with
+  unreliable Wi-Fi), deb depends on `libwebkit2gtk-4.1-0` + `libgtk-3-0`.
+- **CI `bundle` job** (`.github/workflows/build.yml`): `tauri-action` on
+  `vX.Y.Z` tags or manual dispatch, gated on the `check` job, Windows +
+  ubuntu-22.04 matrix, draft GitHub Release.
+- **README rewritten**: install (SmartScreen path documented since installers
+  are unsigned), quick start, OBS setup, phone remote, HTTP API table,
+  settings location, release process, troubleshooting.
+- **Capabilities reviewed**: `default.json` stays as-is — already least
+  privilege for v1 (window/drag/zoom/dialog/opener only). Overlay windows get
+  their own capability file in P7.
+
+**Remaining before tagging v1.0.0:** the manual release checklist (doc 07 §9)
+on clean Windows and Ubuntu VMs — the CI gates are green, but the VM
+end-to-end run is by definition manual.
 
 **Done when:** a clean Windows VM and a clean Ubuntu VM both install the artifact and run
 a full match end-to-end with OBS and a phone, with no developer tools present.
