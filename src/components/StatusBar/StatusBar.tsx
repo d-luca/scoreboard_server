@@ -3,6 +3,8 @@ import { useScoreboardStore } from "../../lib/desktop-scoreboard-store";
 import { useServerStore } from "../../lib/server-store";
 import { useWindowStore } from "../../lib/window-store";
 import { VerticalDivider } from "../ui/VerticalDivider";
+import { StatusDot } from "./StatusDot";
+import { StatusButton } from "./StatusButton";
 
 /**
  * Status strip at the bottom of the main window (doc 04 §7.3).
@@ -85,50 +87,5 @@ export function StatusBar(): JSX.Element {
 				onClick={() => void openWindow("settings")}
 			/>
 		</div>
-	);
-}
-
-function StatusDot({
-	active,
-	activeColor,
-	label,
-	title,
-}: {
-	active: boolean;
-	activeColor: string;
-	label: string;
-	title: string;
-}): JSX.Element {
-	return (
-		<span className="text-app-tertiary flex items-center gap-1.5" title={title}>
-			<span className={`inline-block size-2 rounded-full ${active ? activeColor : "bg-app-disabled"}`} />
-			<span className="max-[640px]:hidden">{label}</span>
-		</span>
-	);
-}
-
-function StatusButton({
-	active,
-	activeColor,
-	label,
-	title,
-	onClick,
-}: {
-	active: boolean;
-	activeColor: string;
-	label: string;
-	title: string;
-	onClick(): void;
-}): JSX.Element {
-	return (
-		<button
-			type="button"
-			onClick={onClick}
-			title={title}
-			className="text-app-tertiary hover:text-app-primary flex items-center gap-1.5 transition-colors"
-		>
-			<span className={`inline-block size-2 rounded-full ${active ? activeColor : "bg-app-disabled"}`} />
-			<span className="max-[640px]:hidden">{label}</span>
-		</button>
 	);
 }

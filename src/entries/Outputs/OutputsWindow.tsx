@@ -1,15 +1,19 @@
+import { Card } from "@/components/ui/Card/Card";
+import { CardContent } from "@/components/ui/Card/CardContent";
+import { CardHeader } from "@/components/ui/Card/CardHeader";
+import { CardTitle } from "@/components/ui/Card/CardTitle";
+import { Label } from "@/components/ui/Label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/Select";
+import { useServerStore } from "@/lib/server-store";
+import { useEscapeToClose } from "@/lib/use-escape-to-close";
 import React from "react";
-import ReactDOM from "react-dom/client";
+import { UrlRow } from "./UrlRow";
+import { SmallButton } from "./SmallButton";
 import { openUrl } from "@tauri-apps/plugin-opener";
-import "../global.css";
-import { Card } from "../components/ui/Card/Card";
-import { CardContent } from "../components/ui/Card/CardContent";
-import { CardHeader } from "../components/ui/Card/CardHeader";
-import { CardTitle } from "../components/ui/Card/CardTitle";
-import { Label } from "../components/ui/Label/Label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../components/ui/Select";
-import { useServerStore } from "../lib/server-store";
-import { useEscapeToClose } from "../lib/use-escape-to-close";
+
+function maskControlToken(url: string): string {
+	return url.replace(/([?&]t=)[^&]+/, "$1••••••••••••");
+}
 
 /**
  * Outputs & Sharing window (doc 04 §7.5): everything the old
@@ -35,7 +39,7 @@ const VALUE_PROPERTIES = [
 	["timerLoadout3", "Loadout 3"],
 ] as const;
 
-function OutputsWindow(): React.JSX.Element {
+export function OutputsWindow(): React.JSX.Element {
 	useEscapeToClose();
 
 	const info = useServerStore((store) => store.info);
@@ -303,49 +307,3 @@ function OutputsWindow(): React.JSX.Element {
 		</div>
 	);
 }
-
-function maskControlToken(url: string): string {
-	return url.replace(/([?&]t=)[^&]+/, "$1••••••••••••");
-}
-
-function UrlRow({
-	url,
-	copied,
-	onCopy,
-}: {
-	url: string | null;
-	copied: boolean;
-	onCopy(): void;
-}): React.JSX.Element {
-	return (
-		<div className="flex min-w-0 flex-1 items-center gap-2">
-			<code className="text-app-secondary bg-app-tertiary flex-1 truncate rounded px-2 py-1.5 text-xs">
-				{url ?? "server starting…"}
-			</code>
-			<SmallButton disabled={!url} onClick={onCopy}>
-				{copied ? "Copied!" : "Copy"}
-			</SmallButton>
-		</div>
-	);
-}
-
-function SmallButton({
-	children,
-	...props
-}: React.ButtonHTMLAttributes<HTMLButtonElement>): React.JSX.Element {
-	return (
-		<button
-			type="button"
-			className="bg-app-tertiary text-app-secondary hover:bg-app-quaternary shrink-0 rounded px-2.5 py-1.5 text-xs transition-colors disabled:opacity-50"
-			{...props}
-		>
-			{children}
-		</button>
-	);
-}
-
-ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
-	<React.StrictMode>
-		<OutputsWindow />
-	</React.StrictMode>,
-);
