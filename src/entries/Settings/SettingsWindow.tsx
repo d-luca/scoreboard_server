@@ -1,7 +1,7 @@
-import { useBuzzerStore } from "@/lib/buzzer-store";
-import { useServerStore } from "@/lib/server-store";
-import { useSettingsStore } from "@/lib/settings-store";
-import { useEscapeToClose } from "@/lib/use-escape-to-close";
+import { useBuzzerStore } from "@/lib/stores/buzzer-store";
+import { useServerStore } from "@/lib/stores/server-store";
+import { useSettingsStore } from "@/lib/stores/settings-store";
+import { useEscapeToClose } from "@/lib/hooks/use-escape-to-close";
 import React from "react";
 import { BuzzerTab } from "./Tabs/BuzzerTab";
 import { ScoreboardTab } from "./Tabs/ScoreboardTab";

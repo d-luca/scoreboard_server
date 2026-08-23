@@ -1,7 +1,7 @@
 import { create } from "zustand";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
-import type { AppWindow } from "../bindings/AppWindow";
+import type { AppWindow } from "../../bindings/AppWindow";
 
 /**
  * Mirrors which feature windows are open (doc 04 §4.5). Fed by the

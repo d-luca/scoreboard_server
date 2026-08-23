@@ -1,7 +1,7 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
 import "../global.css";
-import { useEscapeToClose } from "../lib/use-escape-to-close";
+import { useEscapeToClose } from "../lib/hooks/use-escape-to-close";
 
 /** About window: version, licences, ffmpeg credit (doc 01 §9.1). */
 function AboutShell(): React.JSX.Element {

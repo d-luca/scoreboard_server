@@ -1,8 +1,8 @@
 import { create } from "zustand";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
-import type { Settings } from "../bindings/Settings";
-import type { SettingsPatch } from "../bindings/SettingsPatch";
+import type { Settings } from "../../bindings/Settings";
+import type { SettingsPatch } from "../../bindings/SettingsPatch";
 
 /**
  * Mirror of `Settings` from Rust (doc 04 §4.2). `set(patch)` invokes

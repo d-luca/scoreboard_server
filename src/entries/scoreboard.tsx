@@ -1,7 +1,7 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
 import { Scoreboard } from "../components/Scoreboard";
-import { createScoreboardStore } from "../lib/scoreboard-store";
+import { createScoreboardStore } from "../lib/stores/scoreboard-store";
 import { WsTransport } from "../lib/ws-transport";
 import "../scoreboard.css";
 

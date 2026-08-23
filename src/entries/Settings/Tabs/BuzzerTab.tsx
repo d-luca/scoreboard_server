@@ -1,6 +1,6 @@
 import { Button } from "@/components/ui/Button/Button";
-import { useBuzzerStore } from "@/lib/buzzer-store";
-import { useSettingsStore } from "@/lib/settings-store";
+import { useBuzzerStore } from "@/lib/stores/buzzer-store";
+import { useSettingsStore } from "@/lib/stores/settings-store";
 import React from "react";
 import { SectionHeading } from "../SectionHeading";
 

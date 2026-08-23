@@ -1,8 +1,8 @@
 import { create, type StoreApi, type UseBoundStore } from "zustand";
-import type { Action } from "../bindings/Action";
-import type { ScoreboardPatch } from "../bindings/ScoreboardPatch";
-import type { ScoreboardState } from "../bindings/ScoreboardState";
-import type { AuthorizationStatus, ConnectionStatus, Transport } from "./transport";
+import type { Action } from "../../bindings/Action";
+import type { ScoreboardPatch } from "../../bindings/ScoreboardPatch";
+import type { ScoreboardState } from "../../bindings/ScoreboardState";
+import type { AuthorizationStatus, ConnectionStatus, Transport } from "../transport";
 
 /** Optional live status feeds implemented by reconnecting transports. */
 interface StatusAwareTransport extends Transport {

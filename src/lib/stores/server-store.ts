@@ -1,8 +1,8 @@
 import { create } from "zustand";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
-import type { ServerInfo } from "../bindings/ServerInfo";
-import type { ServerStatus } from "../bindings/ServerStatus";
+import type { ServerInfo } from "../../bindings/ServerInfo";
+import type { ServerStatus } from "../../bindings/ServerStatus";
 
 /**
  * Mirrors of the Rust server state (doc 04 §4.4).

@@ -2,7 +2,7 @@ import React from "react";
 import ReactDOM from "react-dom/client";
 import { RemoteControl } from "../features/remote/RemoteControl/RemoteControl";
 import { createControlWsUrl } from "../features/remote/control-url";
-import { createScoreboardStore } from "../lib/scoreboard-store";
+import { createScoreboardStore } from "../lib/stores/scoreboard-store";
 import { WsTransport } from "../lib/ws-transport";
 import "../global.css";
 

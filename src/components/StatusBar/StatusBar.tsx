@@ -1,7 +1,7 @@
 import { JSX, useEffect } from "react";
-import { useScoreboardStore } from "../../lib/desktop-scoreboard-store";
-import { useServerStore } from "../../lib/server-store";
-import { useWindowStore } from "../../lib/window-store";
+import { useScoreboardStore } from "../../lib/stores/desktop-scoreboard-store";
+import { useServerStore } from "../../lib/stores/server-store";
+import { useWindowStore } from "../../lib/stores/window-store";
 import { VerticalDivider } from "../ui/VerticalDivider";
 import { StatusDot } from "./StatusDot";
 import { StatusButton } from "./StatusButton";

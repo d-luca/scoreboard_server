@@ -1,6 +1,6 @@
 import { ColorPicker } from "@/components/ui/ColorPicker";
 import { DraftInput } from "@/features/remote/RemoteControl/components/DraftInput";
-import { useSettingsStore } from "@/lib/settings-store";
+import { useSettingsStore } from "@/lib/stores/settings-store";
 import React from "react";
 import { LoadoutInput } from "../LoadoutInput";
 import { SectionHeading } from "../SectionHeading";

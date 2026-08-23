@@ -1,8 +1,8 @@
 import { create } from "zustand";
 import { convertFileSrc, invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
-import type { ServerStatus } from "../bindings/ServerStatus";
-import type { Settings } from "../bindings/Settings";
+import type { ServerStatus } from "../../bindings/ServerStatus";
+import type { Settings } from "../../bindings/Settings";
 import { useServerStore } from "./server-store";
 import { useSettingsStore } from "./settings-store";
 

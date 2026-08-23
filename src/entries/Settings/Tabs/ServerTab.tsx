@@ -1,5 +1,5 @@
-import { useServerStore } from "@/lib/server-store";
-import { useSettingsStore } from "@/lib/settings-store";
+import { useServerStore } from "@/lib/stores/server-store";
+import { useSettingsStore } from "@/lib/stores/settings-store";
 import React from "react";
 import { SectionHeading } from "../SectionHeading";
 import { Input } from "@/components/ui/Input";

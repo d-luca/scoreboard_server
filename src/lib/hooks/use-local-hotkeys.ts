@@ -1,6 +1,6 @@
 import { useEffect } from "react";
-import { useScoreboardStore } from "./desktop-scoreboard-store";
-import { DEFAULT_HOTKEYS, hotkeyToAction, matchesHotkey, type HotkeyAction } from "./hotkeys";
+import { useScoreboardStore } from "../stores/desktop-scoreboard-store";
+import { DEFAULT_HOTKEYS, hotkeyToAction, matchesHotkey, type HotkeyAction } from "../hotkeys";
 
 /**
  * Window-focused keyboard shortcuts (doc 04 §9, doc 05 §5.1) [PARITY].
