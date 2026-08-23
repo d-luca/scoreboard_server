@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { useScoreboardStore } from "../stores/desktop-scoreboard-store";
+import { useScoreboardStore } from "../stores/desktopScoreboardStore";
 import { DEFAULT_HOTKEYS, hotkeyToAction, matchesHotkey, type HotkeyAction } from "../hotkeys";
 
 /**

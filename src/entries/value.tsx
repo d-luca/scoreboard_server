@@ -1,9 +1,9 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
 import { formatTimer } from "../lib/format";
-import { createScoreboardStore } from "../lib/stores/scoreboard-store";
-import type { ScoreboardPageConfig } from "../lib/scoreboard-page-config";
-import { WsTransport } from "../lib/ws-transport";
+import { createScoreboardStore } from "../lib/stores/scoreboardStore";
+import type { ScoreboardPageConfig } from "../lib/scoreboardPageConfig";
+import { WsTransport } from "../lib/wsTransport";
 import "../scoreboard.css";
 
 /**

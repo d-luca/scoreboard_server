@@ -1,7 +1,7 @@
 import React from "react";
 import { useStore } from "zustand";
 
-import type { WsTransport } from "../../../lib/ws-transport";
+import type { WsTransport } from "../../../lib/wsTransport";
 import "./remote.css";
 import { TeamsSection } from "./sections/TeamSection/TeamsSection";
 import { TimerSection } from "./sections/TimerSection";

@@ -1,9 +1,9 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
 import { RemoteControl } from "../features/remote/RemoteControl/RemoteControl";
-import { createControlWsUrl } from "../features/remote/control-url";
-import { createScoreboardStore } from "../lib/stores/scoreboard-store";
-import { WsTransport } from "../lib/ws-transport";
+import { createControlWsUrl } from "../features/remote/controlUrl";
+import { createScoreboardStore } from "../lib/stores/scoreboardStore";
+import { WsTransport } from "../lib/wsTransport";
 import "../global.css";
 
 /** Browser-only phone remote. This dependency graph intentionally contains no Tauri modules. */

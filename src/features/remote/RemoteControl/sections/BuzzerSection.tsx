@@ -1,4 +1,4 @@
-import { WsTransport } from "@/lib/ws-transport";
+import { WsTransport } from "@/lib/wsTransport";
 import { SectionProps } from "./types";
 import { useStore } from "zustand";
 import React from "react";

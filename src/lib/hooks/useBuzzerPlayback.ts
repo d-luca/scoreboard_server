@@ -1,6 +1,6 @@
-import { useBuzzerStore } from "@/lib/stores/buzzer-store";
-import { useSettingsStore } from "@/lib/stores/settings-store";
-import { tauriTransport } from "@/lib/tauri-transport";
+import { useBuzzerStore } from "@/lib/stores/buzzerStore";
+import { useSettingsStore } from "@/lib/stores/settingsStore";
+import { tauriTransport } from "@/lib/tauriTransport";
 import { useEffect } from "react";
 
 /**

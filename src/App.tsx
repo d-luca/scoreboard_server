@@ -1,11 +1,11 @@
 import { JSX, useEffect } from "react";
 import { ScoreboardControl } from "./components/ScoreboardControl";
 import { StatusBar } from "./components/StatusBar";
-import { useBuzzerStore } from "./lib/stores/buzzer-store";
-import { useScoreboardStore } from "./lib/stores/desktop-scoreboard-store";
-import { useSettingsStore } from "./lib/stores/settings-store";
-import { useWindowStore } from "./lib/stores/window-store";
-import { useLocalHotkeys } from "./lib/hooks/use-local-hotkeys";
+import { useBuzzerStore } from "./lib/stores/buzzerStore";
+import { useScoreboardStore } from "./lib/stores/desktopScoreboardStore";
+import { useSettingsStore } from "./lib/stores/settingsStore";
+import { useWindowStore } from "./lib/stores/windowStore";
+import { useLocalHotkeys } from "./lib/hooks/useLocalHotkeys";
 import { useBuzzerPlayback } from "./lib/hooks/useBuzzerPlayback";
 
 /**

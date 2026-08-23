@@ -1,7 +1,7 @@
 import { JSX } from "react";
 import { Button } from "../ui/Button/Button";
 import { HotkeyBadge } from "../ui/HotkeyBadge";
-import { useScoreboardStore } from "../../lib/stores/desktop-scoreboard-store";
+import { useScoreboardStore } from "../../lib/stores/desktopScoreboardStore";
 import { DEFAULT_HOTKEYS, hotkeyLabel } from "../../lib/hotkeys";
 import { formatTimer } from "../../lib/format";
 

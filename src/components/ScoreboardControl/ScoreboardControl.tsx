@@ -4,8 +4,8 @@ import { HotkeyBadge } from "../ui/HotkeyBadge";
 import { TeamControl } from "./TeamControl";
 import { HalfControl } from "./HalfControl";
 import { TimerControl } from "./TimerControl";
-import { useScoreboardStore } from "../../lib/stores/desktop-scoreboard-store";
-import { useWindowStore } from "../../lib/stores/window-store";
+import { useScoreboardStore } from "../../lib/stores/desktopScoreboardStore";
+import { useWindowStore } from "../../lib/stores/windowStore";
 import { DEFAULT_HOTKEYS, hotkeyLabel } from "../../lib/hotkeys";
 import { formatTimer } from "../../lib/format";
 
