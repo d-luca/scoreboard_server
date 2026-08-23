@@ -42,14 +42,42 @@ async fn sb_dispatch(
         .map_err(|error| error.to_string())
 }
 
-#[tauri::command]
-fn window_open(which: AppWindow, app: tauri::AppHandle) -> Result<(), String> {
-    windows::open(&app, which).map_err(|error| error.to_string())
+/// Run a window-manager operation on the event-loop thread and await it.
+///
+/// Tauri executes sync commands inline inside the WebView2 IPC callback on
+/// Windows, and wry creates the window inline when already on the main
+/// thread — so a sync `window_open` builds a WebView2 re-entrantly from
+/// inside the browser's own event dispatch. The new webview then never
+/// initializes (blank window) and the process dies. The menu handler works
+/// because it already runs as a plain event-loop message. Deferring through
+/// `run_on_main_thread` gives the command path the same clean context. (The
+/// work cannot run directly on the command's tokio thread either:
+/// `windows::open` uses `tauri::async_runtime::block_on`, which panics on a
+/// runtime thread.)
+async fn dispatch_window_op<F>(app: tauri::AppHandle, op: F) -> Result<(), String>
+where
+    F: FnOnce(&tauri::AppHandle) -> tauri::Result<()> + Send + 'static,
+{
+    let (tx, rx) = tokio::sync::oneshot::channel();
+    let app_in_closure = app.clone();
+    app.run_on_main_thread(move || {
+        let _ = tx.send(op(&app_in_closure));
+    })
+    .map_err(|error| error.to_string())?;
+    match rx.await {
+        Ok(result) => result.map_err(|error| error.to_string()),
+        Err(_) => Err("window operation was never executed".into()),
+    }
 }
 
 #[tauri::command]
-fn window_close(which: AppWindow, app: tauri::AppHandle) -> Result<(), String> {
-    windows::close(&app, which).map_err(|error| error.to_string())
+async fn window_open(which: AppWindow, app: tauri::AppHandle) -> Result<(), String> {
+    dispatch_window_op(app, move |app| windows::open(app, which)).await
+}
+
+#[tauri::command]
+async fn window_close(which: AppWindow, app: tauri::AppHandle) -> Result<(), String> {
+    dispatch_window_op(app, move |app| windows::close(app, which)).await
 }
 
 #[tauri::command]
