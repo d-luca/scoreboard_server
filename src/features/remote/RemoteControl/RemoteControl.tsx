@@ -2,7 +2,7 @@ import React from "react";
 import { useStore } from "zustand";
 
 import type { WsTransport } from "../../../lib/wsTransport";
-import "./remote.css";
+import "../remote.css";
 import { TeamsSection } from "./sections/TeamSection/TeamsSection";
 import { TimerSection } from "./sections/TimerSection";
 import { HalfSection } from "./sections/HalfSection";
