@@ -81,6 +81,7 @@ export default defineConfig(async () => ({
 				value: fileURLToPath(new URL("./pages/value.html", import.meta.url)),
 				control: fileURLToPath(new URL("./pages/control.html", import.meta.url)),
 				recording: fileURLToPath(new URL("./pages/recording.html", import.meta.url)),
+				presets: fileURLToPath(new URL("./pages/presets.html", import.meta.url)),
 				overlayControl: fileURLToPath(new URL("./pages/overlay-control.html", import.meta.url)),
 				overlayPreview: fileURLToPath(new URL("./pages/overlay-preview.html", import.meta.url)),
 				videoGenerator: fileURLToPath(new URL("./pages/video-generator.html", import.meta.url)),

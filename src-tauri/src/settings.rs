@@ -154,7 +154,9 @@ pub fn save(app: &AppHandle, settings: &Settings) -> anyhow::Result<()> {
     let json = serde_json::to_string_pretty(settings)?;
     std::fs::write(&tmp, json)?;
     // fsync before the rename so the rename cannot point at unflushed data.
-    let file = std::fs::File::open(&tmp)?;
+    // The handle needs write access: `FlushFileBuffers` fails with EACCESS
+    // on a read-only handle on Windows.
+    let file = std::fs::OpenOptions::new().write(true).open(&tmp)?;
     file.sync_all()?;
     drop(file);
     std::fs::rename(&tmp, &path)?;

@@ -2,6 +2,7 @@
 //! axum stack on the default port so the REST/WS/pages can be exercised
 //! with curl and a browser without launching the Tauri shell.
 
+use scoreboard_server_lib::presets::PresetLibrary;
 use scoreboard_server_lib::{AppPrefs, AppState, Settings};
 
 #[tokio::main]
@@ -13,7 +14,11 @@ async fn main() {
         )
         .init();
 
-    let shared = AppState::with_prefs(AppPrefs::default(), Settings::default());
+    let shared = AppState::with_prefs(
+        AppPrefs::default(),
+        Settings::default(),
+        PresetLibrary::empty(),
+    );
     let (port, _handle) = scoreboard_server_lib::start_server(
         shared.clone(),
         scoreboard_server_lib::Settings::default().server_port,

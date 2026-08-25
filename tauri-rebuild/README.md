@@ -16,6 +16,7 @@ This folder contains everything needed to rebuild **Scoreboard Server** from zer
 | 06  | [Feature: Recording & Video](./06-FEATURE-RECORDING-VIDEO.md) | **Optional.** Match recording + ffmpeg video generation              |
 | 07  | [Build & Release](./07-BUILD-RELEASE.md)                      | Bundling, sidecars, CI, Windows/Linux packaging                      |
 | 08  | [Implementation Plan](./08-IMPLEMENTATION-PLAN.md)            | Phased milestones with acceptance criteria                           |
+| 09  | [Feature: Presets](./09-FEATURE-PRESETS.md)                   | Team library + match presets, Presets window, Presets menu           |
 
 ## Fast facts
 

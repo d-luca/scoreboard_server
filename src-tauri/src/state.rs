@@ -15,6 +15,9 @@ use tokio::sync::{broadcast, Mutex, RwLock};
 use ts_rs::TS;
 
 use crate::net::{self, LanAddress};
+use crate::presets::{
+    self, MatchPreset, MatchPresetPatch, PresetLibrary, TeamPreset, TeamPresetPatch,
+};
 use crate::server::auth::{self, Authorization};
 use crate::settings::{self, Settings, SettingsPatch};
 use crate::timer::TimerEngine;
@@ -47,6 +50,9 @@ pub enum ServerEvent {
     Window(AppWindow, bool),
     /// Settings were updated (doc 02 §8 `settings:changed`).
     Settings(Settings),
+    /// The preset library changed (doc 09 §4 `presets:changed`). Also the
+    /// single trigger for rebuilding the native `Presets` menu (doc 09 §6.1).
+    Presets(PresetLibrary),
 }
 
 /// Geometry of one window, persisted in `window-geometry.json` under the
@@ -286,6 +292,9 @@ pub struct AppState {
     /// Persisted application settings (doc 02 §9). Mutations go through
     /// [`AppState::settings_set`].
     pub settings: RwLock<Settings>,
+    /// Team & match preset library (doc 09). Mutations go through the
+    /// `*_preset_*` methods; loading one goes through [`AppState::preset_load`].
+    pub presets: RwLock<PresetLibrary>,
     pub timer: Mutex<TimerEngine>,
     pub events: broadcast::Sender<ServerEvent>,
     /// Persisted window geometry + zoom levels (doc 03 §7bis/§7ter).
@@ -310,6 +319,9 @@ pub struct AppState {
     /// Number of in-flight `set_timer_and_publish` / state writes queued
     /// behind a settings save; used only to serialize persistence debounces.
     settings_save_serial: AtomicU64,
+    /// Serializes the debounced `presets.json` saves, like
+    /// `settings_save_serial` does for settings.
+    presets_save_serial: AtomicU64,
     /// Set once during setup. Tests never set it, so emits are no-ops there.
     pub app: OnceLock<AppHandle>,
 }
@@ -320,21 +332,27 @@ impl AppState {
     /// Used by tests; the app uses [`AppState::with_prefs`].
     #[cfg(test)]
     pub fn new() -> Shared {
-        Self::build(Settings::default(), AppPrefs::default())
+        Self::build(Settings::default(), AppPrefs::default(), PresetLibrary::empty())
     }
 
     /// Test helper when a specific settings value is needed.
     #[cfg(test)]
     pub fn with_settings(settings: Settings, prefs: AppPrefs) -> Shared {
-        Self::build(settings, prefs)
+        Self::build(settings, prefs, PresetLibrary::empty())
+    }
+
+    /// Test helper when a specific preset library is needed (doc 09 §9).
+    #[cfg(test)]
+    pub fn with_presets(presets: PresetLibrary) -> Shared {
+        Self::build(Settings::default(), AppPrefs::default(), presets)
     }
 
     /// Production constructor (called from `setup` in lib.rs).
-    pub fn with_prefs(prefs: AppPrefs, settings: Settings) -> Shared {
-        Self::build(settings, prefs)
+    pub fn with_prefs(prefs: AppPrefs, settings: Settings, presets: PresetLibrary) -> Shared {
+        Self::build(settings, prefs, presets)
     }
 
-    fn build(settings: Settings, prefs: AppPrefs) -> Shared {
+    fn build(settings: Settings, prefs: AppPrefs, presets: PresetLibrary) -> Shared {
         let (events, _rx) = broadcast::channel(EVENT_CHANNEL_CAPACITY);
         // Pinned tokens survive restarts (doc 02 §6); otherwise a fresh
         // 128-bit token is generated every launch.
@@ -346,6 +364,7 @@ impl AppState {
         Arc::new(AppState {
             scoreboard: RwLock::new(settings::seed_scoreboard(&settings)),
             settings: RwLock::new(settings),
+            presets: RwLock::new(presets),
             timer: Mutex::new(TimerEngine::new()),
             events,
             prefs: RwLock::new(prefs),
@@ -360,6 +379,7 @@ impl AppState {
             last_status: Mutex::new(None),
             server_task: Mutex::new(None),
             settings_save_serial: AtomicU64::new(0),
+            presets_save_serial: AtomicU64::new(0),
             app: OnceLock::new(),
         })
     }
@@ -680,6 +700,143 @@ impl AppState {
         }
     }
 
+    /// Current preset library snapshot (doc 09 §4 `presets_get`).
+    pub async fn presets_snapshot(&self) -> PresetLibrary {
+        self.presets.read().await.clone()
+    }
+
+    pub async fn team_preset_create(
+        self: &Arc<Self>,
+        name: &str,
+        color: &str,
+    ) -> Result<TeamPreset, DomainError> {
+        let (team, library) = {
+            let mut presets = self.presets.write().await;
+            let team = presets::create_team(&mut presets, name, color)?;
+            (team, presets.clone())
+        };
+        self.after_presets_mutation(library);
+        Ok(team)
+    }
+
+    pub async fn team_preset_update(
+        self: &Arc<Self>,
+        id: &str,
+        patch: TeamPresetPatch,
+    ) -> Result<TeamPreset, DomainError> {
+        let (team, library) = {
+            let mut presets = self.presets.write().await;
+            let team = presets::update_team(&mut presets, id, patch)?;
+            (team, presets.clone())
+        };
+        self.after_presets_mutation(library);
+        Ok(team)
+    }
+
+    /// Blocked while any fixture references the team; the error names the
+    /// blocking fixtures (doc 09 §4.1).
+    pub async fn team_preset_delete(self: &Arc<Self>, id: &str) -> Result<(), DomainError> {
+        let library = {
+            let mut presets = self.presets.write().await;
+            presets::delete_team(&mut presets, id)?;
+            presets.clone()
+        };
+        self.after_presets_mutation(library);
+        Ok(())
+    }
+
+    pub async fn match_preset_create(
+        self: &Arc<Self>,
+        label: Option<String>,
+        home_team_id: &str,
+        away_team_id: &str,
+    ) -> Result<MatchPreset, DomainError> {
+        let (fixture, library) = {
+            let mut presets = self.presets.write().await;
+            let fixture = presets::create_match(&mut presets, label, home_team_id, away_team_id)?;
+            (fixture, presets.clone())
+        };
+        self.after_presets_mutation(library);
+        Ok(fixture)
+    }
+
+    pub async fn match_preset_update(
+        self: &Arc<Self>,
+        id: &str,
+        patch: MatchPresetPatch,
+    ) -> Result<MatchPreset, DomainError> {
+        let (fixture, library) = {
+            let mut presets = self.presets.write().await;
+            let fixture = presets::update_match(&mut presets, id, patch)?;
+            (fixture, presets.clone())
+        };
+        self.after_presets_mutation(library);
+        Ok(fixture)
+    }
+
+    pub async fn match_preset_delete(self: &Arc<Self>, id: &str) -> Result<(), DomainError> {
+        let library = {
+            let mut presets = self.presets.write().await;
+            presets::delete_match(&mut presets, id)?;
+            presets.clone()
+        };
+        self.after_presets_mutation(library);
+        Ok(())
+    }
+
+    /// Load a fixture into `Settings` (doc 09 §5). That single
+    /// `settings_set` call mirrors the identity into the live scoreboard,
+    /// persists it, and notifies the Settings window — scores, half and
+    /// timer are never touched.
+    pub async fn preset_load(self: &Arc<Self>, id: &str) -> Result<Settings, DomainError> {
+        let (home, away) = {
+            let presets = self.presets.read().await;
+            let fixture = presets
+                .matches
+                .iter()
+                .find(|fixture| fixture.id == id)
+                .ok_or_else(|| DomainError::Validation(format!("unknown match preset {id:?}")))?;
+            (
+                presets::find_team(&presets, &fixture.home_team_id)?,
+                presets::find_team(&presets, &fixture.away_team_id)?,
+            )
+        };
+        self.settings_set(SettingsPatch {
+            team_home_name: Some(home.name),
+            team_home_color: Some(home.color),
+            team_away_name: Some(away.name),
+            team_away_color: Some(away.color),
+            ..Default::default()
+        })
+        .await
+    }
+
+    /// Every preset mutation ends here: persist (debounced) and broadcast,
+    /// which also triggers the native menu rebuild (doc 09 §6.1).
+    fn after_presets_mutation(self: &Arc<Self>, library: PresetLibrary) {
+        self.schedule_presets_save();
+        self.publish(ServerEvent::Presets(library));
+    }
+
+    /// Debounced `presets.json` persistence, mirroring
+    /// `schedule_settings_save` (500 ms after the last edit).
+    fn schedule_presets_save(self: &Arc<Self>) {
+        let serial = self.presets_save_serial.fetch_add(1, Ordering::Relaxed) + 1;
+        let shared = Arc::clone(self);
+        tauri::async_runtime::spawn(async move {
+            tokio::time::sleep(Duration::from_millis(500)).await;
+            if shared.presets_save_serial.load(Ordering::Relaxed) != serial {
+                return; // a newer edit superseded this save
+            }
+            let presets = shared.presets.read().await.clone();
+            if let Some(app) = shared.app.get() {
+                if let Err(error) = presets::save(app, &presets) {
+                    tracing::warn!(?error, "failed to save presets.json");
+                }
+            }
+        });
+    }
+
     /// Restart the HTTP server on a new preferred port. Old sockets drop,
     /// clients reconnect on their exponential backoff (doc 02 §4.3).
     async fn restart_server(self: &Arc<Self>, preferred_port: u16) {
@@ -890,6 +1047,9 @@ impl AppState {
                 ServerEvent::Settings(settings) => {
                     let _ = app.emit("settings:changed", settings);
                 }
+                ServerEvent::Presets(library) => {
+                    let _ = app.emit("presets:changed", library);
+                }
                 ServerEvent::Window(which, open) => {
                     let event = if open {
                         "window:opened"
@@ -909,7 +1069,9 @@ fn decrement_gauge(gauge: &AtomicU32) {
     });
 }
 
-fn validate_name(raw: &str) -> Result<String, DomainError> {
+/// `pub(crate)` so `presets.rs` reuses the exact rule — a preset must never
+/// hold a value `settings_set` would later reject (doc 09 §2.1).
+pub(crate) fn validate_name(raw: &str) -> Result<String, DomainError> {
     let trimmed = raw.trim();
     if trimmed.is_empty() {
         return Err(DomainError::Validation(
@@ -920,8 +1082,9 @@ fn validate_name(raw: &str) -> Result<String, DomainError> {
 }
 
 /// Regex-free check: 7 bytes, leading `#`, rest ASCII hex. Normalized to
-/// lowercase.
-fn validate_color(raw: &str) -> Result<String, DomainError> {
+/// lowercase. `pub(crate)` for `presets.rs`, same reason as
+/// [`validate_name`].
+pub(crate) fn validate_color(raw: &str) -> Result<String, DomainError> {
     let bytes = raw.as_bytes();
     let valid =
         bytes.len() == 7 && bytes[0] == b'#' && bytes[1..].iter().all(u8::is_ascii_hexdigit);

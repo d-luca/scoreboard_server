@@ -128,8 +128,9 @@ async fn client_loop(socket: WebSocket, shared: Shared, authorization: Option<Au
                         }
                     }
                     // Desktop-only: LAN clients learn everything they need
-                    // from the full-state frames.
-                    Ok(ServerEvent::Window(..) | ServerEvent::Settings(_)) => {}
+                    // from the full-state frames (a preset load reaches them
+                    // as `settings:changed` + a state frame).
+                    Ok(ServerEvent::Window(..) | ServerEvent::Settings(_) | ServerEvent::Presets(_)) => {}
                     // A lagging client missed frames: resync with a fresh
                     // full state instead of replaying the backlog.
                     Err(RecvError::Lagged(skipped)) => {

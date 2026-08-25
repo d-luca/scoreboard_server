@@ -25,6 +25,7 @@ pub enum AppWindow {
     Recording,
     VideoGenerator,
     About,
+    Presets,
 }
 
 impl AppWindow {
@@ -35,6 +36,7 @@ impl AppWindow {
             Self::Recording => "recording",
             Self::VideoGenerator => "video-generator",
             Self::About => "about",
+            Self::Presets => "presets",
         }
     }
 
@@ -48,6 +50,7 @@ impl AppWindow {
             Self::Recording => "/pages/recording.html",
             Self::VideoGenerator => "/pages/video-generator.html",
             Self::About => "/pages/about.html",
+            Self::Presets => "/pages/presets.html",
         }
     }
 
@@ -58,6 +61,7 @@ impl AppWindow {
             Self::Recording => "Recording",
             Self::VideoGenerator => "Video Generator",
             Self::About => "About Scoreboard Server",
+            Self::Presets => "Presets",
         }
     }
 
@@ -69,6 +73,7 @@ impl AppWindow {
             Self::Recording => (560.0, 420.0),
             Self::VideoGenerator => (900.0, 700.0),
             Self::About => (420.0, 320.0),
+            Self::Presets => (820.0, 620.0),
         }
     }
 
@@ -76,6 +81,8 @@ impl AppWindow {
         match self {
             Self::Settings => (640.0, 520.0),
             Self::Outputs => (700.0, 520.0),
+            // Master/detail needs the width (doc 09 §7.1).
+            Self::Presets => (700.0, 520.0),
             other => other.size(),
         }
     }
@@ -90,6 +97,7 @@ impl AppWindow {
             "recording" => Some(Self::Recording),
             "video-generator" => Some(Self::VideoGenerator),
             "about" => Some(Self::About),
+            "presets" => Some(Self::Presets),
             _ => None,
         }
     }
@@ -157,6 +165,7 @@ pub fn list_open(app: &AppHandle) -> Vec<AppWindow> {
         AppWindow::Recording,
         AppWindow::VideoGenerator,
         AppWindow::About,
+        AppWindow::Presets,
     ]
     .into_iter()
     .filter(|which| app.get_webview_window(which.label()).is_some())

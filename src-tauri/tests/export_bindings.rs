@@ -13,6 +13,9 @@
 //! validation for the build.rs directive satisfied.
 
 use scoreboard_server_lib::net::LanAddress;
+use scoreboard_server_lib::presets::{
+    MatchPreset, MatchPresetPatch, PresetLibrary, TeamPreset, TeamPresetPatch,
+};
 use scoreboard_server_lib::settings::{Settings, SettingsPatch};
 use scoreboard_server_lib::state::{
     Action, ScoreboardPatch, ScoreboardState, ServerInfo, ServerStatus,
@@ -32,4 +35,9 @@ fn export_bindings() {
     ServerStatus::export().expect("failed to export ServerStatus");
     Settings::export().expect("failed to export Settings");
     SettingsPatch::export().expect("failed to export SettingsPatch");
+    TeamPreset::export().expect("failed to export TeamPreset");
+    MatchPreset::export().expect("failed to export MatchPreset");
+    TeamPresetPatch::export().expect("failed to export TeamPresetPatch");
+    MatchPresetPatch::export().expect("failed to export MatchPresetPatch");
+    PresetLibrary::export().expect("failed to export PresetLibrary");
 }

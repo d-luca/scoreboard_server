@@ -3,6 +3,7 @@ mod menu;
 // `pub` so the `export_bindings` integration test (tests/export_bindings.rs)
 // can reach the ts-rs export surface.
 pub mod net;
+pub mod presets;
 mod server;
 pub mod settings;
 pub mod state;
@@ -12,6 +13,7 @@ pub mod windows;
 pub use settings::{Settings, SettingsPatch};
 pub use state::{AppPrefs, AppState, Shared};
 
+use presets::{MatchPreset, MatchPresetPatch, PresetLibrary, TeamPreset, TeamPresetPatch};
 use settings::SettingsPatch as SettingsPatchInput;
 use state::{Action, ScoreboardState, ServerInfo, ServerStatus};
 use tauri::Manager;
@@ -113,6 +115,94 @@ async fn settings_set(
     state
         .inner()
         .settings_set(patch)
+        .await
+        .map_err(|error| error.to_string())
+}
+
+/// Full preset library snapshot (doc 09 §4).
+#[tauri::command]
+async fn presets_get(state: tauri::State<'_, Shared>) -> Result<PresetLibrary, String> {
+    Ok(state.presets_snapshot().await)
+}
+
+#[tauri::command]
+async fn team_preset_create(
+    name: String,
+    color: String,
+    state: tauri::State<'_, Shared>,
+) -> Result<TeamPreset, String> {
+    state
+        .inner()
+        .team_preset_create(&name, &color)
+        .await
+        .map_err(|error| error.to_string())
+}
+
+#[tauri::command]
+async fn team_preset_update(
+    id: String,
+    patch: TeamPresetPatch,
+    state: tauri::State<'_, Shared>,
+) -> Result<TeamPreset, String> {
+    state
+        .inner()
+        .team_preset_update(&id, patch)
+        .await
+        .map_err(|error| error.to_string())
+}
+
+#[tauri::command]
+async fn team_preset_delete(id: String, state: tauri::State<'_, Shared>) -> Result<(), String> {
+    state
+        .inner()
+        .team_preset_delete(&id)
+        .await
+        .map_err(|error| error.to_string())
+}
+
+#[tauri::command]
+async fn match_preset_create(
+    label: Option<String>,
+    home_team_id: String,
+    away_team_id: String,
+    state: tauri::State<'_, Shared>,
+) -> Result<MatchPreset, String> {
+    state
+        .inner()
+        .match_preset_create(label, &home_team_id, &away_team_id)
+        .await
+        .map_err(|error| error.to_string())
+}
+
+#[tauri::command]
+async fn match_preset_update(
+    id: String,
+    patch: MatchPresetPatch,
+    state: tauri::State<'_, Shared>,
+) -> Result<MatchPreset, String> {
+    state
+        .inner()
+        .match_preset_update(&id, patch)
+        .await
+        .map_err(|error| error.to_string())
+}
+
+#[tauri::command]
+async fn match_preset_delete(id: String, state: tauri::State<'_, Shared>) -> Result<(), String> {
+    state
+        .inner()
+        .match_preset_delete(&id)
+        .await
+        .map_err(|error| error.to_string())
+}
+
+/// Load a fixture into `Settings` (doc 09 §5): identity only — scores, half
+/// and timer are never touched.
+#[tauri::command]
+async fn preset_load(id: String, state: tauri::State<'_, Shared>) -> Result<Settings, String> {
+    state
+        .inner()
+        .preset_load(&id)
         .await
         .map_err(|error| error.to_string())
 }
@@ -249,6 +339,7 @@ pub fn run() {
         .setup(|app| {
             let settings = settings::load(app.handle());
             let prefs = AppPrefs::load(app.handle());
+            let presets = presets::load(app.handle());
             let server_port = settings.server_port;
 
             // Re-grant the asset scope for a persisted custom buzzer track
@@ -266,9 +357,13 @@ pub fn run() {
             let show_firewall_notice =
                 cfg!(target_os = "windows") && !settings.firewall_notice_shown;
 
-            let shared = AppState::with_prefs(prefs, settings);
+            let shared = AppState::with_prefs(prefs, settings, presets);
             shared.attach_app(app.handle().clone());
             app.manage(shared);
+
+            // Rebuild the native Presets menu whenever the library changes
+            // (debounced, main-thread only — doc 09 §6.1).
+            menu::spawn_presets_menu_rebuilder(app.handle(), app.state::<Shared>().inner().clone());
 
             // Native menu bar on the main window only — never `app.set_menu`,
             // or the frameless overlay windows grow a menu bar [RISK].
@@ -322,6 +417,14 @@ pub fn run() {
             server_regenerate_token,
             settings_get,
             settings_set,
+            presets_get,
+            team_preset_create,
+            team_preset_update,
+            team_preset_delete,
+            match_preset_create,
+            match_preset_update,
+            match_preset_delete,
+            preset_load,
             buzzer_get_track,
             buzzer_select_track,
             buzzer_clear_track,
