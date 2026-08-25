@@ -19,6 +19,7 @@ pub struct LanAddress {
 
 /// Non-loopback, non-link-local IPv4 addresses, best (most LAN-like) first.
 pub fn lan_addresses() -> Vec<LanAddress> {
+    let primary = primary_outbound_ip();
     let mut addresses: Vec<LanAddress> = if_addrs::get_if_addrs()
         .unwrap_or_default()
         .into_iter()
@@ -35,9 +36,45 @@ pub fn lan_addresses() -> Vec<LanAddress> {
             })
         })
         .collect();
-    addresses.sort_by_key(|entry| lan_rank(&entry.address));
+    addresses.sort_by_key(|entry| {
+        (
+            u8::from(is_virtual_adapter(&entry.name)),
+            u8::from(primary.as_deref() != Some(entry.address.as_str())),
+            lan_rank(&entry.address),
+        )
+    });
     addresses.dedup_by(|a, b| a.address == b.address);
     addresses
+}
+
+/// The IPv4 address of the interface used for the default outbound route,
+/// found by connecting a UDP socket to a public address (no traffic is sent).
+fn primary_outbound_ip() -> Option<String> {
+    let socket = std::net::UdpSocket::bind("0.0.0.0:0").ok()?;
+    socket.connect("8.8.8.8:80").ok()?;
+    let std::net::IpAddr::V4(ip) = socket.local_addr().ok()?.ip() else {
+        return None;
+    };
+    (!ip.is_loopback() && !ip.is_unspecified()).then(|| ip.to_string())
+}
+
+/// Virtual adapters (Hyper-V, WSL, Docker, VMware, VirtualBox, …) are never
+/// the right pick for phone/OBS URLs, so they sort after physical ones.
+fn is_virtual_adapter(name: &str) -> bool {
+    let lower = name.to_lowercase();
+    [
+        "vethernet",
+        "hyper-v",
+        "wsl",
+        "docker",
+        "vmware",
+        "vmnet",
+        "virtualbox",
+        "vbox",
+        "loopback pseudo",
+    ]
+    .iter()
+    .any(|needle| lower.contains(needle))
 }
 
 /// Lower sorts first: private 192.168/10 ranges, then other private/CGNAT,
@@ -61,6 +98,18 @@ mod tests {
         assert!(lan_rank("192.168.1.20") < lan_rank("172.17.0.2"));
         assert!(lan_rank("10.0.0.5") < lan_rank("203.0.113.9"));
         assert!(lan_rank("172.17.0.2") < lan_rank("203.0.113.9"));
+    }
+
+    #[test]
+    fn virtual_adapters_are_detected_by_name() {
+        assert!(is_virtual_adapter("vEthernet (Gretel commuter)"));
+        assert!(is_virtual_adapter("vEthernet (WSL)"));
+        assert!(is_virtual_adapter("VMware Network Adapter VMnet8"));
+        assert!(is_virtual_adapter("VirtualBox Host-Only Network"));
+        assert!(is_virtual_adapter("Ethernet adapter DockerNAT"));
+        assert!(!is_virtual_adapter("Wi-Fi"));
+        assert!(!is_virtual_adapter("Ethernet"));
+        assert!(!is_virtual_adapter("eth0"));
     }
 
     #[test]
