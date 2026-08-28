@@ -22,9 +22,9 @@ embed-resource = "3"
 [features]
 # Optional features (doc 08 phases 7-9). Each gates its menu entries and
 # windows so an optional-feature-free build has a clean menu. `recording`
-# is on by default since Phase 8; build with `--no-default-features` to
-# compile it out (doc 06 §B8).
-default = ["recording"]
+# and `video` are on by default since Phases 8/9; build with
+# `--no-default-features` to compile them out (doc 06 §B8).
+default = ["recording", "video"]
 overlay = []
 recording = []
 video = []

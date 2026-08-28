@@ -199,6 +199,12 @@ pub struct VideoGenerationConfig {
 Output dimensions: `round(600 × scale) × round(80 × scale)`. `[RISK]` VP9 wants even
 dimensions — round each to the nearest even number.
 
+> **Refined in implementation (Phase 9):** the frame is 622×80 at scale 1, not 600×80.
+> The 600×80 board is skewed −15°, which widens its bounding box by ~21.4 px; the OBS
+> page already centers the board in a 622-wide frame (`pages/scoreboard.html`), and the
+> video does the same so the corners are not clipped and the pixels match the live
+> source. The even-rounding rule still applies.
+
 ## B3. ffmpeg invocation
 
 Sidecar binary bundled as `src-tauri/binaries/ffmpeg-<target-triple>[.exe]`.

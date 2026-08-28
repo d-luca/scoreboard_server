@@ -317,6 +317,15 @@ pub struct AppState {
     /// std mutex, never held across an `.await` — same discipline as
     /// `control_token`.
     pub recording: std::sync::Mutex<Option<crate::recording::RecordingSession>>,
+    /// Active video-generation session (doc 06 Part B); `None` when idle.
+    /// Same std-mutex discipline as `recording`.
+    pub video: std::sync::Mutex<Option<crate::video::VideoSession>>,
+    /// Last emitted `video:progress`; seeds a freshly opened generator
+    /// window via the `video_progress` command.
+    pub video_progress: std::sync::Mutex<crate::video::GenerationProgress>,
+    /// Recording path handed from the recording window to the next opened
+    /// video-generator window (doc 06 §B7 pre-fill).
+    pub video_pending_recording: std::sync::Mutex<Option<String>>,
     /// Handle of the running HTTP server task, so a port change can restart
     /// it (Phase 5).
     server_task: Mutex<Option<tauri::async_runtime::JoinHandle<()>>>,
@@ -386,6 +395,9 @@ impl AppState {
             control_mutation_gate: RwLock::new(()),
             last_status: Mutex::new(None),
             recording: std::sync::Mutex::new(None),
+            video: std::sync::Mutex::new(None),
+            video_progress: std::sync::Mutex::new(crate::video::GenerationProgress::idle()),
+            video_pending_recording: std::sync::Mutex::new(None),
             server_task: Mutex::new(None),
             settings_save_serial: AtomicU64::new(0),
             presets_save_serial: AtomicU64::new(0),
@@ -900,6 +912,16 @@ impl AppState {
     /// pushed to LAN sockets.
     pub(crate) fn emit_recording_status(&self, status: crate::recording::RecordingStatus) {
         self.emit_app("recording:status", status);
+    }
+
+    /// Emit `video:progress` to all windows and remember it as the latest
+    /// (doc 06 §B5). Desktop-only, like recording.
+    pub(crate) fn emit_video_progress(&self, progress: crate::video::GenerationProgress) {
+        *self
+            .video_progress
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner) = progress.clone();
+        self.emit_app("video:progress", progress);
     }
 
     /// Dispatch only while the supplied control authorization remains valid.

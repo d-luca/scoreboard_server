@@ -1,6 +1,14 @@
 fn main() {
     tauri_build::build();
 
+    // The video generator resolves its bundled ffmpeg sidecar as
+    // `binaries/ffmpeg-<target-triple>[.exe]` under the resource dir
+    // (doc 06 §B3); make the triple available to the crate.
+    println!(
+        "cargo:rustc-env=TARGET_TRIPLE={}",
+        std::env::var("TARGET").expect("TARGET not set")
+    );
+
     // `tauri-build` embeds the Windows manifest (Common-Controls v6, …) only
     // into bin targets. Test binaries then fail at process load with
     // STATUS_ENTRYPOINT_NOT_FOUND (0xc0000139) because they import

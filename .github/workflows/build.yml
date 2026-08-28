@@ -63,8 +63,15 @@ jobs:
           libwebkit2gtk-4.1-dev libxdo-dev libssl-dev
           libayatana-appindicator3-dev librsvg2-dev
       - run: pnpm install --frozen-lockfile
+      # ffmpeg sidecar for the video generator (doc 06 §B3): fetched at
+      # release time (never committed), wired into the bundle via the
+      # TAURI_CONFIG merge below — externalBin entries fail the build when
+      # the file is missing, so it cannot live in the committed config.
+      - run: node scripts/fetch-ffmpeg.mjs
       - uses: tauri-apps/tauri-action@v0
-        env: { GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }}" }
+        env:
+          GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
+          TAURI_CONFIG: '{"bundle":{"externalBin":["binaries/ffmpeg"]}}'
         with:
           tagName: ${{ github.ref_name }}
           releaseName: "Scoreboard Server ${{ github.ref_name }}"

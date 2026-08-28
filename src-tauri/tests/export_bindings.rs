@@ -16,10 +16,15 @@ use scoreboard_server_lib::net::LanAddress;
 use scoreboard_server_lib::presets::{
     MatchPreset, MatchPresetPatch, PresetLibrary, TeamPreset, TeamPresetPatch,
 };
-use scoreboard_server_lib::recording::{RecentRecording, RecordingStatus, RecordingStopped};
+use scoreboard_server_lib::recording::{
+    RecentRecording, RecordingStatus, RecordingStopped, Snapshot,
+};
 use scoreboard_server_lib::settings::{Settings, SettingsPatch};
 use scoreboard_server_lib::state::{
     Action, ScoreboardPatch, ScoreboardState, ServerInfo, ServerStatus,
+};
+use scoreboard_server_lib::video::{
+    GenerationProgress, GenerationStarted, GenerationStep, RecordingMetadata, VideoGenerationConfig,
 };
 use scoreboard_server_lib::windows::AppWindow;
 use ts_rs::TS;
@@ -44,4 +49,10 @@ fn export_bindings() {
     RecordingStatus::export().expect("failed to export RecordingStatus");
     RecordingStopped::export().expect("failed to export RecordingStopped");
     RecentRecording::export().expect("failed to export RecentRecording");
+    Snapshot::export().expect("failed to export Snapshot");
+    VideoGenerationConfig::export().expect("failed to export VideoGenerationConfig");
+    GenerationStep::export().expect("failed to export GenerationStep");
+    GenerationProgress::export().expect("failed to export GenerationProgress");
+    GenerationStarted::export().expect("failed to export GenerationStarted");
+    RecordingMetadata::export().expect("failed to export RecordingMetadata");
 }

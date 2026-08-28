@@ -91,6 +91,14 @@ impl AppWindow {
     /// (doc 06 §B8: with the feature disabled, the window cannot be
     /// opened). Core windows are always enabled.
     pub fn enabled(self) -> bool {
+        // With both features disabled every `cfg!` is `false` and the match
+        // is constant-foldable, tripping clippy's `match_like_matches_macro`;
+        // `matches!` would be wrong here (the arms are feature flags, not
+        // boolean literals). Allow it only for that build.
+        #[cfg_attr(
+            all(not(feature = "recording"), not(feature = "video")),
+            allow(clippy::match_like_matches_macro)
+        )]
         match self {
             Self::Recording => cfg!(feature = "recording"),
             Self::VideoGenerator => cfg!(feature = "video"),

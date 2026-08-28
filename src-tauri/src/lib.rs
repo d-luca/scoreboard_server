@@ -9,16 +9,18 @@ mod server;
 pub mod settings;
 pub mod state;
 mod timer;
+pub mod video;
 pub mod windows;
 
 pub use settings::{Settings, SettingsPatch};
 pub use state::{AppPrefs, AppState, Shared};
 
 use presets::{MatchPreset, MatchPresetPatch, PresetLibrary, TeamPreset, TeamPresetPatch};
-use recording::{RecentRecording, RecordingStatus, RecordingStopped};
+use recording::{RecentRecording, RecordingStatus, RecordingStopped, Snapshot};
 use settings::SettingsPatch as SettingsPatchInput;
 use state::{Action, ScoreboardState, ServerInfo, ServerStatus};
 use tauri::Manager;
+use video::{GenerationProgress, GenerationStarted, RecordingMetadata, VideoGenerationConfig};
 use windows::AppWindow;
 
 /// Start the embedded LAN server (doc 03 §4). Exposed for the
@@ -358,6 +360,153 @@ async fn recording_list_recent(
     Ok(recording::list_recent(&dir))
 }
 
+// --- Video generation (doc 06 Part B, Phase 9) ---
+//
+// Compiled unconditionally like the recording commands (they are
+// unreachable when the `video` Cargo feature gates the menu/window), so CI
+// type-checks them in every configuration.
+
+/// Parse a `.sbrec` / legacy `.json` recording for the generator window's
+/// Recording File card (doc 06 §B7).
+#[tauri::command]
+async fn video_load_recording(path: String) -> Result<RecordingMetadata, String> {
+    video::load_metadata(std::path::Path::new(&path))
+}
+
+/// File picker for the input recording. `None` = cancelled.
+#[tauri::command]
+async fn video_select_recording(app: tauri::AppHandle) -> Result<Option<String>, String> {
+    use tauri_plugin_dialog::DialogExt;
+    let Some(picked) = app
+        .dialog()
+        .file()
+        .add_filter("Scoreboard recordings", &["sbrec", "json"])
+        .blocking_pick_file()
+    else {
+        return Ok(None);
+    };
+    picked
+        .into_path()
+        .map(|path| Some(path.to_string_lossy().into_owned()))
+        .map_err(|error| error.to_string())
+}
+
+/// Save dialog for the WebM output, defaulting to the recording output
+/// directory and `<recording name>.webm`. `None` = cancelled.
+#[tauri::command]
+async fn video_select_output(
+    app: tauri::AppHandle,
+    state: tauri::State<'_, Shared>,
+    default_file_name: String,
+) -> Result<Option<String>, String> {
+    use tauri_plugin_dialog::DialogExt;
+    let dir = recording::configured_output_dir(&app, state.inner()).await;
+    let Some(picked) = app
+        .dialog()
+        .file()
+        .add_filter("WebM video", &["webm"])
+        .set_directory(dir)
+        .set_file_name(&default_file_name)
+        .blocking_save_file()
+    else {
+        return Ok(None);
+    };
+    let path = picked
+        .into_path()
+        .map_err(|error| error.to_string())?
+        .to_string_lossy()
+        .into_owned();
+    // The dialog does not append the filter extension on its own.
+    Ok(Some(if path.to_lowercase().ends_with(".webm") {
+        path
+    } else {
+        format!("{path}.webm")
+    }))
+}
+
+/// Validate, parse, spawn ffmpeg and start the render loop's backend
+/// (doc 06 §B1–B4). The webview pulls snapshots (`video_frames`) and pushes
+/// rendered batches (`video_push_frames`) after this returns.
+#[tauri::command]
+async fn video_generate(
+    config: VideoGenerationConfig,
+    app: tauri::AppHandle,
+    state: tauri::State<'_, Shared>,
+) -> Result<GenerationStarted, String> {
+    video::generate(state.inner(), Some(&app), config)
+}
+
+/// Snapshots `[start, start + count)` for the next render batch.
+#[tauri::command]
+async fn video_frames(
+    start: u64,
+    count: u32,
+    state: tauri::State<'_, Shared>,
+) -> Result<Vec<Snapshot>, String> {
+    video::frames(state.inner(), start, count)
+}
+
+/// One rendered batch as a raw IPC body:
+/// `[u32 LE start][u32 LE frame_count][frame_count × width × height × 4]`.
+/// The frontend passes the `Uint8Array` as the *sole* invoke argument so
+/// Tauri transfers it as `application/octet-stream` instead of expanding it
+/// into a JSON number array (doc 06 §B4).
+#[tauri::command]
+async fn video_push_frames(
+    state: tauri::State<'_, Shared>,
+    request: tauri::ipc::Request<'_>,
+) -> Result<(), String> {
+    match request.body() {
+        tauri::ipc::InvokeBody::Raw(bytes) => video::push_frames(state.inner(), bytes).await,
+        tauri::ipc::InvokeBody::Json(_) => {
+            Err("video_push_frames expects a raw byte payload".into())
+        }
+    }
+}
+
+/// Cancel the active run (doc 06 §B6).
+#[tauri::command]
+async fn video_cancel(state: tauri::State<'_, Shared>) -> Result<(), String> {
+    video::cancel(state.inner())
+}
+
+/// Latest progress — seeds a freshly opened generator window.
+#[tauri::command]
+async fn video_progress(state: tauri::State<'_, Shared>) -> Result<GenerationProgress, String> {
+    Ok(video::progress(state.inner()))
+}
+
+/// Open the video-generator window with a pre-filled recording path
+/// (doc 06 §B7, from the recording window). The path is stashed in state
+/// and picked up by the generator on mount via `video_take_pending_recording`.
+#[tauri::command]
+async fn video_open_with_recording(
+    path: Option<String>,
+    app: tauri::AppHandle,
+    state: tauri::State<'_, Shared>,
+) -> Result<(), String> {
+    *state
+        .video_pending_recording
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner) = path;
+    dispatch_window_op(app, move |app| {
+        windows::open(app, AppWindow::VideoGenerator)
+    })
+    .await
+}
+
+/// Take the pending pre-fill path (one-shot).
+#[tauri::command]
+async fn video_take_pending_recording(
+    state: tauri::State<'_, Shared>,
+) -> Result<Option<String>, String> {
+    Ok(state
+        .video_pending_recording
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner)
+        .take())
+}
+
 /// Windows first-run firewall explainer (doc 07 §4.1): the first `0.0.0.0`
 /// bind raises the Windows Firewall prompt, and choosing the wrong network
 /// profile silently breaks OBS/phone access. Explain once, then persist the
@@ -506,6 +655,16 @@ pub fn run() {
             recording_get_output_dir,
             recording_select_output_dir,
             recording_list_recent,
+            video_load_recording,
+            video_select_recording,
+            video_select_output,
+            video_generate,
+            video_frames,
+            video_push_frames,
+            video_cancel,
+            video_progress,
+            video_open_with_recording,
+            video_take_pending_recording,
         ])
         .build(tauri::generate_context!())
         .expect("error while building tauri application");

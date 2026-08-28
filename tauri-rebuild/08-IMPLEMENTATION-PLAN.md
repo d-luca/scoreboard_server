@@ -382,21 +382,76 @@ line; closing the recording window does not stop the recording.
 
 ---
 
-## Phase 9 — Video generation `[OPTIONAL]` `L`
+## Phase 9 — Video generation `[OPTIONAL]` `L` ✅ **IMPLEMENTED**
 
-Per doc 06 Part B. **The riskiest phase — do it last, and spike it before committing.**
+Per doc 06 Part B.
 
-Suggested order:
+**Implementation notes (decisions taken during P9):**
 
-1. **Spike:** hardcode 10 snapshots, draw them on a canvas, pipe raw frames to a manually
-   invoked ffmpeg, confirm the WebM has alpha in OBS. Do not build any UI yet.
-2. Shared geometry constants module + `renderScoreboardToCanvas` + a visual diff test
-   against the React component.
-3. ffmpeg sidecar bundling and path resolution on both platforms.
-4. Streaming pipeline with batching and backpressure.
-5. Progress reporting and cancellation.
-6. The `video-generator` window UI, opened from `Tools › Video Generator…` and from the
-   recording window.
+- **ffmpeg distribution (open question 4, resolved)**: bundled sidecar +
+  `PATH` fallback. `scripts/fetch-ffmpeg.mjs` downloads a static libvpx build
+  (gyan.dev on Windows, johnvansickle on Linux) into the git-ignored
+  `src-tauri/binaries/` at release time; the CI `bundle` job merges
+  `externalBin` via the `TAURI_CONFIG` env var because a committed
+  `externalBin` entry fails every build where the binary is absent. At
+  runtime `video::resolve_ffmpeg` prefers the resource-dir sidecar and probes
+  `ffmpeg -version` on `PATH` otherwise. ffmpeg is spawned with
+  `std::process::Command` — doc 06 §B3's sanctioned fallback (piped
+  stdin/stdout/stderr, no shell plugin).
+- **`video` joined the default Cargo features**, like `recording`;
+  `--no-default-features` still builds and gates menu/window (doc 06 §B8).
+- **Frame size is 622×80 at scale 1, not 600×80** (doc 06 §B2 refined): the
+  board is 600×80 but its −15° skew widens the bounding box by ~21.4 px; the
+  OBS page already renders it as 600 centered in 622 (`pages/scoreboard.html`).
+  Video frames do the same so the skewed corners are not clipped and the video
+  matches the OBS source pixel-for-pixel. Dimensions are rounded to even for
+  VP9 (e.g. 0.5× → 312×40, 1.5× → 934×120).
+- **Frame transport**: one `Uint8Array` per 30-frame batch as the *sole*
+  invoke argument — Tauri v2 then sends it as a raw
+  `application/octet-stream` body (a typed array nested in a JSON args object
+  is expanded into a JSON number array). Buffer layout:
+  `[u32 LE start][u32 LE frame_count][RGBA frames…]`; `video_push_frames`
+  takes the raw `tauri::ipc::Request`. The awaited pipe write into ffmpeg's
+  stdin is the backpressure: one batch in flight, no frame accumulation, so
+  memory stays flat for a 90-minute recording.
+- **Canvas renderer** (`src/lib/renderScoreboardToCanvas.ts`) shares its
+  geometry constants with the React component via
+  `src/lib/scoreboardGeometry.ts` (doc 06 §B1.1). Text placement reproduces
+  CSS line-box centering exactly — `baseline = center + (ascent − descent)/2`
+  from `fontBoundingBox*` metrics with an alphabetic baseline (canvas
+  `textBaseline: "middle"` is ~6 px off for Anton at 36 px); verified
+  pixel-compared against the DOM component: all glyph ink centers within 0.8 px.
+- **Encoder I/O**: ffmpeg's stdout (`-progress pipe:1`) is drained
+  continuously (a full pipe would deadlock the encode), stderr kept as a
+  bounded 8 KB tail for error messages, and the child is reaped with
+  `try_wait` polling so `cancel` can always `kill` (never a blocking `wait`
+  while holding the child mutex). Cancellation deletes the partial output and
+  emits `{ step: "error", error: "Generation cancelled" }` [PARITY].
+- **Alpha verification caveat**: ffprobe reports the VP9 base stream as
+  `yuv420p` even when alpha is present (it rides in WebM `BlockAdditional`
+  side-data, `alpha_mode: 1`), and ffmpeg's *native* vp9 decoder silently
+  drops it. The e2e test therefore decodes with `-c:v libvpx-vp9` and asserts
+  the decoded alpha channel (~128 from semi-transparent test frames).
+- **Progress bands** exactly as doc 06 §B5 (parse 0–5, render 10–60, encode
+  60–95 via ffmpeg `out_time`, cleanup 95, complete 100), throttled to ~10 Hz
+  except step transitions; the last progress is kept in `AppState` so a
+  freshly opened window seeds from `video_progress`.
+- **UI** per §B7: two cards (Recording File with metadata + raw preview,
+  Video Settings with frame-rate slider+number and the scale select — enabled
+  as 0.5×/1×/2×/3×), progress bar with frame counter, Generate /
+  Generate Again / Reset / destructive Cancel, Reveal-in-folder on success.
+  The recording window's _Generate Video from Recording…_ hands the most
+  recent recording over through `video_open_with_recording` →
+  `video_take_pending_recording`.
+- **Capability**: `dialog:allow-save` joined `default.json` (the output save
+  dialog); the window already had `dialog:allow-open`.
+- **Tests**: 5 unit tests (validation, even rounding, ffmpeg args, metadata,
+  batch validation) + `tests/video_generation.rs` integration: real end-to-end
+  WebM encode with alpha assertion, cancel-kills-ffmpeg + partial cleanup,
+  and generate-twice — auto-skipping when ffmpeg is absent.
+
+**Remaining:** manual verification on Windows + Linux of the full
+window-driven flow (record → generate → OBS), per the cross-cutting DoD.
 
 **Done when:** the acceptance criteria in doc 06 §B8 all pass, notably flat memory usage
 on a 90-minute recording.
@@ -450,5 +505,6 @@ Every phase must satisfy all of:
 3. **`eventLogo`** — dead in the Electron app. Either implement it (upload an image, serve
    it, render it on the left of the board) or delete the field from the schema. Decide
    before P3 freezes the API.
-4. **ffmpeg distribution** — bundle a full build, bundle a minimal custom build, or make
-   the video feature a separate download. Decide before P9.
+4. **ffmpeg distribution** — RESOLVED in P9: bundled sidecar (fetched at release time by
+   `scripts/fetch-ffmpeg.mjs`, wired via `TAURI_CONFIG`-merged `externalBin`) with a
+   `PATH` fallback in development.

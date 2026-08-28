@@ -19,6 +19,10 @@ stays on your local network.
 - **Value endpoint**: `http://<your-ip>:3001/value/timer` (or any other field)
   for ticker-style widgets, formatted `MM:SS`.
 - HTTP API and WebSocket for integrations (see below).
+- **Match recording**: one `.sbrec` snapshot per second, crash-safe,
+  append-only.
+- **Video generation**: turn a recording into a transparent WebM (VP9 with
+  alpha) for OBS stingers, highlights or analysis.
 - Settings (team names, colours, prefix, loadouts, port, buzzer) persist across
   restarts.
 
@@ -81,6 +85,23 @@ on Ubuntu 22.04+).
    old links), or the token requirement can be relaxed in
    **Settings → Server** for trusted networks.
 
+## Match recording & video
+
+**Tools → Recording…** starts a match recording: the full scoreboard state is
+appended to a `.sbrec` file once per second (append-only, so a crash loses at
+most the last second). Closing the recording window never stops the recording —
+the REC badge in the main status bar keeps counting. Recordings land in
+`Documents/ScoreboardRecordings` (configurable in the recording window), and
+legacy `.json` recordings from the Electron app still open.
+
+**Tools → Video Generator…** (or the recording window's
+_Generate Video from Recording…_) replays a recording into a WebM video:
+each second is re-drawn on an offscreen canvas and encoded as VP9 with a
+preserved alpha channel, so the result composites in OBS exactly like the live
+scoreboard page. Frame rate (1–60) and scoreboard scale (0.5×–3×) are
+adjustable. The encoder is a bundled ffmpeg; for development builds, install
+ffmpeg and make sure it is on `PATH`.
+
 ## HTTP API
 
 Base URL `http://<scoreboard-pc-ip>:3001`. CORS is open for GET/POST.
@@ -126,9 +147,19 @@ Common tasks:
 ### Releasing
 
 Bump `version` in `src-tauri/tauri.conf.json`, `package.json` and
-`src-tauri/Cargo.toml`, tag `vX.Y.Z`, push the tag. CI builds the NSIS/MSI and
-AppImage/deb bundles and attaches them to a draft GitHub Release. The manual
-release checklist lives in `tauri-rebuild/07-BUILD-RELEASE.md` §9.
+`src-tauri/Cargo.toml`, tag `vX.Y.Z`, push the tag. CI downloads the ffmpeg
+sidecar (`scripts/fetch-ffmpeg.mjs`), builds the NSIS/MSI and AppImage/deb
+bundles and attaches them to a draft GitHub Release. The manual release
+checklist lives in `tauri-rebuild/07-BUILD-RELEASE.md` §9.
+
+To make a local release build with the bundled ffmpeg:
+
+```bash
+node scripts/fetch-ffmpeg.mjs
+# Windows:  $env:TAURI_CONFIG = '{"bundle":{"externalBin":["binaries/ffmpeg"]}}'
+# Linux:    export TAURI_CONFIG='{"bundle":{"externalBin":["binaries/ffmpeg"]}}'
+pnpm build
+```
 
 ## Troubleshooting
 

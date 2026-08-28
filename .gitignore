@@ -26,3 +26,7 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# ffmpeg sidecar binaries are fetched at release time by
+# scripts/fetch-ffmpeg.mjs (doc 06 §B3); never commit them.
+src-tauri/binaries/

@@ -73,10 +73,12 @@ pub struct RecentRecording {
 /// One per-second capture of the match state (doc 06 §A2.1). Field names are
 /// deliberately short — the line repeats ~5 400 times in a 90-minute match.
 /// Names/colours/prefix repeat on every line so each line is independently
-/// renderable.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+/// renderable. TS-exported for the video generator's render loop (Phase 9).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[ts(export_to = "../../src/bindings/")]
 pub struct Snapshot {
     /// Relative seconds since start, starting at 0.
+    #[ts(type = "number")]
     pub t: u64,
     /// Home score.
     pub hs: u32,

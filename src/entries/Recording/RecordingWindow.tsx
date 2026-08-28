@@ -1,4 +1,5 @@
 import React from "react";
+import { invoke } from "@tauri-apps/api/core";
 import { revealItemInDir } from "@tauri-apps/plugin-opener";
 import { Button } from "@/components/ui/Button/Button";
 import { Card } from "@/components/ui/Card/Card";
@@ -7,7 +8,6 @@ import { CardHeader } from "@/components/ui/Card/CardHeader";
 import { CardTitle } from "@/components/ui/Card/CardTitle";
 import { formatTimer } from "@/lib/format";
 import { useRecordingStore } from "@/lib/stores/recordingStore";
-import { useWindowStore } from "@/lib/stores/windowStore";
 
 function formatSize(bytes: number): string {
 	if (bytes < 1024) return `${bytes} B`;
@@ -30,7 +30,6 @@ export function RecordingWindow(): React.JSX.Element {
 	const start = useRecordingStore((store) => store.start);
 	const stop = useRecordingStore((store) => store.stop);
 	const selectOutputDir = useRecordingStore((store) => store.selectOutputDir);
-	const openWindow = useWindowStore((store) => store.openWindow);
 
 	const [busy, setBusy] = React.useState<"start" | "stop" | "dir" | null>(null);
 	const [message, setMessage] = React.useState<string | null>(null);
@@ -165,13 +164,17 @@ export function RecordingWindow(): React.JSX.Element {
 
 			<footer className="mt-auto flex items-center justify-between gap-3">
 				<p className="text-app-quaternary text-xs">The REC badge in the main window keeps counting.</p>
-				{/* Pre-filling the picked recording lands with the generator itself (Phase 9). */}
+				{/* Pre-fills the most recent recording via the video_pending_recording handoff (doc 06 §B7). */}
 				<Button
 					size="sm"
 					variant="secondary"
 					disabled={isRecording}
-					title="Open the Video Generator with this recording"
-					onClick={() => void openWindow("video-generator")}
+					title="Open the Video Generator with the most recent recording"
+					onClick={() =>
+						void invoke("video_open_with_recording", { path: recents[0]?.filePath ?? null }).catch(
+							(error: unknown) => setMessage(error instanceof Error ? error.message : String(error)),
+						)
+					}
 				>
 					Generate Video from Recording…
 				</Button>

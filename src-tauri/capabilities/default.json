@@ -9,6 +9,7 @@
 		"core:window:allow-close",
 		"core:webview:allow-set-webview-zoom",
 		"dialog:allow-open",
+		"dialog:allow-save",
 		"opener:allow-open-url",
 		"opener:allow-reveal-item-in-dir"
 	]
