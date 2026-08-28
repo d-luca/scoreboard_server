@@ -103,7 +103,10 @@ fn build_presets_menu(app: &AppHandle, library: &PresetLibrary) -> tauri::Result
             .build();
     }
     builder = builder.separator();
-    let start = library.matches.len().saturating_sub(presets::MAX_MENU_FIXTURES);
+    let start = library
+        .matches
+        .len()
+        .saturating_sub(presets::MAX_MENU_FIXTURES);
     for fixture in &library.matches[start..] {
         let label = presets::escape_menu_label(&presets::display_name(library, fixture));
         builder = builder.item(

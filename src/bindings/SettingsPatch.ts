@@ -14,6 +14,11 @@ export type SettingsPatch = {
 	 */
 	buzzerTrackPath?: string | null;
 	buzzerAutoPlay?: boolean;
+	/**
+	 * Nullable vs absent: `None` = leave, `Some(None)` = reset to the
+	 * default directory, `Some(Some(d))` = set.
+	 */
+	recordingOutputDir?: string | null;
 	firewallNoticeShown?: boolean;
 	halfPrefix?: string;
 	teamHomeName?: string;

@@ -327,7 +327,7 @@ surviving overlay enable/disable — the behaviour the Electron app could not de
 
 ---
 
-## Phase 8 — Match recording `[OPTIONAL]` `S`
+## Phase 8 — Match recording `[OPTIONAL]` `S` ✅ **IMPLEMENTED**
 
 Per doc 06 Part A.
 
@@ -335,6 +335,46 @@ Per doc 06 Part A.
 - The **recording window** (doc 06 §A6) opened from `Tools › Recording…`, plus the compact
   overlay strip and the REC badge in the main status bar.
 - Flush-on-exit handling.
+
+**Implementation notes (decisions taken during P8):**
+
+- **`recording.rs`** owns the `.sbrec` writer (header line + one snapshot line/second +
+  trailer), the v1 Electron `.json` importer (`read_recording`, auto-detected by a leading
+  `"version": 2` line), the filename sanitizer (with an all-invalid-input `team` fallback
+  the Electron app lacked) and the recents scanner. The session lives in
+  `AppState.recording` behind a std `Mutex` that is never held across an `.await` (same
+  discipline as `control_token`); `ServerStatus.recording_active` / `recording_seconds`
+  read it directly, and the elapsed seconds come from a monotonic `tokio::time::Instant`
+  so no new atomic is needed.
+- **Tick anchor**: the 1 s ticker is `interval_at(started + 1 s, 1 s)` with
+  `MissedTickBehavior::Burst`. Anchoring at the task's first poll (or using `Delay`) drops
+  boundary-missed ticks, producing `line count < duration` — caught by the paused-time
+  tests; `Burst` backfills missed seconds so the P8 line-count acceptance holds even under
+  scheduler stalls. The first snapshot still lands at +1 s with `t = 0` [PARITY].
+- **Write failures stop cleanly**: a disk-full/unplugged-drive write error makes the tick
+  task finalize the file and stop rather than lose the whole match silently.
+- **`recording:status` is emitted via `emit_app`** (to webviews only) and is deliberately
+  **not** a `ServerEvent`: recording control is desktop-only, so the LAN WS surface is
+  unchanged.
+- **Feature gate**: `default = ["recording"]` in `Cargo.toml` — `pnpm dev` /
+  `pnpm build` compile it in (CI matrix unchanged), and `cargo build --no-default-features`
+  proves the feature-free build stays green (doc 06 §B8). `windows::open` rejects
+  compiled-out windows via `AppWindow::enabled()`, and the Tools menu entry was already
+  `cfg`-gated. Commands are compiled unconditionally (they are unreachable when the UI is
+  gated) so CI still type-checks them.
+- **Exit flush**: the builder was restructured from `…run(…)` to `build()` + `app.run()`
+  so `RunEvent::ExitRequested` writes the trailer and fsyncs synchronously (the tokio
+  runtime is already tearing down — no async there). A verified pre-existing Windows hang
+  when the window is closed during runtime startup (~4 s) is **not** from this change —
+  it reproduces identically on HEAD.
+- **Settings**: `recording_output_dir` (nullable; `None` = `document_dir()/ScoreboardRecordings`,
+  with a home/temp fallback for headless sessions). The recording window's `Change…`
+  button persists it through the same `settings_set` path as everything else.
+- **Compact overlay strip is deferred**: the P7 overlay does not exist yet, so there is
+  nothing to host the strip on. The REC badge in the main status bar (hidden when idle,
+  pulsing red `● REC MM:SS`, click opens the window) covers the parity requirement.
+- New deps: `uuid` (v4 recording ids, per the doc 03 dependency sketch) and `chrono`
+  (ISO-8601 header/trailer stamps) — both were already in the lock tree transitively.
 
 **Done when:** a 20-minute recording produces a file whose line count equals the duration
 in seconds; killing the process mid-recording leaves a readable file missing at most one

@@ -21,7 +21,10 @@ embed-resource = "3"
 
 [features]
 # Optional features (doc 08 phases 7-9). Each gates its menu entries and
-# windows so an optional-feature-free build has a clean menu.
+# windows so an optional-feature-free build has a clean menu. `recording`
+# is on by default since Phase 8; build with `--no-default-features` to
+# compile it out (doc 06 §B8).
+default = ["recording"]
 overlay = []
 recording = []
 video = []
@@ -47,6 +50,9 @@ anyhow = "1"
 rand = "0.8"
 subtle = "2"
 qrcode = { version = "0.14", default-features = false, features = ["svg"] }
+# Phase 8 (recording): recording ids and ISO-8601 header/trailer stamps.
+uuid = { version = "1", features = ["v4"] }
+chrono = { version = "0.4", default-features = false, features = ["clock", "std"] }
 
 [dev-dependencies]
 tokio = { version = "1", features = ["test-util", "macros", "rt"] }

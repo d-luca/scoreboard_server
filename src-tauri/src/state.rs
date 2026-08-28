@@ -313,6 +313,10 @@ pub struct AppState {
     control_mutation_gate: RwLock<()>,
     /// Last emitted `server:status`, to suppress redundant emissions.
     last_status: Mutex<Option<ServerStatus>>,
+    /// Active match-recording session (doc 06 Part A); `None` when idle.
+    /// std mutex, never held across an `.await` — same discipline as
+    /// `control_token`.
+    pub recording: std::sync::Mutex<Option<crate::recording::RecordingSession>>,
     /// Handle of the running HTTP server task, so a port change can restart
     /// it (Phase 5).
     server_task: Mutex<Option<tauri::async_runtime::JoinHandle<()>>>,
@@ -332,7 +336,11 @@ impl AppState {
     /// Used by tests; the app uses [`AppState::with_prefs`].
     #[cfg(test)]
     pub fn new() -> Shared {
-        Self::build(Settings::default(), AppPrefs::default(), PresetLibrary::empty())
+        Self::build(
+            Settings::default(),
+            AppPrefs::default(),
+            PresetLibrary::empty(),
+        )
     }
 
     /// Test helper when a specific settings value is needed.
@@ -377,6 +385,7 @@ impl AppState {
             }),
             control_mutation_gate: RwLock::new(()),
             last_status: Mutex::new(None),
+            recording: std::sync::Mutex::new(None),
             server_task: Mutex::new(None),
             settings_save_serial: AtomicU64::new(0),
             presets_save_serial: AtomicU64::new(0),
@@ -441,14 +450,20 @@ impl AppState {
     /// Snapshot of the live server counters (doc 02 §7.1.1).
     pub fn server_status(&self) -> ServerStatus {
         let port = self.server_port.load(Ordering::Relaxed);
+        let recording = self
+            .recording
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
         ServerStatus {
             running: port != 0,
             port: u16::try_from(port).unwrap_or(0),
             ws_clients: self.ws_clients.load(Ordering::Relaxed),
             authorized_clients: self.authorized_clients.load(Ordering::Relaxed),
             overlay_active: false,
-            recording_active: false,
-            recording_seconds: 0,
+            recording_active: recording.is_some(),
+            recording_seconds: recording
+                .as_ref()
+                .map_or(0, |session| session.duration_secs()),
         }
     }
 
@@ -878,6 +893,13 @@ impl AppState {
         if let Some(app) = self.app.get() {
             let _ = app.emit(event, payload);
         }
+    }
+
+    /// Emit `recording:status` to all windows (doc 06 §A4). Deliberately not
+    /// a [`ServerEvent`]: recording control is desktop-only, so nothing is
+    /// pushed to LAN sockets.
+    pub(crate) fn emit_recording_status(&self, status: crate::recording::RecordingStatus) {
+        self.emit_app("recording:status", status);
     }
 
     /// Dispatch only while the supplied control authorization remains valid.

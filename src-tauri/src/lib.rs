@@ -4,6 +4,7 @@ mod menu;
 // can reach the ts-rs export surface.
 pub mod net;
 pub mod presets;
+pub mod recording;
 mod server;
 pub mod settings;
 pub mod state;
@@ -14,6 +15,7 @@ pub use settings::{Settings, SettingsPatch};
 pub use state::{AppPrefs, AppState, Shared};
 
 use presets::{MatchPreset, MatchPresetPatch, PresetLibrary, TeamPreset, TeamPresetPatch};
+use recording::{RecentRecording, RecordingStatus, RecordingStopped};
 use settings::SettingsPatch as SettingsPatchInput;
 use state::{Action, ScoreboardState, ServerInfo, ServerStatus};
 use tauri::Manager;
@@ -286,6 +288,76 @@ fn track_file_name(path: &str) -> String {
         .unwrap_or_else(|| path.to_string())
 }
 
+// --- Match recording (doc 06 Part A, Phase 8) ---
+
+#[tauri::command]
+async fn recording_start(
+    app: tauri::AppHandle,
+    state: tauri::State<'_, Shared>,
+) -> Result<RecordingStatus, String> {
+    let dir = recording::configured_output_dir(&app, state.inner()).await;
+    recording::start(state.inner(), dir).await
+}
+
+#[tauri::command]
+async fn recording_stop(state: tauri::State<'_, Shared>) -> Result<RecordingStopped, String> {
+    recording::stop(state.inner()).await
+}
+
+#[tauri::command]
+async fn recording_status(state: tauri::State<'_, Shared>) -> Result<RecordingStatus, String> {
+    Ok(recording::status(state.inner()))
+}
+
+#[tauri::command]
+async fn recording_get_output_dir(
+    app: tauri::AppHandle,
+    state: tauri::State<'_, Shared>,
+) -> Result<String, String> {
+    Ok(recording::configured_output_dir(&app, state.inner())
+        .await
+        .to_string_lossy()
+        .into_owned())
+}
+
+/// Folder picker for the recording output directory; persists the choice to
+/// `settings.json` (doc 06 §A3). `None` = cancelled.
+#[tauri::command]
+async fn recording_select_output_dir(
+    app: tauri::AppHandle,
+    state: tauri::State<'_, Shared>,
+) -> Result<Option<String>, String> {
+    use tauri_plugin_dialog::DialogExt;
+    let Some(picked) = app.dialog().file().blocking_pick_folder() else {
+        return Ok(None);
+    };
+    let dir = picked
+        .into_path()
+        .map_err(|error| error.to_string())?
+        .to_string_lossy()
+        .into_owned();
+    state
+        .inner()
+        .settings_set(SettingsPatchInput {
+            recording_output_dir: Some(Some(dir.clone())),
+            ..Default::default()
+        })
+        .await
+        .map_err(|error| error.to_string())?;
+    Ok(Some(dir))
+}
+
+/// Newest `.sbrec` / legacy `.json` files in the output directory, for the
+/// recording window's recent list (doc 06 §A6).
+#[tauri::command]
+async fn recording_list_recent(
+    app: tauri::AppHandle,
+    state: tauri::State<'_, Shared>,
+) -> Result<Vec<RecentRecording>, String> {
+    let dir = recording::configured_output_dir(&app, state.inner()).await;
+    Ok(recording::list_recent(&dir))
+}
+
 /// Windows first-run firewall explainer (doc 07 §4.1): the first `0.0.0.0`
 /// bind raises the Windows Firewall prompt, and choosing the wrong network
 /// profile silently breaks OBS/phone access. Explain once, then persist the
@@ -333,7 +405,7 @@ pub fn run() {
         )
         .init();
 
-    tauri::Builder::default()
+    let app = tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
         .setup(|app| {
@@ -428,7 +500,22 @@ pub fn run() {
             buzzer_get_track,
             buzzer_select_track,
             buzzer_clear_track,
+            recording_start,
+            recording_stop,
+            recording_status,
+            recording_get_output_dir,
+            recording_select_output_dir,
+            recording_list_recent,
         ])
-        .run(tauri::generate_context!())
-        .expect("error while running tauri application");
+        .build(tauri::generate_context!())
+        .expect("error while building tauri application");
+
+    app.run(|handle, event| {
+        // Flush-on-exit (doc 06 §A5): an in-flight recording gets its trailer
+        // and a final flush before the process goes away, so a quit mid-match
+        // loses at most the last second.
+        if let tauri::RunEvent::ExitRequested { .. } = event {
+            recording::flush_on_exit(handle.state::<Shared>().inner());
+        }
+    });
 }

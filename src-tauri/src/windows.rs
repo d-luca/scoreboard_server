@@ -87,6 +87,17 @@ impl AppWindow {
         }
     }
 
+    /// Whether the window's optional Cargo feature is compiled in
+    /// (doc 06 §B8: with the feature disabled, the window cannot be
+    /// opened). Core windows are always enabled.
+    pub fn enabled(self) -> bool {
+        match self {
+            Self::Recording => cfg!(feature = "recording"),
+            Self::VideoGenerator => cfg!(feature = "video"),
+            _ => true,
+        }
+    }
+
     /// `Esc` closes `settings`, `outputs` and `about` (doc 01 §9.2) —
     /// handled in the frontend via `useEscapeToClose`, not here.
     #[allow(dead_code)]
@@ -106,6 +117,14 @@ impl AppWindow {
 /// Open a feature window, or focus it if it is already open. Never allows
 /// two instances of a label.
 pub fn open(app: &AppHandle, which: AppWindow) -> tauri::Result<()> {
+    // An optional feature that was compiled out has no window (doc 06 §B8).
+    if !which.enabled() {
+        return Err(std::io::Error::new(
+            std::io::ErrorKind::Unsupported,
+            format!("{which:?} feature is not compiled in"),
+        )
+        .into());
+    }
     if let Some(window) = app.get_webview_window(which.label()) {
         window.unminimize().ok();
         window.set_focus()?;

@@ -25,7 +25,13 @@ pub async fn scoreboard_page(
     State(shared): State<Shared>,
     headers: HeaderMap,
 ) -> impl IntoResponse {
-    serve_page(&shared, &headers, "pages/scoreboard.html", "scoreboard", None)
+    serve_page(
+        &shared,
+        &headers,
+        "pages/scoreboard.html",
+        "scoreboard",
+        None,
+    )
 }
 
 /// `GET /control?t=<token>` exchanges a valid URL token for an HttpOnly
@@ -86,7 +92,13 @@ pub async fn value_page(
         )
             .into_response();
     }
-    serve_page(&shared, &headers, "pages/value.html", "value", Some(&property))
+    serve_page(
+        &shared,
+        &headers,
+        "pages/value.html",
+        "value",
+        Some(&property),
+    )
 }
 
 /// Everything else: look the path up in the embedded bundle, guess the

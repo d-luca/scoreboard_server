@@ -1,4 +1,5 @@
 import { JSX, useEffect } from "react";
+import { formatTimer } from "../../lib/format";
 import { useScoreboardStore } from "../../lib/stores/desktopScoreboardStore";
 import { useServerStore } from "../../lib/stores/serverStore";
 import { useWindowStore } from "../../lib/stores/windowStore";
@@ -9,8 +10,8 @@ import { StatusButton } from "./StatusButton";
 /**
  * Status strip at the bottom of the main window (doc 04 §7.3).
  *
- * Live connection, timer, server, client, and control-token badges. Overlay
- * and recording badges are added by their optional phases.
+ * Live connection, timer, server, client, control-token and REC badges. The
+ * overlay badge is added by its optional phase.
  */
 export function StatusBar(): JSX.Element {
 	const isTimerRunning = useScoreboardStore((store) => store.state.isTimerRunning);
@@ -29,6 +30,10 @@ export function StatusBar(): JSX.Element {
 	const clients = serverStatus?.wsClients ?? 0;
 	const authorizedClients = serverStatus?.authorizedClients ?? 0;
 	const tokenRequired = serverInfo?.tokenRequired;
+	// REC badge (doc 06 §A6): hidden when idle, pulsing red `● REC MM:SS`
+	// while recording; driven by `ServerStatus.recording*`.
+	const recordingActive = serverStatus?.recordingActive ?? false;
+	const recordingSeconds = serverStatus?.recordingSeconds ?? 0;
 
 	return (
 		<div className="border-app-primary bg-app-secondary flex h-8 shrink-0 items-center gap-3 border-t px-3 text-xs">
@@ -86,6 +91,20 @@ export function StatusBar(): JSX.Element {
 				}
 				onClick={() => void openWindow("settings")}
 			/>
+
+			{/* Recording (doc 04 §7.3) — hidden when idle; opens the Recording window. */}
+			{recordingActive ? (
+				<>
+					<VerticalDivider />
+					<StatusButton
+						active
+						activeColor="bg-error-500 animate-pulse"
+						label={`REC ${formatTimer(recordingSeconds)}`}
+						title={`Recording in progress (${formatTimer(recordingSeconds)}) — click to open the Recording window`}
+						onClick={() => void openWindow("recording")}
+					/>
+				</>
+			) : null}
 		</div>
 	);
 }

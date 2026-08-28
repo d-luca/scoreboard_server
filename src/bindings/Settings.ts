@@ -15,6 +15,11 @@ export type Settings = {
 	buzzerTrackPath: string | null;
 	buzzerAutoPlay: boolean;
 	/**
+	 * [OPTIONAL] Match-recording output directory (doc 06 §A3); `None` =
+	 * `document_dir()/ScoreboardRecordings`.
+	 */
+	recordingOutputDir: string | null;
+	/**
 	 * [NEW] Windows first-run firewall explainer (doc 07 §4.1). Once the
 	 * dialog has been acknowledged it is never shown again.
 	 */

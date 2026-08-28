@@ -3243,6 +3243,7 @@ version = "1.0.0"
 dependencies = [
  "anyhow",
  "axum",
+ "chrono",
  "embed-resource",
  "futures",
  "http-body-util",
@@ -3266,6 +3267,7 @@ dependencies = [
  "tracing",
  "tracing-subscriber",
  "ts-rs",
+ "uuid",
 ]
 
 [[package]]

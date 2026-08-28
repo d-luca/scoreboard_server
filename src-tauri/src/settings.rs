@@ -33,6 +33,9 @@ pub struct Settings {
     /// Custom buzzer track selected by the user; `None` = built-in default.
     pub buzzer_track_path: Option<String>,
     pub buzzer_auto_play: bool,
+    /// [OPTIONAL] Match-recording output directory (doc 06 §A3); `None` =
+    /// `document_dir()/ScoreboardRecordings`.
+    pub recording_output_dir: Option<String>,
     /// [NEW] Windows first-run firewall explainer (doc 07 §4.1). Once the
     /// dialog has been acknowledged it is never shown again.
     pub firewall_notice_shown: bool,
@@ -54,6 +57,7 @@ impl Default for Settings {
             pinned_control_token: None,
             buzzer_track_path: None,
             buzzer_auto_play: true,
+            recording_output_dir: None,
             firewall_notice_shown: false,
             half_prefix: scoreboard.half_prefix,
             team_home_name: scoreboard.team_home_name,
@@ -86,6 +90,10 @@ pub struct SettingsPatch {
     pub buzzer_track_path: Option<Option<String>>,
     #[ts(optional)]
     pub buzzer_auto_play: Option<bool>,
+    /// Nullable vs absent: `None` = leave, `Some(None)` = reset to the
+    /// default directory, `Some(Some(d))` = set.
+    #[ts(optional, type = "string | null")]
+    pub recording_output_dir: Option<Option<String>>,
     #[ts(optional)]
     pub firewall_notice_shown: Option<bool>,
     #[ts(optional)]
@@ -176,6 +184,9 @@ pub fn apply_patch(settings: &mut Settings, patch: SettingsPatch) -> Result<(), 
     }
     if let Some(auto_play) = patch.buzzer_auto_play {
         settings.buzzer_auto_play = auto_play;
+    }
+    if let Some(dir) = patch.recording_output_dir {
+        settings.recording_output_dir = dir.filter(|path| !path.trim().is_empty());
     }
     if let Some(shown) = patch.firewall_notice_shown {
         settings.firewall_notice_shown = shown;
