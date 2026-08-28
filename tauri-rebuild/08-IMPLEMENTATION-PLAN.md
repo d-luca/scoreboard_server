@@ -445,7 +445,12 @@ Per doc 06 Part B.
   `video_take_pending_recording`.
 - **Capability**: `dialog:allow-save` joined `default.json` (the output save
   dialog); the window already had `dialog:allow-open`.
-- **Tests**: 5 unit tests (validation, even rounding, ffmpeg args, metadata,
+- **No console window flash on Windows**: ffmpeg is spawned via a shared
+  `ffmpeg_command` builder that sets `CREATE_NO_WINDOW` (0x08000000) — the
+  installed build is `#![windows_subsystem = "windows"]`, so a plain
+  `Command::new("ffmpeg")` would flash a cmd window on every generation and
+  on the `-version` probe.
+- **Tests**: 6 unit tests (validation, even rounding, ffmpeg args, metadata,
   batch validation) + `tests/video_generation.rs` integration: real end-to-end
   WebM encode with alpha assertion, cancel-kills-ffmpeg + partial cleanup,
   and generate-twice — auto-skipping when ffmpeg is absent.

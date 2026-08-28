@@ -37,6 +37,8 @@
 //! and emits `{ step: "error", error: "Generation cancelled" }`.
 
 use std::io::{BufRead, BufReader, Write};
+#[cfg(windows)]
+use std::os::windows::process::CommandExt;
 use std::path::{Path, PathBuf};
 use std::process::{Child, ChildStdin, ChildStdout, Command, Stdio};
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -81,6 +83,16 @@ const TARGET_TRIPLE: &str = env!("TARGET_TRIPLE");
 const EXE_SUFFIX: &str = ".exe";
 #[cfg(not(windows))]
 const EXE_SUFFIX: &str = "";
+
+/// Build an ffmpeg `Command`. On Windows, `CREATE_NO_WINDOW` stops the
+/// console-subsystem child from flashing a cmd window when spawned from the
+/// GUI app (the installer build is `#![windows_subsystem = "windows"]`).
+fn ffmpeg_command(program: &Path) -> Command {
+    let mut command = Command::new(program);
+    #[cfg(windows)]
+    command.creation_flags(0x08000000); // CREATE_NO_WINDOW
+    command
+}
 
 /// Generation configuration (doc 06 §B2).
 #[derive(Debug, Clone, Deserialize, TS)]
@@ -319,7 +331,7 @@ pub fn resolve_ffmpeg(app: Option<&AppHandle>) -> Option<PathBuf> {
 
 /// Run `ffmpeg -version`; success means the executable works.
 fn probe_ffmpeg(path: &Path) -> Option<PathBuf> {
-    Command::new(path)
+    ffmpeg_command(path)
         .arg("-version")
         .stdin(Stdio::null())
         .stdout(Stdio::null())
@@ -404,7 +416,7 @@ pub fn generate(
     }
 
     let args = ffmpeg_args(width, height, config.frame_rate, &output_path);
-    let mut child = Command::new(&ffmpeg)
+    let mut child = ffmpeg_command(&ffmpeg)
         .args(&args)
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
@@ -874,6 +886,26 @@ mod tests {
         assert!(joined.contains("-c:v libvpx-vp9 -pix_fmt yuva420p -auto-alt-ref 0 -b:v 2M"));
         assert!(joined.contains("-progress pipe:1 -nostats"));
         assert!(joined.ends_with("/tmp/out.webm"));
+    }
+
+    #[test]
+    fn ffmpeg_command_spawns_without_console_window() {
+        // `ffmpeg -version` must succeed through the shared command builder,
+        // which on Windows applies CREATE_NO_WINDOW so the installed GUI app
+        // doesn't flash a cmd window (regression: the bundled build opened a
+        // console on every generation).
+        let Some(ffmpeg) = resolve_ffmpeg(None) else {
+            eprintln!("skipping: ffmpeg not found on PATH");
+            return;
+        };
+        let status = ffmpeg_command(&ffmpeg)
+            .arg("-version")
+            .stdin(Stdio::null())
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .status()
+            .expect("failed to spawn ffmpeg");
+        assert!(status.success());
     }
 
     #[test]
