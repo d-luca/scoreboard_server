@@ -582,9 +582,10 @@ pub fn run() {
             shared.attach_app(app.handle().clone());
             app.manage(shared);
 
-            // Rebuild the native Presets menu whenever the library changes
-            // (debounced, main-thread only — doc 09 §6.1).
-            menu::spawn_presets_menu_rebuilder(app.handle(), app.state::<Shared>().inner().clone());
+            // Rebuild the native menu whenever a menu-rendered value changes:
+            // the preset library or a timer loadout (debounced, main-thread
+            // only — doc 09 §6.1).
+            menu::spawn_menu_rebuilder(app.handle(), app.state::<Shared>().inner().clone());
 
             // Native menu bar on the main window only — never `app.set_menu`,
             // or the frameless overlay windows grow a menu bar [RISK].

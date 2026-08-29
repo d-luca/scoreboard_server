@@ -7,7 +7,6 @@ import { TimerControl } from "./TimerControl";
 import { useScoreboardStore } from "../../lib/stores/desktopScoreboardStore";
 import { useWindowStore } from "../../lib/stores/windowStore";
 import { DEFAULT_HOTKEYS, hotkeyLabel } from "../../lib/hotkeys";
-import { formatTimer } from "../../lib/format";
 
 /**
  * The match-operation control surface (doc 04 §7.2). No `Card` chrome — the
@@ -19,19 +18,12 @@ export function ScoreboardControl(): JSX.Element {
 	const decHome = useScoreboardStore((store) => store.decHome);
 	const incAway = useScoreboardStore((store) => store.incAway);
 	const decAway = useScoreboardStore((store) => store.decAway);
-	const applyLoadout = useScoreboardStore((store) => store.applyLoadout);
 	const reset = useScoreboardStore((store) => store.reset);
 	const openWindow = useWindowStore((store) => store.openWindow);
 
 	const openSettings = (): void => {
 		void openWindow("settings");
 	};
-
-	const loadouts: { slot: 1 | 2 | 3; value: number }[] = [
-		{ slot: 1, value: state.timerLoadout1 },
-		{ slot: 2, value: state.timerLoadout2 },
-		{ slot: 3, value: state.timerLoadout3 },
-	];
 
 	return (
 		<div className="flex size-full flex-col gap-4">
@@ -65,25 +57,6 @@ export function ScoreboardControl(): JSX.Element {
 					<HalfControl />
 				</div>
 			</div>
-
-			{/* Timer loadouts */}
-			{/* <div className="grid grid-cols-3 gap-2 p-3" aria-label="Timer loadout shortcuts">
-				{loadouts.map(({ slot, value }) => {
-					const hotkey = hotkeyLabel(DEFAULT_HOTKEYS[`timerLoadout${slot}`]);
-					return (
-						<Button
-							key={slot}
-							variant="outline"
-							className="flex h-11 flex-col items-center justify-center text-sm whitespace-nowrap"
-							onClick={() => void applyLoadout(slot)}
-							title={`Hotkey: ${hotkey}`}
-						>
-							{`L${slot} ${formatTimer(value)}`}
-							<HotkeyBadge hotkey={hotkey} />
-						</Button>
-					);
-				})}
-			</div> */}
 
 			{/* Reset */}
 			<div className="p-3 pt-0">
