@@ -88,7 +88,7 @@ const EXE_SUFFIX: &str = "";
 /// console-subsystem child from flashing a cmd window when spawned from the
 /// GUI app (the installer build is `#![windows_subsystem = "windows"]`).
 fn ffmpeg_command(program: &Path) -> Command {
-    let mut command = Command::new(program);
+    let command = Command::new(program);
     #[cfg(windows)]
     command.creation_flags(0x08000000); // CREATE_NO_WINDOW
     command
