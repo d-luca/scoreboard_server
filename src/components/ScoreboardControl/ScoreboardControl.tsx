@@ -34,9 +34,9 @@ export function ScoreboardControl(): JSX.Element {
 	];
 
 	return (
-		<div className="flex size-full flex-col">
+		<div className="flex size-full flex-col gap-4">
 			{/* Score & Half row */}
-			<div className="border-app-primary flex items-stretch border-b">
+			<div className="border-app-primary flex h-full items-stretch border-b py-4 pt-0 2xl:max-h-1/3">
 				<TeamControl
 					score={state.teamHomeScore}
 					name={state.teamHomeName}
@@ -46,9 +46,7 @@ export function ScoreboardControl(): JSX.Element {
 					onDecreaseScore={() => void decHome()}
 					onOpenSettings={openSettings}
 				/>
-				<div className="border-app-primary flex max-w-96 min-w-0 flex-1 border-x">
-					<HalfControl />
-				</div>
+
 				<TeamControl
 					score={state.teamAwayScore}
 					name={state.teamAwayName}
@@ -61,12 +59,15 @@ export function ScoreboardControl(): JSX.Element {
 			</div>
 
 			{/* Timer section */}
-			<div className="border-app-primary border-b p-4">
+			<div className="border-app-primary flex h-full border-b py-4 pt-0">
 				<TimerControl />
+				<div className="border-app-primary flex max-w-96 flex-1 border-l">
+					<HalfControl />
+				</div>
 			</div>
 
 			{/* Timer loadouts */}
-			<div className="grid grid-cols-3 gap-2 p-3" aria-label="Timer loadout shortcuts">
+			{/* <div className="grid grid-cols-3 gap-2 p-3" aria-label="Timer loadout shortcuts">
 				{loadouts.map(({ slot, value }) => {
 					const hotkey = hotkeyLabel(DEFAULT_HOTKEYS[`timerLoadout${slot}`]);
 					return (
@@ -82,13 +83,13 @@ export function ScoreboardControl(): JSX.Element {
 						</Button>
 					);
 				})}
-			</div>
+			</div> */}
 
 			{/* Reset */}
-			<div className="mt-auto p-3 pt-0">
+			<div className="p-3 pt-0">
 				<Button
 					variant="destructive"
-					className="flex h-12 w-full flex-col items-center justify-center text-base"
+					className="flex h-16 w-full flex-col items-center justify-center text-base xl:text-2xl"
 					onClick={() => void reset()}
 					title={`Hotkey: ${hotkeyLabel(DEFAULT_HOTKEYS.resetScoreboard)}`}
 				>

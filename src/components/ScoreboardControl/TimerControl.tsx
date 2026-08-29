@@ -32,76 +32,87 @@ export function TimerControl(): JSX.Element {
 	const stopHotkey = hotkeyLabel(DEFAULT_HOTKEYS.stopTimer);
 
 	return (
-		<div className="flex flex-col gap-3">
+		<div className="flex w-full flex-col gap-4 px-4">
 			{/* Timer value + start/stop */}
-			<div className="flex items-center gap-4">
+			<div className="flex w-full items-center justify-center">
 				<div className="flex flex-col">
-					<span className="text-app-secondary text-sm font-semibold tracking-wide uppercase">Timer</span>
-					<span className="text-app-primary text-4xl font-bold tabular-nums">{formatTimer(timer)}</span>
+					<span className="text-app-secondary text-base font-semibold tracking-wide uppercase">Timer</span>
+					<span className="text-app-primary text-center text-5xl font-bold tabular-nums xl:text-6xl 2xl:text-7xl">
+						{formatTimer(timer)}
+					</span>
 				</div>
+			</div>
 
-				<div className="flex flex-1 gap-2">
-					<Button
-						className="flex h-12 flex-1 flex-col items-center justify-center text-base"
-						onClick={handleToggleTimer}
-						disabled={startResetDisabled}
-						title={`Hotkey: ${startPauseHotkey}`}
-					>
-						{isTimerRunning ? "Pause" : "Start"}
-						<HotkeyBadge hotkey={startPauseHotkey} />
-					</Button>
+			<div className="mt-3 flex h-full gap-4">
+				<div className="flex size-full flex-col gap-4">
+					<div className="flex items-center gap-4">
+						<Button
+							className="flex h-full min-h-16 flex-1 flex-col items-center justify-center text-base xl:text-2xl"
+							onClick={handleToggleTimer}
+							disabled={startResetDisabled}
+							title={`Hotkey: ${startPauseHotkey}`}
+						>
+							{isTimerRunning ? "Pause" : "Start"}
+							<HotkeyBadge hotkey={startPauseHotkey} />
+						</Button>
+					</div>
+
+					{/* Time adjustments + Buzzer */}
+					<div className="flex h-full gap-4">
+						<div className="flex w-full flex-col gap-4">
+							<Button
+								variant="destructive"
+								className="flex h-full min-h-16 flex-col items-center justify-center text-base xl:text-2xl"
+								onClick={() => void adjustTimer(-1)}
+								title={`Hotkey: ${hotkeyLabel(DEFAULT_HOTKEYS.decreaseTimerSecond)}`}
+							>
+								-1s
+								<HotkeyBadge hotkey={hotkeyLabel(DEFAULT_HOTKEYS.decreaseTimerSecond)} />
+							</Button>
+							<Button
+								variant="destructive"
+								className="flex h-full min-h-16 flex-col items-center justify-center text-base xl:text-2xl"
+								onClick={() => void adjustTimer(-60)}
+								title={`Hotkey: ${hotkeyLabel(DEFAULT_HOTKEYS.decreaseTimerMinute)}`}
+							>
+								-1m
+								<HotkeyBadge hotkey={hotkeyLabel(DEFAULT_HOTKEYS.decreaseTimerMinute)} />
+							</Button>
+						</div>
+
+						<div className="flex w-full flex-col gap-4">
+							<Button
+								className="flex h-full min-h-16 flex-col items-center justify-center text-base xl:text-2xl"
+								onClick={() => void adjustTimer(1)}
+								title={`Hotkey: ${hotkeyLabel(DEFAULT_HOTKEYS.increaseTimerSecond)}`}
+							>
+								+1s
+								<HotkeyBadge hotkey={hotkeyLabel(DEFAULT_HOTKEYS.increaseTimerSecond)} />
+							</Button>
+							<Button
+								className="flex h-full min-h-16 flex-col items-center justify-center text-base xl:text-2xl"
+								onClick={() => void adjustTimer(60)}
+								title={`Hotkey: ${hotkeyLabel(DEFAULT_HOTKEYS.increaseTimerMinute)}`}
+							>
+								+1m
+								<HotkeyBadge hotkey={hotkeyLabel(DEFAULT_HOTKEYS.increaseTimerMinute)} />
+							</Button>
+						</div>
+					</div>
 					<Button
 						variant="destructive"
-						className="flex h-12 flex-1 flex-col items-center justify-center text-base"
+						className="flex h-full min-h-16 flex-1 flex-col items-center justify-center text-base xl:text-2xl"
 						onClick={() => void stopTimer()}
 						disabled={startResetDisabled}
 						title={`Hotkey: ${stopHotkey}`}
 					>
-						Reset
+						Reset Timer
 						<HotkeyBadge hotkey={stopHotkey} />
 					</Button>
 				</div>
-			</div>
-
-			{/* Time adjustments + Buzzer */}
-			<div className="grid grid-cols-5 gap-2">
-				<Button
-					className="flex h-11 flex-col items-center justify-center text-sm"
-					onClick={() => void adjustTimer(1)}
-					title={`Hotkey: ${hotkeyLabel(DEFAULT_HOTKEYS.increaseTimerSecond)}`}
-				>
-					+1s
-					<HotkeyBadge hotkey={hotkeyLabel(DEFAULT_HOTKEYS.increaseTimerSecond)} />
-				</Button>
-				<Button
-					className="flex h-11 flex-col items-center justify-center text-sm"
-					onClick={() => void adjustTimer(60)}
-					title={`Hotkey: ${hotkeyLabel(DEFAULT_HOTKEYS.increaseTimerMinute)}`}
-				>
-					+1m
-					<HotkeyBadge hotkey={hotkeyLabel(DEFAULT_HOTKEYS.increaseTimerMinute)} />
-				</Button>
-				<Button
-					variant="destructive"
-					className="flex h-11 flex-col items-center justify-center text-sm"
-					onClick={() => void adjustTimer(-1)}
-					title={`Hotkey: ${hotkeyLabel(DEFAULT_HOTKEYS.decreaseTimerSecond)}`}
-				>
-					-1s
-					<HotkeyBadge hotkey={hotkeyLabel(DEFAULT_HOTKEYS.decreaseTimerSecond)} />
-				</Button>
-				<Button
-					variant="destructive"
-					className="flex h-11 flex-col items-center justify-center text-sm"
-					onClick={() => void adjustTimer(-60)}
-					title={`Hotkey: ${hotkeyLabel(DEFAULT_HOTKEYS.decreaseTimerMinute)}`}
-				>
-					-1m
-					<HotkeyBadge hotkey={hotkeyLabel(DEFAULT_HOTKEYS.decreaseTimerMinute)} />
-				</Button>
 				<Button
 					variant="outline"
-					className="flex h-11 flex-col items-center justify-center text-sm"
+					className="flex h-full min-w-32 flex-col items-center justify-center text-base"
 					onClick={() => void playBuzzer()}
 					title="Play buzzer sound"
 				>
