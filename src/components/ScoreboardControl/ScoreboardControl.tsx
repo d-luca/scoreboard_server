@@ -46,7 +46,7 @@ export function ScoreboardControl(): JSX.Element {
 					onDecreaseScore={() => void decHome()}
 					onOpenSettings={openSettings}
 				/>
-				<div className="border-app-primary flex border-x">
+				<div className="border-app-primary flex max-w-96 min-w-0 flex-1 border-x">
 					<HalfControl />
 				</div>
 				<TeamControl
