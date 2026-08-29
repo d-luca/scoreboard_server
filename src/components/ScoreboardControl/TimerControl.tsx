@@ -4,6 +4,9 @@ import { HotkeyBadge } from "../ui/HotkeyBadge";
 import { useScoreboardStore } from "../../lib/stores/desktopScoreboardStore";
 import { DEFAULT_HOTKEYS, hotkeyLabel } from "../../lib/hotkeys";
 import { formatTimer } from "../../lib/format";
+import { BellIcon } from "../icons/BellIcon";
+import { PlayIcon } from "../icons/PlayIcon";
+import { PauseIcon } from "../icons/PauseIcon";
 
 export function TimerControl(): JSX.Element {
 	const timer = useScoreboardStore((store) => store.state.timer);
@@ -52,7 +55,10 @@ export function TimerControl(): JSX.Element {
 							disabled={startResetDisabled}
 							title={`Hotkey: ${startPauseHotkey}`}
 						>
-							{isTimerRunning ? "Pause" : "Start"}
+							<span className="flex items-center gap-2">
+								{isTimerRunning ? <PauseIcon className="size-[1em]" /> : <PlayIcon className="size-[1em]" />}
+								{isTimerRunning ? "Pause" : "Start"}
+							</span>
 							<HotkeyBadge hotkey={startPauseHotkey} />
 						</Button>
 					</div>
@@ -116,6 +122,7 @@ export function TimerControl(): JSX.Element {
 					onClick={() => void playBuzzer()}
 					title="Play buzzer sound"
 				>
+					<BellIcon className="size-8" />
 					Buzzer
 				</Button>
 			</div>
