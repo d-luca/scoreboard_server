@@ -90,7 +90,7 @@ export function OutputsWindow(): React.JSX.Element {
 	};
 
 	return (
-		<div className="bg-app-primary flex min-h-screen w-screen flex-col gap-4 overflow-auto p-4">
+		<div className="bg-app-primary flex min-h-screen w-full min-w-0 flex-col gap-4 overflow-auto p-4">
 			<header className="flex items-baseline justify-between">
 				<h1 className="font-[Poppins] text-xl font-semibold">Outputs &amp; Sharing</h1>
 				<span className="text-app-tertiary text-xs">
@@ -120,7 +120,7 @@ export function OutputsWindow(): React.JSX.Element {
 						</Select>
 					</div>
 				</CardHeader>
-				<CardContent className="p-4 pt-0">
+				<CardContent className="overflow-auto p-4 pt-0">
 					<div className="checkerboard inline-block overflow-hidden rounded">
 						{localScoreboardUrl ? (
 							<iframe

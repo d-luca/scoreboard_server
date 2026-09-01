@@ -53,7 +53,7 @@ export function RecordingWindow(): React.JSX.Element {
 	};
 
 	return (
-		<div className="bg-app-primary flex min-h-screen w-screen flex-col gap-4 overflow-auto p-4">
+		<div className="bg-app-primary flex min-h-screen w-full flex-col gap-4 overflow-auto p-4">
 			<header className="flex items-baseline justify-between">
 				<h1 className="font-[Poppins] text-xl font-semibold">Recording</h1>
 				{isRecording ? (
