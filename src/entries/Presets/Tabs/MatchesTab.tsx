@@ -84,9 +84,17 @@ export function MatchesTab({
 	}, [dirty, onDirtyChange]);
 
 	const discard = React.useCallback(() => {
-		setDraft(baseline);
+		if (creating) {
+			// A new fixture never reaches the backend — discarding closes the draft.
+			setDraft(null);
+			setBaseline(null);
+			setSelectedId(null);
+			setCreating(false);
+		} else {
+			setDraft(baseline);
+		}
 		setError(null);
-	}, [baseline]);
+	}, [creating, baseline]);
 
 	// The window bumps `discardSignal` on the first Esc while dirty.
 	const lastDiscardSignal = React.useRef(discardSignal);
@@ -182,6 +190,33 @@ export function MatchesTab({
 
 	const notEnoughTeams = library.teams.length < 2;
 
+	// The draft, live in the left column: a new fixture shows as its own
+	// "new" badge row from the moment it opens; an edit is flagged
+	// "modified" once it has unsaved changes (name shown live while typing).
+	const editedName =
+		draft === null
+			? "New match"
+			: draft.label.trim() !== ""
+				? draft.label.trim()
+				: (derivedName ??
+					(selectedFixture !== undefined ? matchDisplayName(library, selectedFixture) : "New match"));
+	const pending =
+		draft === null
+			? null
+			: creating
+				? {
+						id: undefined,
+						primary: editedName,
+						swatches: [teamColor(draft.homeTeamId), teamColor(draft.awayTeamId)],
+					}
+				: dirty && selectedId !== null
+					? {
+							id: selectedId,
+							primary: editedName,
+							swatches: [teamColor(draft.homeTeamId), teamColor(draft.awayTeamId)],
+						}
+					: null;
+
 	const teamSelect = (
 		id: string,
 		label: string,
@@ -215,6 +250,7 @@ export function MatchesTab({
 					primary: matchDisplayName(library, fixture),
 					swatches: [teamColor(fixture.homeTeamId), teamColor(fixture.awayTeamId)],
 				}))}
+				pending={pending}
 				selectedId={selectedId}
 				creating={creating}
 				createLabel="+ New match"

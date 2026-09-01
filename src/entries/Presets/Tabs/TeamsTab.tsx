@@ -58,9 +58,17 @@ export function TeamsTab({
 	}, [dirty, onDirtyChange]);
 
 	const discard = React.useCallback(() => {
-		setDraft(baseline);
+		if (creating) {
+			// A new entry never reaches the backend — discarding closes the draft.
+			setDraft(null);
+			setBaseline(null);
+			setSelectedId(null);
+			setCreating(false);
+		} else {
+			setDraft(baseline);
+		}
 		setError(null);
-	}, [baseline]);
+	}, [creating, baseline]);
 
 	// The window bumps `discardSignal` on the first Esc while dirty.
 	const lastDiscardSignal = React.useRef(discardSignal);
@@ -148,6 +156,26 @@ export function TeamsTab({
 			)
 		: [];
 
+	// The draft, live in the left column: a new entry shows as its own
+	// "new" badge row from the moment it opens; an edit is flagged
+	// "modified" once it has unsaved changes (name shown live while typing).
+	const pending =
+		draft === null
+			? null
+			: creating
+				? {
+						id: undefined,
+						primary: trimmedName === "" ? "New team" : trimmedName,
+						swatches: [draft.color],
+					}
+				: dirty && selectedId !== null
+					? {
+							id: selectedId,
+							primary: trimmedName === "" ? (selectedTeam?.name ?? selectedId) : trimmedName,
+							swatches: [draft.color],
+						}
+					: null;
+
 	return (
 		<div className="flex h-full gap-4">
 			<PresetList
@@ -157,6 +185,7 @@ export function TeamsTab({
 					primary: team.name,
 					swatches: [team.color],
 				}))}
+				pending={pending}
 				selectedId={selectedId}
 				creating={creating}
 				createLabel="+ New team"
