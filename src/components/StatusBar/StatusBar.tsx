@@ -15,6 +15,7 @@ import { StatusButton } from "./StatusButton";
  */
 export function StatusBar(): JSX.Element {
 	const isTimerRunning = useScoreboardStore((store) => store.state.isTimerRunning);
+	const timerDirection = useScoreboardStore((store) => store.state.timerDirection);
 	const connection = useScoreboardStore((store) => store.connection);
 	const openWindow = useWindowStore((store) => store.openWindow);
 	const serverStatus = useServerStore((store) => store.status);
@@ -34,6 +35,8 @@ export function StatusBar(): JSX.Element {
 	// while recording; driven by `ServerStatus.recording*`.
 	const recordingActive = serverStatus?.recordingActive ?? false;
 	const recordingSeconds = serverStatus?.recordingSeconds ?? 0;
+	const directionArrow = timerDirection === "up" ? "▲" : "▼";
+	const directionLabel = timerDirection === "up" ? "count up" : "countdown";
 
 	return (
 		<div className="border-app-primary bg-app-secondary flex h-8 shrink-0 items-center gap-3 border-t px-3 text-xs">
@@ -51,8 +54,8 @@ export function StatusBar(): JSX.Element {
 			<StatusDot
 				active={isTimerRunning}
 				activeColor="bg-success-500"
-				label={isTimerRunning ? "▶ running" : "⏸ paused"}
-				title={isTimerRunning ? "Timer is running" : "Timer is paused"}
+				label={`${directionArrow} ${isTimerRunning ? "▶ running" : "⏸ paused"}`}
+				title={`Timer ${directionLabel}: ${isTimerRunning ? "running" : "paused"}`}
 			/>
 
 			<VerticalDivider />

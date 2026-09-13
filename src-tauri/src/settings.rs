@@ -12,7 +12,7 @@ use serde::{Deserialize, Serialize};
 use tauri::{AppHandle, Manager};
 use ts_rs::TS;
 
-use crate::state::ScoreboardState;
+use crate::state::{ScoreboardState, TimerDirection};
 
 /// Current on-disk schema. Bump when the shape changes; `migrate` upgrades.
 pub const SCHEMA_VERSION: u32 = 1;
@@ -45,6 +45,7 @@ pub struct Settings {
     pub team_home_color: String,
     pub team_away_color: String,
     pub timer_loadouts: [u32; 3],
+    pub timer_direction: TimerDirection,
 }
 
 impl Default for Settings {
@@ -69,6 +70,7 @@ impl Default for Settings {
                 scoreboard.timer_loadout2,
                 scoreboard.timer_loadout3,
             ],
+            timer_direction: scoreboard.timer_direction,
         }
     }
 }
@@ -108,6 +110,8 @@ pub struct SettingsPatch {
     pub team_away_color: Option<String>,
     #[ts(optional)]
     pub timer_loadouts: Option<[u32; 3]>,
+    #[ts(optional)]
+    pub timer_direction: Option<TimerDirection>,
 }
 
 /// `app_config_dir()/settings.json`.
@@ -214,6 +218,9 @@ pub fn apply_patch(settings: &mut Settings, patch: SettingsPatch) -> Result<(), 
         settings.timer_loadouts =
             loadouts.map(|loadout| loadout.min(crate::state::MAX_LOADOUT_SECS));
     }
+    if let Some(direction) = patch.timer_direction {
+        settings.timer_direction = direction;
+    }
     Ok(())
 }
 
@@ -249,6 +256,7 @@ pub fn seed_scoreboard(settings: &Settings) -> ScoreboardState {
         timer_loadout1: settings.timer_loadouts[0],
         timer_loadout2: settings.timer_loadouts[1],
         timer_loadout3: settings.timer_loadouts[2],
+        timer_direction: settings.timer_direction,
         ..default
     }
 }
@@ -265,6 +273,9 @@ pub fn apply_to_scoreboard(settings: &Settings, sb: &mut ScoreboardState) {
     sb.timer_loadout1 = settings.timer_loadouts[0];
     sb.timer_loadout2 = settings.timer_loadouts[1];
     sb.timer_loadout3 = settings.timer_loadouts[2];
+    // `timer_direction` is deliberately excluded: it is engine-owned and
+    // applied via `Action::TimerSetDirection` in `settings_set` so the
+    // running timer pauses-and-keeps instead of silently desyncing.
 }
 
 /// Extract the persisted identity fields from the live scoreboard (e.g. a
@@ -276,6 +287,7 @@ pub fn sync_from_scoreboard(settings: &mut Settings, sb: &ScoreboardState) {
     settings.team_away_color = sb.team_away_color.clone();
     settings.half_prefix = sb.half_prefix.clone();
     settings.timer_loadouts = [sb.timer_loadout1, sb.timer_loadout2, sb.timer_loadout3];
+    settings.timer_direction = sb.timer_direction;
 }
 
 fn migrate(settings: &mut Settings) {

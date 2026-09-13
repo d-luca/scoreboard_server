@@ -1,6 +1,8 @@
 import { ColorPicker } from "@/components/ui/ColorPicker";
+import { Button } from "@/components/ui/Button/Button";
 import { DraftInput } from "@/features/remote/RemoteControl/components/DraftInput";
 import { useSettingsStore } from "@/lib/stores/settingsStore";
+import type { TimerDirection } from "@/bindings/TimerDirection";
 import React from "react";
 import { LoadoutInput } from "../LoadoutInput";
 import { SectionHeading } from "../SectionHeading";
@@ -75,7 +77,37 @@ export function ScoreboardTab(): React.JSX.Element {
 			</section>
 
 			<section className="flex flex-col gap-3" aria-labelledby="settings-loadouts">
-				<SectionHeading id="settings-loadouts">Timer Loadouts</SectionHeading>
+				<SectionHeading id="settings-loadouts">Timer</SectionHeading>
+				<Field label="Direction">
+					<div className="flex gap-2" role="group" aria-label="Timer direction">
+						{(
+							[
+								{ value: "down", label: "▼ Countdown" },
+								{ value: "up", label: "▲ Count up" },
+							] as const satisfies ReadonlyArray<{ value: TimerDirection; label: string }>
+						).map(({ value, label }) => {
+							const active = settings.timerDirection === value;
+							return (
+								<Button
+									key={value}
+									type="button"
+									variant={active ? "default" : "outline"}
+									aria-pressed={active}
+									className="flex-1"
+									onClick={() => {
+										if (!active) commit({ timerDirection: value });
+									}}
+								>
+									{label}
+								</Button>
+							);
+						})}
+					</div>
+					<p className="text-app-tertiary text-xs">
+						Countdown buzzes at 00:00. Count up starts from 00:00 and freezes at 99:59:59. Switching pauses
+						the timer and keeps the current value.
+					</p>
+				</Field>
 				<p className="text-app-tertiary text-xs">
 					Durations applied by the L1–L3 buttons. Accepts <code>MM:SS</code>, <code>M:SS</code> or bare
 					seconds.

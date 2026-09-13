@@ -23,6 +23,7 @@ const initialState: ScoreboardState = {
 	halfPrefix: "PERIODO",
 	eventLogo: null,
 	isTimerRunning: false,
+	timerDirection: "down",
 	timerLoadout1: 900,
 	timerLoadout2: 2700,
 	timerLoadout3: 1200,

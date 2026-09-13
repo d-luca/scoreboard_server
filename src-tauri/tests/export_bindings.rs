@@ -21,7 +21,7 @@ use scoreboard_server_lib::recording::{
 };
 use scoreboard_server_lib::settings::{Settings, SettingsPatch};
 use scoreboard_server_lib::state::{
-    Action, ScoreboardPatch, ScoreboardState, ServerInfo, ServerStatus,
+    Action, ScoreboardPatch, ScoreboardState, ServerInfo, ServerStatus, TimerDirection,
 };
 use scoreboard_server_lib::video::{
     GenerationProgress, GenerationStarted, GenerationStep, RecordingMetadata, VideoGenerationConfig,
@@ -35,6 +35,7 @@ fn export_bindings() {
     ScoreboardState::export().expect("failed to export ScoreboardState");
     ScoreboardPatch::export().expect("failed to export ScoreboardPatch");
     Action::export().expect("failed to export Action");
+    TimerDirection::export().expect("failed to export TimerDirection");
     AppWindow::export().expect("failed to export AppWindow");
     LanAddress::export().expect("failed to export LanAddress");
     ServerInfo::export().expect("failed to export ServerInfo");

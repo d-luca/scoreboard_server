@@ -26,6 +26,18 @@ use crate::windows::AppWindow;
 pub const MAX_NAME_LEN: usize = 32;
 pub const MAX_PREFIX_LEN: usize = 24;
 pub const MAX_LOADOUT_SECS: u32 = 359_999; // 99:59:59
+/// Hard ceiling for the count-up timer; it freezes there and keeps running.
+pub const MAX_TIMER_SECS: u32 = MAX_LOADOUT_SECS;
+
+/// Whether the timer counts down to zero (buzzer at 0) or up from zero
+/// (frozen at the [`MAX_TIMER_SECS`] cap, no buzzer).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "kebab-case")]
+#[ts(export_to = "../../src/bindings/")]
+pub enum TimerDirection {
+    Down,
+    Up,
+}
 
 #[derive(Debug, thiserror::Error)]
 pub enum DomainError {
@@ -132,7 +144,8 @@ pub struct ScoreboardState {
     pub team_away_score: u32,
     pub team_home_color: String,
     pub team_away_color: String,
-    /// Seconds remaining on the countdown.
+    /// Seconds shown on the board: remaining when counting down, elapsed
+    /// when counting up.
     pub timer: u32,
     pub half: u32,
     pub half_prefix: String,
@@ -140,6 +153,9 @@ pub struct ScoreboardState {
     pub event_logo: Option<String>,
     /// Read-only for clients; only the timer engine sets it.
     pub is_timer_running: bool,
+    /// Read-only for clients; mutated only via [`Action::TimerSetDirection`]
+    /// (which pauses first) so the running engine can never desync.
+    pub timer_direction: TimerDirection,
     pub timer_loadout1: u32,
     pub timer_loadout2: u32,
     pub timer_loadout3: u32,
@@ -162,6 +178,7 @@ impl Default for ScoreboardState {
             half_prefix: "PERIODO".into(),
             event_logo: None,
             is_timer_running: false,
+            timer_direction: TimerDirection::Down,
             timer_loadout1: 900,
             timer_loadout2: 2700,
             timer_loadout3: 1200,
@@ -170,7 +187,8 @@ impl Default for ScoreboardState {
     }
 }
 
-/// Partial update. Every field except `is_timer_running` and `revision`.
+/// Partial update. Every field except `is_timer_running`, `timer_direction`
+/// and `revision` (both engine-owned, set only via dedicated actions).
 ///
 /// `deny_unknown_fields` is deliberate: the Electron server silently swallowed
 /// typos in `POST /api/scoreboard`. Return 400 with the offending field.
@@ -235,6 +253,11 @@ pub enum Action {
     /// 1 | 2 | 3 — loadout resolution lives server-side.
     TimerLoadout {
         slot: u8,
+    },
+    /// Flip countdown/count-up. The engine pauses first and keeps the
+    /// displayed value; settings mirror it via `settings_set`.
+    TimerSetDirection {
+        direction: TimerDirection,
     },
     BuzzerPlay,
     Reset,
@@ -662,6 +685,9 @@ impl AppState {
         let port_changed = patch.server_port.is_some();
         // Whether the token policy flipped (affects the emitted QR/URLs).
         let token_policy_changed = patch.require_control_token.is_some();
+        // Direction is engine-owned: route it so a running timer pauses and
+        // keeps its value instead of silently flipping underneath.
+        let direction = patch.timer_direction;
 
         let (updated, identity_changed) = {
             let mut settings = self.settings.write().await;
@@ -679,6 +705,20 @@ impl AppState {
             let snapshot = {
                 let mut sb = self.scoreboard.write().await;
                 settings::apply_to_scoreboard(&updated, &mut sb);
+                sb.revision += 1;
+                sb.clone()
+            };
+            self.publish(ServerEvent::State(snapshot));
+        }
+
+        if let Some(direction) = direction {
+            let snapshot = {
+                let mut sb = self.scoreboard.write().await;
+                self.timer.lock().await.apply(
+                    self,
+                    &mut sb,
+                    &Action::TimerSetDirection { direction },
+                );
                 sb.revision += 1;
                 sb.clone()
             };
@@ -1004,7 +1044,8 @@ impl AppState {
                 | Action::TimerStop
                 | Action::TimerSet { .. }
                 | Action::TimerAdjust { .. }
-                | Action::TimerLoadout { .. }) => {
+                | Action::TimerLoadout { .. }
+                | Action::TimerSetDirection { .. }) => {
                     self.timer.lock().await.apply(self, &mut sb, timer_action);
                 }
                 Action::BuzzerPlay => {
@@ -1180,7 +1221,7 @@ fn apply_patch(sb: &mut ScoreboardState, p: ScoreboardPatch) -> Result<(), Domai
     Ok(())
 }
 
-/// `Reset` preserves names, colours, prefix and loadouts [PARITY].
+/// `Reset` preserves names, colours, prefix, direction and loadouts [PARITY].
 fn reset_match(sb: &mut ScoreboardState) {
     sb.team_home_score = 0;
     sb.team_away_score = 0;
