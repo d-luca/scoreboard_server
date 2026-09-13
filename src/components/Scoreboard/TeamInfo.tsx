@@ -1,4 +1,5 @@
 import { JSX } from "react";
+import { RollingScore } from "./RollingScore";
 import { TeamColorRect } from "./TeamColorRect";
 import { VerticalDivider } from "../ui/VerticalDivider";
 
@@ -37,7 +38,7 @@ export function TeamInfo({
 					style={{ transform: "skewX(15deg)" }}
 					data-home-score
 				>
-					{teamHomeScore}
+					<RollingScore value={teamHomeScore} />
 				</div>
 				<div className="h-2/3">
 					<VerticalDivider />
@@ -47,7 +48,7 @@ export function TeamInfo({
 					style={{ transform: "skewX(15deg)" }}
 					data-away-score
 				>
-					{teamAwayScore}
+					<RollingScore value={teamAwayScore} />
 				</div>
 			</div>{" "}
 			<div className="flex items-center justify-between gap-2" style={{ transform: "skewX(15deg)" }}>

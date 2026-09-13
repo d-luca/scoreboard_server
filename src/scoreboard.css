@@ -63,3 +63,82 @@
 body {
 	font-family: "Poppins", sans-serif;
 }
+
+/*
+ * Digit-roll odometer for scores (Scoreboard/TeamInfo + RollingScore.tsx).
+ *
+ * Animate `transform` only — never width/layout — so the board's 15° counter-
+ * skew can never shear a glyph out. Each digit is its own `overflow-hidden`
+ * window in the UPRIGHT (counter-skewed) space, sized to the widest Anton
+ * figure (width:auto) so the number keeps a constant width and never re-lays
+ * out mid-roll. The whole `.score-roll` block is centred by the score cell's
+ * existing flex, so it sits exactly where the static number did.
+ */
+.score-roll {
+	display: inline-flex;
+	align-items: center;
+	line-height: 1;
+}
+
+.score-roll__cell {
+	position: relative;
+	overflow: hidden; /* per-digit clip, upright space */
+	height: 1em;
+	animation: score-roll-enter 260ms ease-out;
+}
+
+/*
+ * Rolling cell: a tile strip animates out; a hidden `final` sits at index 0 so
+ * the resting glyph is ready the instant the animation ends. JS then removes
+ * both, leaving the crisp plain `.score-roll__digit` above.
+ */
+.score-roll__strip {
+	display: block;
+	transform: translateY(0);
+	animation: score-roll-tick var(--t, 460ms) cubic-bezier(0.22, 0.61, 0.36, 1) both;
+}
+
+.score-roll__tile {
+	display: block;
+	height: 1em;
+	line-height: 1;
+	text-align: center;
+}
+
+.score-roll__final {
+	position: absolute;
+	inset: 0;
+	display: block;
+	line-height: 1;
+	text-align: center;
+	opacity: 0;
+	animation: score-roll-show var(--t, 460ms) linear both;
+}
+
+@keyframes score-roll-tick {
+	from {
+		transform: translateY(0);
+	}
+	to {
+		transform: translateY(calc(-1 * var(--roll, 1em)));
+	}
+}
+
+@keyframes score-roll-show {
+	0%,
+	99.99% {
+		opacity: 0;
+	}
+	100% {
+		opacity: 1;
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	/* The component renders plain text when motion is reduced, so these never
+		run; kept as a fallback in case they are reached. */
+	.score-roll__strip,
+	.score-roll__final {
+		animation: none;
+	}
+}
