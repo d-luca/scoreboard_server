@@ -10,6 +10,7 @@ import { PauseIcon } from "../icons/PauseIcon";
 
 export function TimerControl(): JSX.Element {
 	const timer = useScoreboardStore((store) => store.state.timer);
+	const timerDirection = useScoreboardStore((store) => store.state.timerDirection);
 	const isTimerRunning = useScoreboardStore((store) => store.state.isTimerRunning);
 	const startTimer = useScoreboardStore((store) => store.startTimer);
 	const pauseTimer = useScoreboardStore((store) => store.pauseTimer);
@@ -26,8 +27,9 @@ export function TimerControl(): JSX.Element {
 	};
 
 	// Start and Reset are disabled when the timer is at 0 and not running
-	// [PARITY] (doc 04 §7.2).
-	const startResetDisabled = !isTimerRunning && timer === 0;
+	// [PARITY] (doc 04 §7.2) — countdown only; count-up can always start
+	// from 0 (the Rust engine has no zero guard for the up direction).
+	const startResetDisabled = !isTimerRunning && timer === 0 && timerDirection !== "up";
 
 	const startPauseHotkey = hotkeyLabel(
 		isTimerRunning ? DEFAULT_HOTKEYS.pauseTimer : DEFAULT_HOTKEYS.startTimer,

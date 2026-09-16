@@ -19,6 +19,7 @@ function parseManualTimer(value: string): number | null {
 
 export function TimerSection({ store, disabled }: SectionProps): React.JSX.Element {
 	const timer = useStore(store, (current) => current.state.timer);
+	const timerDirection = useStore(store, (current) => current.state.timerDirection);
 	const running = useStore(store, (current) => current.state.isTimerRunning);
 	const timerLoadout1 = useStore(store, (current) => current.state.timerLoadout1);
 	const timerLoadout2 = useStore(store, (current) => current.state.timerLoadout2);
@@ -28,6 +29,8 @@ export function TimerSection({ store, disabled }: SectionProps): React.JSX.Eleme
 	const pause = useStore(store, (current) => current.pauseTimer);
 	const stop = useStore(store, (current) => current.stopTimer);
 	const adjust = useStore(store, (current) => current.adjustTimer);
+	// Countdown cannot start from 0; count-up can (matches TimerEngine).
+	const atZero = !running && timer === 0 && timerDirection !== "up";
 	const setTimer = useStore(store, (current) => current.setTimer);
 	const applyLoadout = useStore(store, (current) => current.applyLoadout);
 
@@ -45,7 +48,7 @@ export function TimerSection({ store, disabled }: SectionProps): React.JSX.Eleme
 					+1s
 				</RemoteButton>
 				<RemoteButton
-					disabled={disabled || (!running && timer === 0)}
+					disabled={disabled || atZero}
 					onClick={() => run(running ? pause() : start())}
 					className="col-span-2 min-[521px]:col-span-1"
 				>
@@ -57,11 +60,7 @@ export function TimerSection({ store, disabled }: SectionProps): React.JSX.Eleme
 				<RemoteButton tone="danger" disabled={disabled} onClick={() => run(adjust(-60))}>
 					−1m
 				</RemoteButton>
-				<RemoteButton
-					tone="danger"
-					disabled={disabled || (!running && timer === 0)}
-					onClick={() => run(stop())}
-				>
+				<RemoteButton tone="danger" disabled={disabled || atZero} onClick={() => run(stop())}>
 					Reset
 				</RemoteButton>
 			</div>

@@ -31,11 +31,18 @@ pub struct TimerEngine {
 
 impl TimerEngine {
     pub fn new() -> Self {
+        Self::with_direction(TimerDirection::Down)
+    }
+
+    /// Same as [`TimerEngine::new`] but with the direction taken from
+    /// persisted settings, so a count-up configuration counts up across
+    /// restarts instead of silently reverting to countdown.
+    pub fn with_direction(direction: TimerDirection) -> Self {
         Self {
             running: false,
             remaining: Duration::ZERO,
             deadline: None,
-            direction: TimerDirection::Down,
+            direction,
             task: None,
         }
     }

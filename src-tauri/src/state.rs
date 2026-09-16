@@ -401,11 +401,16 @@ impl AppState {
             .clone()
             .filter(|token| token.len() == auth::TOKEN_HEX_LEN)
             .unwrap_or_else(auth::generate_token);
+        // The engine direction must match the persisted setting: the
+        // scoreboard already shows it (via `seed_scoreboard`), so a
+        // hardcoded default would make the UI say "count up" while the
+        // engine counts down.
+        let timer_direction = settings.timer_direction;
         Arc::new(AppState {
             scoreboard: RwLock::new(settings::seed_scoreboard(&settings)),
             settings: RwLock::new(settings),
             presets: RwLock::new(presets),
-            timer: Mutex::new(TimerEngine::new()),
+            timer: Mutex::new(TimerEngine::with_direction(timer_direction)),
             events,
             prefs: RwLock::new(prefs),
             server_port: AtomicU32::new(0),
