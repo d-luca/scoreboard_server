@@ -9,7 +9,6 @@ import { useEscapeToClose } from "@/lib/hooks/useEscapeToClose";
 import React from "react";
 import { UrlRow } from "./UrlRow";
 import { SmallButton } from "./SmallButton";
-import { openUrl } from "@tauri-apps/plugin-opener";
 
 function maskControlToken(url: string): string {
 	return url.replace(/([?&]t=)[^&]+/, "$1••••••••••••");
@@ -199,7 +198,6 @@ export function OutputsWindow(): React.JSX.Element {
 									<SmallButton onClick={() => void copy(entry.address, url)}>
 										{copied === entry.address ? "Copied!" : "Copy"}
 									</SmallButton>
-									<SmallButton onClick={() => void openUrl(url)}>Open</SmallButton>
 								</div>
 							);
 						})
@@ -250,9 +248,6 @@ export function OutputsWindow(): React.JSX.Element {
 								onClick={() => controlUrl && void copy("control", controlUrl)}
 							>
 								{copied === "control" ? "Copied!" : "Copy control link"}
-							</SmallButton>
-							<SmallButton disabled={!controlUrl} onClick={() => controlUrl && void openUrl(controlUrl)}>
-								Open
 							</SmallButton>
 							<SmallButton disabled={!info || regeneratingToken} onClick={() => void handleRegenerateToken()}>
 								{regeneratingToken ? "Regenerating…" : "Regenerate token"}
