@@ -39,23 +39,25 @@ export function StatusBar(): JSX.Element {
 	const directionLabel = timerDirection === "up" ? "count up" : "countdown";
 
 	return (
-		<div className="border-app-primary bg-app-secondary flex h-8 shrink-0 items-center gap-3 border-t px-3 text-xs">
+		<div className="border-app-primary bg-app-secondary flex h-10 shrink-0 items-center gap-3 border-t px-3 text-xs">
 			{/* Connection */}
-			<StatusDot
-				active={connection === "connected"}
-				activeColor="bg-success-500"
-				label={connection === "connected" ? "connected" : connection}
-				title={`Backend connection: ${connection}`}
-			/>
-
-			<VerticalDivider />
+			{connection !== "connected" && (
+				<>
+					<StatusDot
+						active
+						activeColor={connection === "connecting" ? "bg-amber-500" : "bg-error-500"}
+						label={connection}
+						title={`Backend connection: ${connection}`}
+					/>
+					<VerticalDivider />
+				</>
+			)}
 
 			{/* Timer source */}
 			<StatusDot
-				active={isTimerRunning}
-				activeColor="bg-success-500"
 				label={`${directionArrow} ${isTimerRunning ? "▶ running" : "⏸ paused"}`}
 				title={`Timer ${directionLabel}: ${isTimerRunning ? "running" : "paused"}`}
+				visibleTitle={"Timer"}
 			/>
 
 			<VerticalDivider />
@@ -67,24 +69,24 @@ export function StatusBar(): JSX.Element {
 				label={running ? `:${port}` : "server down"}
 				title={running ? `HTTP server listening on port ${port}` : "HTTP server is not running"}
 				onClick={() => void openWindow("outputs")}
+				visibleTitle={"Outputs & Sharing"}
 			/>
 
 			{/* Clients */}
 			<StatusButton
 				active={clients > 0}
 				activeColor="bg-success-500"
-				label={clients === 0 ? "no clients" : `${clients} client${clients === 1 ? "" : "s"}`}
+				label={clients.toString()}
 				title={`${clients} WebSocket client${clients === 1 ? "" : "s"} connected; ${authorizedClients} authorized`}
 				onClick={() => void openWindow("outputs")}
+				visibleTitle={"Clients"}
 			/>
 
 			<VerticalDivider />
 
 			{/* Control token — opens Settings › Server. */}
 			<StatusButton
-				active={tokenRequired !== undefined}
-				activeColor={tokenRequired ? "bg-success-500" : "bg-warning-500"}
-				label={tokenRequired === undefined ? "token…" : tokenRequired ? "🔒 protected" : "🔓 open"}
+				label={tokenRequired === undefined ? "token…" : tokenRequired ? "🔒 Required" : "🔓 Not required"}
 				title={
 					tokenRequired === undefined
 						? "Loading control-token status"
@@ -93,6 +95,7 @@ export function StatusBar(): JSX.Element {
 							: "Remote control is open to the LAN"
 				}
 				onClick={() => void openWindow("settings")}
+				visibleTitle={"Control Token"}
 			/>
 
 			{/* Recording (doc 04 §7.3) — hidden when idle; opens the Recording window. */}
@@ -105,6 +108,7 @@ export function StatusBar(): JSX.Element {
 						label={`REC ${formatTimer(recordingSeconds)}`}
 						title={`Recording in progress (${formatTimer(recordingSeconds)}) — click to open the Recording window`}
 						onClick={() => void openWindow("recording")}
+						visibleTitle={"Recording"}
 					/>
 				</>
 			) : null}
