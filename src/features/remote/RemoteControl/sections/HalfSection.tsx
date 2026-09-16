@@ -25,7 +25,7 @@ export function HalfSection({ store, disabled }: SectionProps): React.JSX.Elemen
 					−
 				</RemoteButton>
 				<output
-					className="text-center text-xl font-bold wrap-break-word text-amber-400"
+					className="text-center text-xl font-bold wrap-break-word text-white"
 					aria-label="Current half"
 				>
 					{prefix} {half}

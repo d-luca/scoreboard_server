@@ -34,7 +34,7 @@ export function TimerSection({ store, disabled }: SectionProps): React.JSX.Eleme
 	return (
 		<section className={`${PANEL_CLASS} col-span-12 min-[720px]:col-span-5`} aria-labelledby="timer-heading">
 			<SectionHeading id="timer-heading">Timer</SectionHeading>
-			<div className="remote-timer mb-4 text-center text-5xl font-bold tracking-tight text-amber-400 tabular-nums">
+			<div className="remote-timer mb-4 text-center text-5xl font-bold tracking-tight text-white tabular-nums">
 				{formatTimer(timer)}
 			</div>
 			<div className="grid grid-cols-2 gap-2 min-[521px]:grid-cols-3">
