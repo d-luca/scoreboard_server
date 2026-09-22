@@ -41,12 +41,13 @@ export function TimerSection({ store, disabled }: SectionProps): React.JSX.Eleme
 				{formatTimer(timer)}
 			</div>
 			<div className="grid grid-cols-2 gap-2 min-[521px]:grid-cols-3">
-				<RemoteButton disabled={disabled} onClick={() => run(adjust(60))}>
-					+1m
+				<RemoteButton tone="danger" disabled={disabled} onClick={() => run(adjust(-1))}>
+					−1s
 				</RemoteButton>
 				<RemoteButton disabled={disabled} onClick={() => run(adjust(1))}>
 					+1s
 				</RemoteButton>
+
 				<RemoteButton
 					disabled={disabled || atZero}
 					onClick={() => run(running ? pause() : start())}
@@ -54,11 +55,12 @@ export function TimerSection({ store, disabled }: SectionProps): React.JSX.Eleme
 				>
 					{running ? "Pause" : "Start"}
 				</RemoteButton>
-				<RemoteButton tone="danger" disabled={disabled} onClick={() => run(adjust(-1))}>
-					−1s
-				</RemoteButton>
+
 				<RemoteButton tone="danger" disabled={disabled} onClick={() => run(adjust(-60))}>
 					−1m
+				</RemoteButton>
+				<RemoteButton disabled={disabled} onClick={() => run(adjust(60))}>
+					+1m
 				</RemoteButton>
 				<RemoteButton tone="danger" disabled={disabled || atZero} onClick={() => run(stop())}>
 					Reset
