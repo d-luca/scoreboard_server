@@ -24,6 +24,13 @@ const DURATION_MS = 460;
  *    change; the instant it settles the value re-renders as plain text with no
  *    transform and no `will-change`, exactly as crisp as the original component.
  *
+ * 3. RETARGET MID-TICK. A press that lands while a roll is in flight commits
+ *    the value the roll was heading to and starts a fresh roll from there
+ *    toward the new target. Every rapid press is therefore its own visible
+ *    animation — nothing ever replays a finished one or shows a frozen
+ *    digit — and the number reaches the real score one tick (460 ms) after
+ *    the LAST press instead of after the first.
+ *
  * Steady values are otherwise stateless: React reorders cells by a stable
  * place-from-right key as the digit count grows/shrinks.
  */
@@ -69,41 +76,52 @@ export function RollingScore({ value, animated = true }: RollingScoreProps): JSX
 	);
 
 	// `settled` is the last *committed* (fully-shown) value — written only when
-	// a tick completes, so it is always the value the user last saw. `fromValue`
-	// is non-null for the duration of a tick and is the value the roll animates
-	// FROM. Both are **state, not refs**: they drive what renders, so React's
-	// rules (and the React Compiler) require them to be state. `tickKey` bumps
-	// once per started tick so the rolling strip's <div> key changes and the CSS
-	// animation replays cleanly even on rapid consecutive changes.
+	// a tick completes, so it is always the value the user last saw. While a
+	// tick is in flight, `tickTarget` is the value the roll animates TOWARD and
+	// `fromValue` the value it animates FROM (the previous target when
+	// re-targeted mid-tick) — both null at rest. All three are **state, not
+	// refs**: they drive what renders, so React's rules (and the React Compiler)
+	// require them to be state. `tickKey` bumps once per started tick so the
+	// rolling strip's <div> key changes and the CSS animation restarts cleanly
+	// on every re-target.
 	const [settled, setSettled] = useState<number>(number);
 	const [fromValue, setFromValue] = useState<number | null>(null);
+	const [tickTarget, setTickTarget] = useState<number | null>(null);
 	const [tickKey, setTickKey] = useState(0);
 
-	// Start a tick the moment the target changes. This render-phase state update
-	// is the React-idiomatic "derive from props" pattern — one extra render, no
-	// refs to read during render, no loop: `fromValue` stays non-null for the
-	// whole tick, so subsequent renders (including rapid re-targets mid-tick)
-	// skip this block and reuse the running tick.
-	if (number !== settled && fromValue === null) {
-		setFromValue(settled);
+	// Start (or re-target) a tick the moment the target changes. This
+	// render-phase state update is the React-idiomatic "derive from props"
+	// pattern — one extra render, no refs read during render, no loop. The
+	// guard is `number !== (tickTarget ?? settled)`: at rest it compares
+	// against the committed value, and while rolling it compares against the
+	// target the current roll already heads to, so it fires exactly once per
+	// new value (it is false again on the re-render after `tickTarget` is
+	// captured). A mid-tick press therefore moves `fromValue` to the roll's
+	// previous target and points it at the new value — every rapid press gets
+	// its own restart instead of being swallowed.
+	if (number !== (tickTarget ?? settled)) {
+		setFromValue(tickTarget ?? settled);
+		setTickTarget(number);
 		setTickKey((k) => k + 1);
 	}
 
 	// When the tick duration elapses, commit the target: `settled` moves and
-	// `fromValue` clears → the value re-renders as crisp plain text. The closure
-	// captures the target `number`; the cleanup clears the timer if the effect
-	// re-runs (e.g. rapid re-target), keeping the commit consistent.
+	// the tick state clears → the value re-renders as crisp plain text. The
+	// closure captures the target; the cleanup cancels the stale timer when the
+	// effect re-runs on a mid-tick re-target, so the commit always matches the
+	// latest target (one tick after the LAST press, not the first).
 	useEffect(() => {
-		if (fromValue === null) {
+		if (tickTarget === null) {
 			return;
 		}
-		const target = number;
+		const target = tickTarget;
 		const id = window.setTimeout(() => {
 			setSettled(target);
 			setFromValue(null);
+			setTickTarget(null);
 		}, DURATION_MS);
 		return () => window.clearTimeout(id);
-	}, [fromValue, number]);
+	}, [tickTarget]);
 
 	if (!animated || reduced) {
 		return <>{number}</>;
@@ -139,22 +157,45 @@ export function RollingScore({ value, animated = true }: RollingScoreProps): JSX
 					);
 				}
 
-				const tiles = tilesFor(digit, from, up);
+				const rawTiles = tilesFor(digit, from, up);
+				// Travel direction == value direction. An up roll lays tiles
+				// naturally (from→target) and moves the strip up; a down roll
+				// reverses the tiles (target at top) and moves the strip down,
+				// so new digits enter from the top and decreasing scores read
+				// as a roll down instead of a mirrored roll up.
+				const tiles = up ? rawTiles : [...rawTiles].reverse();
+				const dist = `${tiles.length - 1}em`;
+				// Strip AND final share the tick identity: the final is the
+				// crisp rest-glyph of THIS roll, so a mid-tick re-target must
+				// replace it (restarting its opacity fade) together with the
+				// strip — otherwise a previous target's fade-in keeps running
+				// and ghosts that digit over the newly restarted strip.
+				const tickId = `${display}-${place}-${tickKey}`;
 				return (
 					<div
 						key={place}
 						className="score-roll__cell score-roll__rolling"
 						aria-hidden
-						style={{ "--roll": `${tiles.length - 1}em`, "--t": `${DURATION_MS}ms` } as React.CSSProperties}
+						style={
+							{
+								// Signed travel distance: an up roll goes 0 → `-dist`,
+								// a down roll goes `-dist` → 0 (content shifts down).
+								"--from": up ? "0em" : `calc(-1 * ${dist})`,
+								"--to": up ? `calc(-1 * ${dist})` : "0em",
+								"--t": `${DURATION_MS}ms`,
+							} as React.CSSProperties
+						}
 					>
-						<div className="score-roll__strip" key={`s-${display}-${place}-${tickKey}`}>
+						<div className="score-roll__strip" key={`s-${tickId}`}>
 							{tiles.map((t, ti) => (
 								<div className="score-roll__tile" key={ti}>
 									{t}
 								</div>
 							))}
 						</div>
-						<span className="score-roll__digit score-roll__final">{digit}</span>
+						<span className="score-roll__digit score-roll__final" key={`f-${tickId}`}>
+							{digit}
+						</span>
 					</div>
 				);
 			})}

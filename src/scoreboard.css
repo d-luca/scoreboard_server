@@ -115,12 +115,17 @@ body {
 	animation: score-roll-show var(--t, 460ms) linear both;
 }
 
+/*
+ * Travel between two signed offsets supplied per tick (`--from` / `--to`): an
+ * up roll goes 0 → `-N em` (content up), a down roll goes `-N em` → 0 (content
+ * down). Symmetric so both directions ease identically.
+ */
 @keyframes score-roll-tick {
 	from {
-		transform: translateY(0);
+		transform: translateY(var(--from, 0em));
 	}
 	to {
-		transform: translateY(calc(-1 * var(--roll, 1em)));
+		transform: translateY(var(--to, 0em));
 	}
 }
 
