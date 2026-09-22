@@ -86,6 +86,25 @@ async fn window_close(which: AppWindow, app: tauri::AppHandle) -> Result<(), Str
     dispatch_window_op(app, move |app| windows::close(app, which)).await
 }
 
+/// Startup handshake: the main window stays hidden (tauri.conf.json
+/// `"visible": false`) and a splash window covers the WebView-initialization
+/// gap until the main window's React shell has mounted and invokes this.
+/// Shows `main`, closes `splash`.
+#[tauri::command]
+async fn startup_ready(app: tauri::AppHandle) -> Result<(), String> {
+    dispatch_window_op(app, |app| {
+        if let Some(main_window) = app.get_webview_window("main") {
+            main_window.show()?;
+            main_window.set_focus()?;
+        }
+        if let Some(splash) = app.get_webview_window("splash") {
+            splash.close()?;
+        }
+        Ok(())
+    })
+    .await
+}
+
 #[tauri::command]
 fn window_list(app: tauri::AppHandle) -> Vec<AppWindow> {
     windows::list_open(&app)
@@ -587,6 +606,22 @@ pub fn run() {
             // only — doc 09 §6.1).
             menu::spawn_menu_rebuilder(app.handle(), app.state::<Shared>().inner().clone());
 
+            // Splash window: a tiny static page (no JS bundle) that covers
+            // the gap while the main window's WebView initializes. Closed by
+            // the `startup_ready` command once the main window has mounted.
+            tauri::WebviewWindowBuilder::new(
+                app,
+                "splash",
+                tauri::WebviewUrl::App("/pages/splash.html".into()),
+            )
+            .title("Scoreboard Server")
+            .inner_size(300.0, 180.0)
+            .resizable(false)
+            .decorations(false)
+            .always_on_top(true)
+            .center()
+            .build()?;
+
             // Native menu bar on the main window only — never `app.set_menu`,
             // or the frameless overlay windows grow a menu bar [RISK].
             let menu = menu::build(app.handle())?;
@@ -598,7 +633,7 @@ pub fn run() {
                 // windows.
                 windows::wire_main_window(app.handle(), &main_window);
 
-                main_window.show()?;
+                // Stays hidden until the frontend invokes `startup_ready`.
             }
 
             // Embedded LAN server (doc 03 §4). The bound port is published
@@ -634,6 +669,7 @@ pub fn run() {
             window_open,
             window_close,
             window_list,
+            startup_ready,
             server_get_info,
             server_get_status,
             server_regenerate_token,

@@ -74,6 +74,7 @@ export default defineConfig(async () => ({
 		rollupOptions: {
 			input: {
 				main: fileURLToPath(new URL("./pages/index.html", import.meta.url)),
+				splash: fileURLToPath(new URL("./pages/splash.html", import.meta.url)),
 				settings: fileURLToPath(new URL("./pages/settings.html", import.meta.url)),
 				outputs: fileURLToPath(new URL("./pages/outputs.html", import.meta.url)),
 				about: fileURLToPath(new URL("./pages/about.html", import.meta.url)),

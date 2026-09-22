@@ -1,0 +1,60 @@
+<!doctype html>
+<!--
+	Splash window (tauri-rebuild doc 03 §7bis): shown while the main window's
+	WebView initializes. Pure static HTML/CSS — no JS bundle — so it paints on
+	the first frame. Closed by the `startup_ready` command once the main
+	window has mounted.
+-->
+<html lang="en">
+	<head>
+		<meta charset="UTF-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+		<title>Scoreboard Server</title>
+		<style>
+			html,
+			body {
+				margin: 0;
+				height: 100%;
+				overflow: hidden;
+				background: #0c0c0e;
+				color: #e5e5e8;
+				font-family:
+					system-ui,
+					-apple-system,
+					"Segoe UI",
+					sans-serif;
+				user-select: none;
+				cursor: default;
+			}
+			body {
+				display: flex;
+				flex-direction: column;
+				align-items: center;
+				justify-content: center;
+				gap: 18px;
+			}
+			.spinner {
+				width: 28px;
+				height: 28px;
+				border-radius: 50%;
+				border: 3px solid #2c2c32;
+				border-top-color: #e5e5e8;
+				animation: spin 0.9s linear infinite;
+			}
+			.title {
+				font-size: 15px;
+				font-weight: 600;
+				letter-spacing: 0.02em;
+			}
+			@keyframes spin {
+				to {
+					transform: rotate(360deg);
+				}
+			}
+		</style>
+	</head>
+	<body>
+		<div class="spinner" aria-hidden="true"></div>
+		<div class="title">Scoreboard Server</div>
+	</body>
+</html>

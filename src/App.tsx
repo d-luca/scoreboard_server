@@ -1,4 +1,5 @@
 import { JSX, useEffect } from "react";
+import { invoke } from "@tauri-apps/api/core";
 import { ScoreboardControl } from "./components/ScoreboardControl";
 import { StatusBar } from "./components/StatusBar";
 import { useBuzzerStore } from "./lib/stores/buzzerStore";
@@ -25,6 +26,12 @@ function App(): JSX.Element {
 		void refreshSettings();
 		void refreshBuzzer();
 	}, [connect, refreshWindows, refreshSettings, refreshBuzzer]);
+
+	// Startup handshake: the window was created hidden behind a splash screen
+	// — reveal it now that the React shell has mounted (first paint).
+	useEffect(() => {
+		void invoke("startup_ready").catch(() => {});
+	}, []);
 
 	useLocalHotkeys();
 	useBuzzerPlayback();

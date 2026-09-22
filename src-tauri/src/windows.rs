@@ -8,6 +8,7 @@
 use std::time::Duration;
 
 use serde::{Deserialize, Serialize};
+use tauri::webview::PageLoadEvent;
 use tauri::{AppHandle, Manager, WebviewUrl, WebviewWindow, WebviewWindowBuilder};
 use ts_rs::TS;
 
@@ -146,7 +147,16 @@ pub fn open(app: &AppHandle, which: AppWindow) -> tauri::Result<()> {
             .title(which.title())
             .inner_size(width, height)
             .min_inner_size(min_width, min_height)
-            .resizable(true);
+            .resizable(true)
+            // Hidden until the page finishes loading, so the window never
+            // shows a blank WebView between creation and first paint.
+            .visible(false)
+            .on_page_load(|window, payload| {
+                if payload.event() == PageLoadEvent::Finished {
+                    let _ = window.show();
+                    let _ = window.set_focus();
+                }
+            });
 
     // Restore saved geometry, clamped to a visible monitor. A window saved
     // on a now-absent second screen must not come back unreachable [RISK].
