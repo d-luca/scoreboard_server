@@ -2,6 +2,7 @@ import { JSX, useEffect } from "react";
 import { formatTimer } from "../../lib/format";
 import { useScoreboardStore } from "../../lib/stores/desktopScoreboardStore";
 import { useServerStore } from "../../lib/stores/serverStore";
+import { useSettingsStore } from "../../lib/stores/settingsStore";
 import { useWindowStore } from "../../lib/stores/windowStore";
 import { VerticalDivider } from "../ui/VerticalDivider";
 import { StatusDot } from "./StatusDot";
@@ -21,10 +22,13 @@ export function StatusBar(): JSX.Element {
 	const serverStatus = useServerStore((store) => store.status);
 	const serverInfo = useServerStore((store) => store.info);
 	const refreshServer = useServerStore((store) => store.refresh);
+	const settings = useSettingsStore((store) => store.settings);
+	const refreshSettings = useSettingsStore((store) => store.refresh);
 
 	useEffect(() => {
 		void refreshServer();
-	}, [refreshServer]);
+		void refreshSettings();
+	}, [refreshServer, refreshSettings]);
 
 	const running = serverStatus?.running ?? false;
 	const port = serverStatus?.port ?? 0;
@@ -96,6 +100,25 @@ export function StatusBar(): JSX.Element {
 				}
 				onClick={() => void openWindow("settings")}
 				visibleTitle={"Control Token"}
+			/>
+
+			<VerticalDivider />
+
+			{/* Buzzer auto-play (doc 04 §4.3) — opens Settings › Buzzer. */}
+			<StatusButton
+				// active={settings?.buzzerAutoPlay ?? true}
+				label={
+					settings === null ? "🔊 …" : settings.buzzerAutoPlay ? "🔊 Auto buzzer on" : "🔕 Auto buzzer off"
+				}
+				title={
+					settings === null
+						? "Loading buzzer setting"
+						: settings.buzzerAutoPlay
+							? "The buzzer plays automatically at 00:00"
+							: "The buzzer is muted at 00:00 — manual triggers only"
+				}
+				onClick={() => void openWindow("settings")}
+				visibleTitle={"Buzzer"}
 			/>
 
 			{/* Recording (doc 04 §7.3) — hidden when idle; opens the Recording window. */}
