@@ -69,13 +69,27 @@ pub enum ServerEvent {
 
 /// Geometry of one window, persisted in `window-geometry.json` under the
 /// window label (tauri-rebuild doc 03 §7bis).
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct WindowGeometry {
     pub x: i32,
     pub y: i32,
     pub width: u32,
     pub height: u32,
+    #[serde(default)]
+    pub scale_factor: f64,
+}
+
+impl WindowGeometry {
+    pub fn logical_size(self) -> Option<tauri::LogicalSize<f64>> {
+        (self.scale_factor.is_finite()
+            && self.scale_factor > 0.0
+            && self.width > 0
+            && self.height > 0)
+            .then(|| {
+                tauri::PhysicalSize::new(self.width, self.height).to_logical(self.scale_factor)
+            })
+    }
 }
 
 /// Small persisted app preferences. Written atomically (tmp + rename) and

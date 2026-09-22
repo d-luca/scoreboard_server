@@ -163,18 +163,21 @@ pub fn open(app: &AppHandle, which: AppWindow) -> tauri::Result<()> {
     let saved = app.try_state::<Shared>().and_then(|state| {
         tauri::async_runtime::block_on(async { state.geometry_for(which.label()).await })
     });
-    match saved {
-        Some(geometry) if is_visible(app, geometry) => {
-            builder = builder.position(geometry.x as f64, geometry.y as f64);
-            // Keep the saved size; the default was only a fallback.
-            builder = builder.inner_size(geometry.width as f64, geometry.height as f64);
-        }
-        _ => {
-            builder = builder.center();
-        }
+    if let Some(size) = saved.and_then(WindowGeometry::logical_size) {
+        builder = builder.inner_size(size.width, size.height);
+    }
+    let saved_position = saved.filter(|geometry| is_visible(app, *geometry));
+    if saved_position.is_none() {
+        builder = builder.center();
     }
 
     let window = builder.build()?;
+    if let Some(geometry) = saved_position {
+        window.set_position(tauri::Position::Physical(tauri::PhysicalPosition {
+            x: geometry.x,
+            y: geometry.y,
+        }))?;
+    }
     wire_window_events(app, &window, which);
 
     // Restore the persisted zoom level for this label.
@@ -227,52 +230,70 @@ fn is_visible(app: &AppHandle, geometry: WindowGeometry) -> bool {
     })
 }
 
+fn capture_geometry(window: &WebviewWindow) -> tauri::Result<WindowGeometry> {
+    let position = window.outer_position()?;
+    let scale_factor = window.scale_factor()?;
+    #[cfg(target_os = "linux")]
+    let size = {
+        use gtk::prelude::GtkWindowExt;
+        let (width, height) = window.gtk_window()?.size();
+        tauri::LogicalSize::new(width, height).to_physical::<u32>(scale_factor)
+    };
+    #[cfg(not(target_os = "linux"))]
+    let size = window.inner_size()?;
+    Ok(WindowGeometry {
+        x: position.x,
+        y: position.y,
+        width: size.width,
+        height: size.height,
+        scale_factor,
+    })
+}
+
+fn remember_window_geometry(app: &AppHandle, window: &WebviewWindow) {
+    if !window.is_visible().unwrap_or(false) || window.is_minimized().unwrap_or(true) {
+        return;
+    }
+    let Ok(geometry) = capture_geometry(window) else {
+        return;
+    };
+    if geometry.logical_size().is_none() {
+        return;
+    }
+    let Some(state) = app.try_state::<Shared>() else {
+        return;
+    };
+    let state = (*state).clone();
+    let label = window.label().to_string();
+    tauri::async_runtime::block_on(state.remember_geometry(&label, geometry));
+    tauri::async_runtime::spawn(async move {
+        tokio::time::sleep(GEOMETRY_SAVE_DEBOUNCE).await;
+        if state.geometry_for(&label).await == Some(geometry) {
+            state.persist_prefs().await;
+        }
+    });
+}
+
 /// Persist geometry (debounced) and emit `window:closed` on close.
 fn wire_window_events(app: &AppHandle, window: &WebviewWindow, which: AppWindow) {
     let label = which.label().to_string();
     let app_for_events = app.clone();
-    window.on_window_event(move |event| {
-        match event {
-            tauri::WindowEvent::Moved(_) | tauri::WindowEvent::Resized(_) => {
-                let Some(window) = app_for_events.get_webview_window(&label) else {
-                    return;
-                };
-                let Ok(position) = window.outer_position() else {
-                    return;
-                };
-                let Ok(size) = window.inner_size() else {
-                    return;
-                };
-                let geometry = WindowGeometry {
-                    x: position.x,
-                    y: position.y,
-                    width: size.width,
-                    height: size.height,
-                };
-                let Some(state) = app_for_events.try_state::<Shared>() else {
-                    return;
-                };
-                let state = (*state).clone();
-                let label = label.clone();
-                // Debounce: remember immediately, persist 500 ms after the
-                // last event for this window.
-                tauri::async_runtime::spawn(async move {
-                    state.remember_geometry(&label, geometry).await;
-                    tokio::time::sleep(GEOMETRY_SAVE_DEBOUNCE).await;
-                    // Only persist if this geometry is still the latest.
-                    let current = state.geometry_for(&label).await;
-                    if current == Some(geometry) {
-                        state.persist_prefs().await;
-                    }
-                });
-            }
-            tauri::WindowEvent::CloseRequested { .. } => {
-                if let Some(state) = app_for_events.try_state::<Shared>() {
-                    state.publish(ServerEvent::Window(which, false));
-                }
-            }
-            _ => {}
+    window.on_window_event(move |event| match event {
+        tauri::WindowEvent::Moved(_) | tauri::WindowEvent::Resized(_) => {
+            let Some(window) = app_for_events.get_webview_window(&label) else {
+                return;
+            };
+            remember_window_geometry(&app_for_events, &window);
         }
+        tauri::WindowEvent::CloseRequested { .. } => {
+            if let Some(window) = app_for_events.get_webview_window(&label) {
+                remember_window_geometry(&app_for_events, &window);
+            }
+            if let Some(state) = app_for_events.try_state::<Shared>() {
+                state.publish(ServerEvent::Window(which, false));
+            }
+        }
+        _ => {}
     });
 }
 
@@ -338,10 +359,9 @@ pub fn wire_main_window(app: &AppHandle, window: &WebviewWindow) {
                     x: geometry.x,
                     y: geometry.y,
                 }));
-                let _ = window.set_size(tauri::Size::Physical(tauri::PhysicalSize {
-                    width: geometry.width,
-                    height: geometry.height,
-                }));
+            }
+            if let Some(size) = geometry.logical_size() {
+                let _ = window.set_size(tauri::Size::Logical(size));
             }
         }
         let zoom = tauri::async_runtime::block_on(async { state.zoom_for("main").await });
@@ -355,31 +375,125 @@ pub fn wire_main_window(app: &AppHandle, window: &WebviewWindow) {
     window.on_window_event(move |event| {
         if matches!(
             event,
-            tauri::WindowEvent::Moved(_) | tauri::WindowEvent::Resized(_)
+            tauri::WindowEvent::Moved(_)
+                | tauri::WindowEvent::Resized(_)
+                | tauri::WindowEvent::CloseRequested { .. }
         ) {
             let Some(window) = app_for_events.get_webview_window("main") else {
                 return;
             };
-            let (Ok(position), Ok(size)) = (window.outer_position(), window.inner_size()) else {
-                return;
-            };
-            let geometry = WindowGeometry {
-                x: position.x,
-                y: position.y,
-                width: size.width,
-                height: size.height,
-            };
-            let Some(state) = app_for_events.try_state::<Shared>() else {
-                return;
-            };
-            let state = (*state).clone();
-            tauri::async_runtime::spawn(async move {
-                state.remember_geometry("main", geometry).await;
-                tokio::time::sleep(GEOMETRY_SAVE_DEBOUNCE).await;
-                if state.geometry_for("main").await == Some(geometry) {
-                    state.persist_prefs().await;
-                }
-            });
+            remember_window_geometry(&app_for_events, &window);
         }
     });
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn legacy_geometry_does_not_restore_unreliable_dimensions() {
+        let geometry: WindowGeometry =
+            serde_json::from_str(r#"{"x":0,"y":0,"width":3820,"height":3388}"#).unwrap();
+        assert_eq!(geometry.logical_size(), None);
+    }
+
+    #[test]
+    fn saved_physical_size_converts_using_its_original_scale() {
+        let geometry = WindowGeometry {
+            x: 0,
+            y: 0,
+            width: 1280,
+            height: 960,
+            scale_factor: 2.0,
+        };
+        assert_eq!(
+            geometry.logical_size(),
+            Some(tauri::LogicalSize::new(640.0, 480.0))
+        );
+    }
+
+    #[cfg(target_os = "linux")]
+    #[test]
+    #[ignore = "requires a graphical session; run under Xvfb with GDK_SCALE=2"]
+    fn saved_geometry_survives_repeated_open_and_close() {
+        use std::sync::mpsc;
+        use std::time::Instant;
+
+        let state = crate::state::AppState::new();
+        let mut context = tauri::generate_context!();
+        context.config_mut().app.windows.clear();
+        context.config_mut().build.dev_url = None;
+        let app = tauri::Builder::default()
+            .any_thread()
+            .manage(state.clone())
+            .build(context)
+            .unwrap();
+        let handle = app.handle().clone();
+        let worker = std::thread::spawn(move || {
+            let outcome = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                let monitor = handle.available_monitors().unwrap().remove(0);
+                let size = tauri::LogicalSize::new(640.0, 480.0)
+                    .to_physical::<u32>(monitor.scale_factor());
+                let expected = WindowGeometry {
+                    x: monitor.position().x + 100,
+                    y: monitor.position().y + 100,
+                    width: size.width,
+                    height: size.height,
+                    scale_factor: monitor.scale_factor(),
+                };
+                tauri::async_runtime::block_on(state.remember_geometry("about", expected));
+
+                for iteration in 0..4 {
+                    open(&handle, AppWindow::About).unwrap();
+                    let window = handle.get_webview_window("about").unwrap();
+                    let (sender, receiver) = mpsc::channel();
+                    window.on_window_event(move |event| {
+                        let _ = sender.send(matches!(event, tauri::WindowEvent::Destroyed));
+                    });
+                    window.show().unwrap();
+                    let deadline = Instant::now() + Duration::from_secs(10);
+                    while receiver.recv_timeout(Duration::from_millis(750)).is_ok() {
+                        assert!(Instant::now() < deadline, "window did not settle");
+                    }
+                    assert_eq!(
+                        window
+                            .as_ref()
+                            .size()
+                            .unwrap()
+                            .to_logical::<f64>(window.scale_factor().unwrap()),
+                        expected.logical_size().unwrap(),
+                        "incorrect restored size on opening {iteration}"
+                    );
+                    let saved = tauri::async_runtime::block_on(state.geometry_for("about"))
+                        .expect("geometry was not saved");
+                    assert_eq!(
+                        saved.logical_size(),
+                        expected.logical_size(),
+                        "incorrect saved size on opening {iteration}"
+                    );
+                    close(&handle, AppWindow::About).unwrap();
+                    loop {
+                        if receiver.recv_timeout(Duration::from_secs(5)).unwrap() {
+                            break;
+                        }
+                        assert!(Instant::now() < deadline, "window did not close");
+                    }
+                }
+            }));
+            handle.exit(0);
+            outcome
+        });
+        app.run_return(|_, event| {
+            if let tauri::RunEvent::ExitRequested {
+                code: None, api, ..
+            } = event
+            {
+                api.prevent_exit();
+            }
+        });
+        if let Err(payload) = worker.join().unwrap() {
+            std::panic::resume_unwind(payload);
+        }
+    }
 }

@@ -3246,6 +3246,7 @@ dependencies = [
  "chrono",
  "embed-resource",
  "futures",
+ "gtk",
  "http-body-util",
  "if-addrs",
  "mime_guess",
