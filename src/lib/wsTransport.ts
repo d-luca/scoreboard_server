@@ -20,6 +20,20 @@ type StatusCallback = (status: ConnectionStatus) => void;
 type AuthorizationCallback = (status: AuthorizationStatus) => void;
 type EventCallback = () => void;
 
+/**
+ * True when this page is rendered inside an iframe — the app's Outputs
+ * window preview. Embedded pages tell the server so the clients counter
+ * (`ws_clients`) counts external viewers only.
+ */
+function isEmbeddedPage(): boolean {
+	try {
+		// Reference comparison is cross-origin safe (property access is not).
+		return window.top !== window.self;
+	} catch {
+		return true;
+	}
+}
+
 export class WsTransport implements Transport {
 	private socket: WebSocket | null = null;
 	private stateCallbacks = new Set<StateCallback>();
@@ -31,8 +45,12 @@ export class WsTransport implements Transport {
 	private closed = false;
 	private currentStatus: ConnectionStatus = "connecting";
 	private currentAuthorization: AuthorizationStatus = "unknown";
+	private readonly wsUrl: string;
 
-	constructor(private readonly url: string) {
+	constructor(url: string) {
+		// Pages embedded in an iframe (the Outputs preview) are app
+		// plumbing, not external clients.
+		this.wsUrl = isEmbeddedPage() ? `${url}${url.includes("?") ? "&" : "?"}internal=1` : url;
 		this.open();
 	}
 
@@ -106,7 +124,7 @@ export class WsTransport implements Transport {
 		this.setAuthorization("unknown");
 		let socket: WebSocket;
 		try {
-			socket = new WebSocket(this.url);
+			socket = new WebSocket(this.wsUrl);
 		} catch {
 			this.setStatus("disconnected");
 			this.scheduleReconnect();

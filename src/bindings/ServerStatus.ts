@@ -8,7 +8,10 @@ export type ServerStatus = {
 	running: boolean;
 	port: number;
 	/**
-	 * Currently connected WebSocket clients.
+	 * Currently connected **external** WebSocket clients (OBS sources,
+	 * phones, remote dashboards). In-app connections — the Outputs window's
+	 * scoreboard-preview iframe — are excluded so the gauge reflects real
+	 * LAN viewers, not app plumbing.
 	 */
 	wsClients: number;
 	/**

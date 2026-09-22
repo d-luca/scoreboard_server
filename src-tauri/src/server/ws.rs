@@ -46,15 +46,26 @@ pub async fn handler(
 ) -> impl IntoResponse {
     let query_token = auth::query_token(raw_query.as_deref()).map(str::to_owned);
     let authorization = auth::check(&shared, &headers, query_token.as_deref()).await;
-    ws.on_upgrade(move |socket| client_loop(socket, shared, authorization))
+    let internal = is_internal_query(raw_query.as_deref());
+    ws.on_upgrade(move |socket| client_loop(socket, shared, authorization, internal))
+}
+
+/// Internal (in-app) connections — the scoreboard-preview iframe embedded
+/// in the Outputs window — mark themselves so the `ws_clients` gauge
+/// counts external viewers only.
+fn is_internal_query(raw_query: Option<&str>) -> bool {
+    raw_query.is_some_and(|query| {
+        query
+            .split('&')
+            .any(|pair| pair == "internal=1" || pair == "internal=true")
+    })
 }
 
 /// Decrements the client gauge on drop, even if the loop panics — a
 /// panicking or abruptly closed connection cannot leak the count [NEW].
 struct ClientGuard {
     shared: Shared,
-    authorization: Option<Authorization>,
-}
+    authorization: Option<Authorization>,    internal: bool,}
 
 impl ClientGuard {
     async fn downgrade(&mut self) {
@@ -68,22 +79,29 @@ impl Drop for ClientGuard {
     fn drop(&mut self) {
         let shared = self.shared.clone();
         let authorization = self.authorization;
+        let internal = self.internal;
         // `Drop` is sync; spawn the counter update + status emission.
         tauri::async_runtime::spawn(async move {
-            shared.ws_client_disconnected(authorization).await;
+            shared.ws_client_disconnected(authorization, internal).await;
         });
     }
 }
 
-async fn client_loop(socket: WebSocket, shared: Shared, authorization: Option<Authorization>) {
+async fn client_loop(
+    socket: WebSocket,
+    shared: Shared,
+    authorization: Option<Authorization>,
+    internal: bool,
+) {
     let (mut sink, mut stream) = socket.split();
     // Subscribe before validating the generation so regeneration cannot land
     // in the gap and leave an old authorization active.
     let mut events = shared.events.subscribe();
-    let mut authorization = shared.ws_client_connected(authorization).await;
+    let mut authorization = shared.ws_client_connected(authorization, internal).await;
     let mut guard = ClientGuard {
         shared: shared.clone(),
         authorization,
+        internal,
     };
     let mut heartbeat = tokio::time::interval(HEARTBEAT_INTERVAL);
     let mut bucket = TokenBucket::new();
@@ -457,6 +475,48 @@ mod tests {
             .unwrap();
         let update = receive_json(&mut cookie_authorized).await;
         assert_eq!(update["data"]["teamAwayScore"], 1);
+
+        server.abort();
+    }
+
+    /// Poll until `predicate` holds — disconnect handling is spawned on the
+    /// server side, so gauges settle asynchronously.
+    async fn wait_for(predicate: impl Fn() -> bool) {
+        let deadline = Instant::now() + Duration::from_secs(3);
+        while !predicate() {
+            assert!(Instant::now() < deadline, "condition never held");
+            tokio::time::sleep(Duration::from_millis(20)).await;
+        }
+    }
+
+    #[tokio::test]
+    async fn internal_connections_do_not_count_as_clients() {
+        use tokio_tungstenite::connect_async;
+
+        let shared = crate::state::AppState::new();
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let address = listener.local_addr().unwrap();
+        let app = crate::server::router(shared.clone());
+        let server = tokio::spawn(async move {
+            axum::serve(listener, app).await.unwrap();
+        });
+
+        // The in-app preview iframe's handshake: excluded from the gauge.
+        let (mut internal, _) = connect_async(format!("ws://{address}/ws?internal=1"))
+            .await
+            .unwrap();
+        assert_eq!(receive_json(&mut internal).await["type"], "state");
+        assert_eq!(shared.server_status().ws_clients, 0);
+
+        // …while a real external connection still counts.
+        let (mut external, _) = connect_async(format!("ws://{address}/ws")).await.unwrap();
+        let _ = receive_json(&mut external).await;
+        assert_eq!(shared.server_status().ws_clients, 1);
+
+        drop(internal);
+        wait_for(|| shared.server_status().ws_clients == 1).await; // stable: 1, not 0 then 1
+        drop(external);
+        wait_for(|| shared.server_status().ws_clients == 0).await;
 
         server.abort();
     }

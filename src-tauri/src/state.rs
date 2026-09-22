@@ -271,7 +271,10 @@ pub enum Action {
 pub struct ServerStatus {
     pub running: bool,
     pub port: u16,
-    /// Currently connected WebSocket clients.
+    /// Currently connected **external** WebSocket clients (OBS sources,
+    /// phones, remote dashboards). In-app connections — the Outputs window's
+    /// scoreboard-preview iframe — are excluded so the gauge reflects real
+    /// LAN viewers, not app plumbing.
     pub ws_clients: u32,
     /// Connected WebSocket clients currently permitted to send commands.
     pub authorized_clients: u32,
@@ -516,13 +519,20 @@ impl AppState {
     }
 
     /// Bump the connected-client gauges and republish `server:status`.
-    /// Authorization registration is serialized with token replacement so an
-    /// old handshake cannot increment the new generation's gauge.
+    /// Authentication registration is serialized with token replacement so an
+    /// stale handshake cannot increment the new generation's gauge.
+    ///
+    /// `internal` clients (e.g. the app's own scoreboard-preview iframe) do
+    /// not count toward `ws_clients` — they are app plumbing, not external
+    /// viewers — but they still get state and authorization treatment.
     pub async fn ws_client_connected(
         self: &Arc<Self>,
         authorization: Option<Authorization>,
+        internal: bool,
     ) -> Option<Authorization> {
-        self.ws_clients.fetch_add(1, Ordering::Relaxed);
+        if !internal {
+            self.ws_clients.fetch_add(1, Ordering::Relaxed);
+        }
         let authorization = {
             let token = self
                 .control_token
@@ -544,8 +554,16 @@ impl AppState {
         self.publish_server_status().await;
     }
 
-    pub async fn ws_client_disconnected(self: &Arc<Self>, authorization: Option<Authorization>) {
-        decrement_gauge(&self.ws_clients);
+    /// Mirror of [`ws_client_connected`]: only external clients ever touched
+    /// the `ws_clients` gauge, so only they may decrement it.
+    pub async fn ws_client_disconnected(
+        self: &Arc<Self>,
+        authorization: Option<Authorization>,
+        internal: bool,
+    ) {
+        if !internal {
+            decrement_gauge(&self.ws_clients);
+        }
         if let Some(authorization) = authorization {
             self.decrement_authorized_if_current(authorization);
         }
