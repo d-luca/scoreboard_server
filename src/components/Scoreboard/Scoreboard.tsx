@@ -10,7 +10,8 @@ import { Timer } from "./Timer";
  * (doc 04 §6). Must render pixel-identical at 600×80.
  *
  * All props are optional with the documented fallbacks (names "T-H"/"T-A",
- * colours #00ff00/#ff0000, scores 0, timer 0, half 1).
+ * colours #00ff00/#ff0000, scores 0, timer 0, half 1). `scoreAnimation`
+ * defaults to true — the setting's default.
  */
 export type ScoreboardProps = Partial<
 	Pick<
@@ -26,7 +27,10 @@ export type ScoreboardProps = Partial<
 		| "halfPrefix"
 		| "eventLogo"
 	>
->;
+> & {
+	/** Odometer scroll on score changes; `false` renders static digits. */
+	scoreAnimation?: boolean;
+};
 
 export function Scoreboard({
 	eventLogo,
@@ -39,6 +43,7 @@ export function Scoreboard({
 	teamAwayScore,
 	teamHomeScore,
 	timer,
+	scoreAnimation = true,
 }: ScoreboardProps): JSX.Element {
 	return (
 		<div
@@ -61,6 +66,7 @@ export function Scoreboard({
 				teamHomeScore={teamHomeScore ?? 0}
 				teamAwayColor={teamAwayColor ?? "#ff0000"}
 				teamHomeColor={teamHomeColor ?? "#00ff00"}
+				scoreAnimation={scoreAnimation}
 			/>
 		</div>
 	);

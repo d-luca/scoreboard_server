@@ -46,6 +46,9 @@ pub struct Settings {
     pub team_away_color: String,
     pub timer_loadouts: [u32; 3],
     pub timer_direction: TimerDirection,
+    /// [NEW] Odometer-style score roll on the board; `false` switches the
+    /// scores to a static readout (OBS + desktop + `/value` pages follow).
+    pub score_animation_enabled: bool,
 }
 
 impl Default for Settings {
@@ -71,6 +74,7 @@ impl Default for Settings {
                 scoreboard.timer_loadout3,
             ],
             timer_direction: scoreboard.timer_direction,
+            score_animation_enabled: true,
         }
     }
 }
@@ -112,6 +116,8 @@ pub struct SettingsPatch {
     pub timer_loadouts: Option<[u32; 3]>,
     #[ts(optional)]
     pub timer_direction: Option<TimerDirection>,
+    #[ts(optional)]
+    pub score_animation_enabled: Option<bool>,
 }
 
 /// `app_config_dir()/settings.json`.
@@ -220,6 +226,9 @@ pub fn apply_patch(settings: &mut Settings, patch: SettingsPatch) -> Result<(), 
     }
     if let Some(direction) = patch.timer_direction {
         settings.timer_direction = direction;
+    }
+    if let Some(enabled) = patch.score_animation_enabled {
+        settings.score_animation_enabled = enabled;
     }
     Ok(())
 }

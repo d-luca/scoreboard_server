@@ -20,6 +20,7 @@ const useStore = createScoreboardStore(transport);
 
 function ScoreboardView(): React.JSX.Element {
 	const state = useStore((store) => store.state);
+	const scoreAnimation = useStore((store) => store.scoreAnimation);
 	const connect = useStore((store) => store.connect);
 
 	React.useEffect(() => {
@@ -32,7 +33,7 @@ function ScoreboardView(): React.JSX.Element {
 		void document.fonts.load('400 32px "Anton"');
 	}, []);
 
-	return <Scoreboard {...state} />;
+	return <Scoreboard {...state} scoreAnimation={scoreAnimation} />;
 }
 
 ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(

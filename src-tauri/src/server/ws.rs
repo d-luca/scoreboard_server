@@ -65,7 +65,9 @@ fn is_internal_query(raw_query: Option<&str>) -> bool {
 /// panicking or abruptly closed connection cannot leak the count [NEW].
 struct ClientGuard {
     shared: Shared,
-    authorization: Option<Authorization>,    internal: bool,}
+    authorization: Option<Authorization>,
+    internal: bool,
+}
 
 impl ClientGuard {
     async fn downgrade(&mut self) {
@@ -105,6 +107,10 @@ async fn client_loop(
     };
     let mut heartbeat = tokio::time::interval(HEARTBEAT_INTERVAL);
     let mut bucket = TokenBucket::new();
+    // Last `scoreAnimationEnabled` value this client was shown, so the
+    // `score-animation` frame is re-sent only on an actual flip — a settings
+    // edit to an unrelated field must not re-tick the LAN board.
+    let mut last_score_animation_enabled = shared.settings_snapshot().await.score_animation_enabled;
 
     // 1. Send the current state frame immediately after the upgrade.
     if send_state(&mut sink, &shared.current().await)
@@ -145,10 +151,29 @@ async fn client_loop(
                             if send_authorization(&mut sink, false).await.is_err() { break; }
                         }
                     }
-                    // Desktop-only: LAN clients learn everything they need
-                    // from the full-state frames (a preset load reaches them
-                    // as `settings:changed` + a state frame).
-                    Ok(ServerEvent::Window(..) | ServerEvent::Settings(_) | ServerEvent::Presets(_)) => {}
+                    // Only the presentation knob the LAN board consumes is
+                    // forwarded, and only when it actually flips — typing a
+                    // team name must not re-tick the board. The initial value
+                    // is part of the page bootstrap (doc assets), so no
+                    // connect-time frame is needed.
+                    Ok(ServerEvent::Settings(settings)) => {
+                        let animation = settings.score_animation_enabled;
+                        if animation != last_score_animation_enabled {
+                            last_score_animation_enabled = animation;
+                            if send_json(
+                                &mut sink,
+                                &serde_json::json!({
+                                    "type": "event", "event": "score-animation", "enabled": animation
+                                }),
+                            )
+                            .await
+                            .is_err()
+                            {
+                                break;
+                            }
+                        }
+                    }
+                    Ok(ServerEvent::Window(..) | ServerEvent::Presets(_)) => {}
                     // A lagging client missed frames: resync with a fresh
                     // full state instead of replaying the backlog.
                     Err(RecvError::Lagged(skipped)) => {
@@ -517,6 +542,68 @@ mod tests {
         wait_for(|| shared.server_status().ws_clients == 1).await; // stable: 1, not 0 then 1
         drop(external);
         wait_for(|| shared.server_status().ws_clients == 0).await;
+
+        server.abort();
+    }
+
+    #[tokio::test]
+    async fn score_animation_disable_reaches_lan_clients() {
+        use crate::settings::SettingsPatch;
+        use tokio_tungstenite::connect_async;
+
+        let shared = crate::state::AppState::new();
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let address = listener.local_addr().unwrap();
+        let app = crate::server::router(shared.clone());
+        let server = tokio::spawn(async move {
+            axum::serve(listener, app).await.unwrap();
+        });
+
+        let (mut socket, _) = connect_async(format!("ws://{address}/ws")).await.unwrap();
+        assert_eq!(receive_json(&mut socket).await["type"], "state");
+        assert_eq!(receive_json(&mut socket).await["type"], "authorization");
+
+        // No flip yet: a settings change that leaves the animation on must
+        // not produce a `score-animation` frame (the board would replay a
+        // meaningless tick on the re-render).
+        shared
+            .settings_set(SettingsPatch {
+                buzzer_auto_play: Some(false),
+                ..Default::default()
+            })
+            .await
+            .unwrap();
+
+        // Now the off toggle flips the value: exactly one `score-animation`
+        // frame (false) — no state frame follows, a presentation knob does
+        // not touch match state.
+        shared
+            .settings_set(SettingsPatch {
+                score_animation_enabled: Some(false),
+                ..Default::default()
+            })
+            .await
+            .unwrap();
+        let event = receive_json(&mut socket).await;
+        assert_eq!(event["type"], "event");
+        assert_eq!(event["event"], "score-animation");
+        assert_eq!(event["enabled"], false);
+
+        // The value did not flip back: an unrelated edit while the toggle is
+        // off must not re-send the frame (a re-tick would flicker the board).
+        shared
+            .settings_set(SettingsPatch {
+                buzzer_auto_play: Some(true),
+                ..Default::default()
+            })
+            .await
+            .unwrap();
+        assert!(
+            tokio::time::timeout(Duration::from_millis(500), receive_json(&mut socket))
+                .await
+                .is_err(),
+            "expected no frame for an unrelated settings edit"
+        );
 
         server.abort();
     }

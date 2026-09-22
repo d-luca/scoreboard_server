@@ -32,4 +32,9 @@ export type Settings = {
 	teamAwayColor: string;
 	timerLoadouts: [number, number, number];
 	timerDirection: TimerDirection;
+	/**
+	 * [NEW] Odometer-style score roll on the board; `false` switches the
+	 * scores to a static readout (OBS + desktop + `/value` pages follow).
+	 */
+	scoreAnimationEnabled: boolean;
 };

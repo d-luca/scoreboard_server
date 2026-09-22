@@ -1,5 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
+import type { Settings } from "../bindings/Settings";
 import type { Action } from "../bindings/Action";
 import type { ScoreboardState } from "../bindings/ScoreboardState";
 import type { Transport, TransportEvent } from "./transport";
@@ -60,6 +61,20 @@ export class TauriTransport implements Transport {
 	onEvent(name: TransportEvent, callback: () => void): () => void {
 		const event = name === "timer-finished" ? "timer:finished" : "buzzer:play";
 		return subscribeToEvent<void>(event, callback);
+	}
+
+	/**
+	 * The LAN pages get a dedicated frame; desktop windows learn it from the
+	 * `settings:changed` broadcast (the same source of truth as the Settings
+	 * store). The initial subscription also reports the current value so a
+	 * window opened with the toggle off starts static.
+	 */
+	onScoreAnimation(callback: (enabled: boolean) => void): () => void {
+		const unlisten = subscribeToEvent<Settings>("settings:changed", (settings) => {
+			callback(settings.scoreAnimationEnabled);
+		});
+		void invoke<Settings>("settings_get").then((settings) => callback(settings.scoreAnimationEnabled));
+		return unlisten;
 	}
 }
 

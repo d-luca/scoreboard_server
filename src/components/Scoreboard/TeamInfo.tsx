@@ -10,6 +10,8 @@ type TeamInfoProps = {
 	teamHomeScore: number;
 	teamAwayScore: number;
 	teamHomeColor: string;
+	/** Odometer scroll on score changes; `false` renders static digits. */
+	scoreAnimation?: boolean;
 };
 
 export function TeamInfo({
@@ -19,6 +21,7 @@ export function TeamInfo({
 	teamHomeName,
 	teamHomeScore,
 	teamHomeColor,
+	scoreAnimation = true,
 }: TeamInfoProps): JSX.Element {
 	return (
 		<div className="flex h-full gap-3 bg-indigo-950 text-nowrap">
@@ -38,7 +41,7 @@ export function TeamInfo({
 					style={{ transform: "skewX(15deg)" }}
 					data-home-score
 				>
-					<RollingScore value={teamHomeScore} />
+					<RollingScore value={teamHomeScore} animated={scoreAnimation} />
 				</div>
 				<div className="h-2/3">
 					<VerticalDivider />
@@ -48,7 +51,7 @@ export function TeamInfo({
 					style={{ transform: "skewX(15deg)" }}
 					data-away-score
 				>
-					<RollingScore value={teamAwayScore} />
+					<RollingScore value={teamAwayScore} animated={scoreAnimation} />
 				</div>
 			</div>{" "}
 			<div className="flex items-center justify-between gap-2" style={{ transform: "skewX(15deg)" }}>

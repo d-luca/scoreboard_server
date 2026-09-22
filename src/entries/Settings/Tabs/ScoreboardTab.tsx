@@ -128,6 +128,25 @@ export function ScoreboardTab(): React.JSX.Element {
 					))}
 				</div>
 			</section>
+
+			<section className="flex flex-col gap-3" aria-labelledby="settings-appearance">
+				<SectionHeading id="settings-appearance">Appearance</SectionHeading>
+				<label className="flex items-center gap-3 text-sm">
+					<input
+						type="checkbox"
+						className="size-4"
+						checked={settings.scoreAnimationEnabled}
+						onChange={(event) =>
+							void set({ scoreAnimationEnabled: event.target.checked }).catch(() => undefined)
+						}
+					/>
+					Score animation
+				</label>
+				<p className="text-app-tertiary text-xs">
+					When on, the digits roll to the new score. When off the score updates instantly (no roll animation)
+					on the board and in OBS.
+				</p>
+			</section>
 		</div>
 	);
 }

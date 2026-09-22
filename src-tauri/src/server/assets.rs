@@ -32,6 +32,7 @@ pub async fn scoreboard_page(
         "scoreboard",
         None,
     )
+    .await
 }
 
 /// `GET /control?t=<token>` exchanges a valid URL token for an HttpOnly
@@ -63,7 +64,7 @@ pub async fn control_page(
     if auth::check(&shared, &headers, None).await.is_none() {
         return unauthorized_control_page();
     }
-    serve_page(&shared, &headers, "pages/control.html", "control", None)
+    serve_page(&shared, &headers, "pages/control.html", "control", None).await
 }
 
 fn unauthorized_control_page() -> axum::response::Response {
@@ -99,6 +100,7 @@ pub async fn value_page(
         "value",
         Some(&property),
     )
+    .await
 }
 
 /// Everything else: look the path up in the embedded bundle, guess the
@@ -120,7 +122,7 @@ pub async fn static_handler(uri: axum::http::Uri) -> impl IntoResponse {
 /// Serve an embedded HTML page with the bootstrap config injected before
 /// `</head>`. The websocket URL is derived from the request's `Host`
 /// header so the page works over LAN, localhost and port fallbacks alike.
-fn serve_page(
+async fn serve_page(
     shared: &Shared,
     headers: &HeaderMap,
     file: &str,
@@ -147,11 +149,19 @@ fn serve_page(
         ),
         None => String::new(),
     };
+    // The score-roll presentation flag is injected for the pages that render
+    // digits (`/scoreboard`, `/value/*`); it lets the board start
+    // static when the setting is off, before the first WS frame arrives.
+    let score_animation = if matches!(mode, "scoreboard" | "value") {
+        let enabled = shared.settings_snapshot().await.score_animation_enabled;
+        format!(", scoreAnimationEnabled: {enabled}")
+    } else {
+        String::new()
+    };
     let bootstrap = format!(
-        "<script>window.__SCOREBOARD__ = {{ wsUrl: {}, token: null, mode: {}{} }};</script>",
+        "<script>window.__SCOREBOARD__ = {{ wsUrl: {}, token: null, mode: {}{property}{score_animation} }};</script>",
         serde_json::to_string(&format!("ws://{host}/ws")).unwrap_or_default(),
         serde_json::to_string(mode).unwrap_or_default(),
-        property,
     );
     let html = if html.contains("</head>") {
         html.replacen("</head>", &format!("{bootstrap}</head>"), 1)

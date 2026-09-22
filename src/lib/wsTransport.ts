@@ -19,6 +19,7 @@ type StateCallback = (state: ScoreboardState) => void;
 type StatusCallback = (status: ConnectionStatus) => void;
 type AuthorizationCallback = (status: AuthorizationStatus) => void;
 type EventCallback = () => void;
+type ScoreAnimationCallback = (enabled: boolean) => void;
 
 /**
  * True when this page is rendered inside an iframe — the app's Outputs
@@ -40,6 +41,8 @@ export class WsTransport implements Transport {
 	private statusCallbacks = new Set<StatusCallback>();
 	private authorizationCallbacks = new Set<AuthorizationCallback>();
 	private eventCallbacks = new Map<TransportEvent, Set<EventCallback>>();
+	private scoreAnimationCallbacks = new Set<ScoreAnimationCallback>();
+	private lastScoreAnimationEnabled = true;
 	private reconnectAttempts = 0;
 	private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
 	private closed = false;
@@ -51,6 +54,9 @@ export class WsTransport implements Transport {
 		// Pages embedded in an iframe (the Outputs preview) are app
 		// plumbing, not external clients.
 		this.wsUrl = isEmbeddedPage() ? `${url}${url.includes("?") ? "&" : "?"}internal=1` : url;
+		// The server injects the current value into the page bootstrap, so a
+		// page opened with the toggle off starts static before WS frames flow.
+		this.lastScoreAnimationEnabled = window.__SCOREBOARD__?.scoreAnimationEnabled ?? true;
 		this.open();
 	}
 
@@ -105,6 +111,17 @@ export class WsTransport implements Transport {
 		}
 		callbacks.add(callback);
 		return () => callbacks.delete(callback);
+	}
+
+	/**
+	 * The server sends `score-animation` frames only when the toggle is
+	 * turned off (on is the default), so the last-known value is replayed
+	 * when a callback subscribes late or the socket reconnects.
+	 */
+	onScoreAnimation(callback: ScoreAnimationCallback): () => void {
+		callback(this.lastScoreAnimationEnabled);
+		this.scoreAnimationCallbacks.add(callback);
+		return () => this.scoreAnimationCallbacks.delete(callback);
 	}
 
 	/** Stop reconnecting and close the socket (page unload, tests). */
@@ -172,6 +189,7 @@ export class WsTransport implements Transport {
 			event?: string;
 			code?: string;
 			authorized?: boolean;
+			enabled?: boolean;
 		};
 		try {
 			frame = JSON.parse(raw) as typeof frame;
@@ -182,6 +200,13 @@ export class WsTransport implements Transport {
 			for (const callback of this.stateCallbacks) callback(frame.data);
 		} else if (frame.type === "event" && (frame.event === "timer-finished" || frame.event === "buzzer")) {
 			for (const callback of this.eventCallbacks.get(frame.event) ?? []) callback();
+		} else if (
+			frame.type === "event" &&
+			frame.event === "score-animation" &&
+			typeof frame.enabled === "boolean"
+		) {
+			this.lastScoreAnimationEnabled = frame.enabled;
+			for (const callback of this.scoreAnimationCallbacks) callback(frame.enabled);
 		} else if (frame.type === "error" && frame.code === "unauthorized") {
 			this.setAuthorization("unauthorized");
 		} else if (frame.type === "authorization" && typeof frame.authorized === "boolean") {

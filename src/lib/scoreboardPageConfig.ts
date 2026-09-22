@@ -11,6 +11,12 @@ export interface ScoreboardPageConfig {
 	mode: "scoreboard" | "control" | "value";
 	/** `/value/:property` pages only: which field to render. */
 	property?: string;
+	/**
+	 * Score-roll presentation flag, injected for the digit-rendering pages
+	 * (`/scoreboard`, `/value/*`). Lets the board start static when the
+	 * setting is off, before the first WS frame arrives.
+	 */
+	scoreAnimationEnabled?: boolean;
 }
 
 declare global {

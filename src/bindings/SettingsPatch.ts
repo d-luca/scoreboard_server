@@ -28,4 +28,5 @@ export type SettingsPatch = {
 	teamAwayColor?: string;
 	timerLoadouts?: [number, number, number];
 	timerDirection?: TimerDirection;
+	scoreAnimationEnabled?: boolean;
 };

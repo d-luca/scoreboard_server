@@ -11,6 +11,15 @@ interface StatusAwareTransport extends Transport {
 	onAuthorization?(callback: (status: AuthorizationStatus) => void): () => void;
 }
 
+/**
+ * The score-roll toggle. Transports that do not receive it (the Tauri
+ * transport pre-settings, test fakes) leave the animation on — the
+ * setting's default.
+ */
+interface ScoreAnimationAwareTransport extends StatusAwareTransport {
+	onScoreAnimation?(callback: (enabled: boolean) => void): () => void;
+}
+
 const initialState: ScoreboardState = {
 	teamHomeName: "HOME",
 	teamAwayName: "AWAY",
@@ -32,6 +41,8 @@ const initialState: ScoreboardState = {
 
 export interface ScoreboardStore {
 	state: ScoreboardState;
+	/** Score-roll presentation toggle (`Settings.scoreAnimationEnabled`). */
+	scoreAnimation: boolean;
 	connection: ConnectionStatus;
 	authorization: AuthorizationStatus;
 	error: string | null;
@@ -55,11 +66,12 @@ export interface ScoreboardStore {
 }
 
 export function createScoreboardStore(
-	transport: StatusAwareTransport,
+	transport: ScoreAnimationAwareTransport,
 ): UseBoundStore<StoreApi<ScoreboardStore>> {
 	let unsubscribe: (() => void) | undefined;
 	let unsubscribeStatus: (() => void) | undefined;
 	let unsubscribeAuthorization: (() => void) | undefined;
+	let unsubscribeScoreAnimation: (() => void) | undefined;
 
 	return create<ScoreboardStore>((set, get) => {
 		const acceptState = (next: ScoreboardState): void => {
@@ -68,6 +80,9 @@ export function createScoreboardStore(
 
 		return {
 			state: initialState,
+			// `true` = on (the setting's default); the callback delivered on
+			// subscription corrects it when the page starts with it off.
+			scoreAnimation: true,
 			connection: "connecting",
 			authorization: transport.authorization ?? "authorized",
 			error: null,
@@ -79,6 +94,9 @@ export function createScoreboardStore(
 					// "connected" and never calls back.
 					unsubscribeStatus ??= transport.onStatus?.((status) => set({ connection: status }));
 					unsubscribeAuthorization ??= transport.onAuthorization?.((authorization) => set({ authorization }));
+					unsubscribeScoreAnimation ??= transport.onScoreAnimation?.((enabled) =>
+						set({ scoreAnimation: enabled }),
+					);
 					acceptState(await transport.getState());
 					set({ connection: transport.status, error: null });
 				} catch (error) {

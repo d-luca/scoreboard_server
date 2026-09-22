@@ -10,5 +10,11 @@ export interface Transport {
 	dispatch(action: Action): Promise<void>;
 	subscribe(callback: (state: ScoreboardState) => void): () => void;
 	onEvent(name: TransportEvent, callback: () => void): () => void;
+	/**
+	 * Optional: the score-roll presentation flag. The server sends it once,
+	 * when the setting is turned off (on is the default, so re-enabling needs
+	 * no frame — the page already knows).
+	 */
+	onScoreAnimation?(callback: (enabled: boolean) => void): () => void;
 	readonly status: ConnectionStatus;
 }
