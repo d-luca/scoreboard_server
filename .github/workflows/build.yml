@@ -33,8 +33,10 @@ jobs:
       - run: git diff --exit-code src/bindings # bindings must be committed and current
       - run: pnpm check
       # The OBS/phone bundles must not reference the Tauri IPC bridge (doc 04 §2).
+      # grep -l lists contaminated files and exits 0 on a match, so invert it:
+      # the step fails exactly when a bundle references __TAURI__.
       - if: runner.os == 'Linux'
-        run: grep -L "__TAURI__" dist/assets/scoreboard-*.js dist/assets/control-*.js
+        run: '! grep -l "__TAURI__" dist/assets/scoreboard-*.js dist/assets/control-*.js'
 
   # Release bundles (doc 07 §7): NSIS + MSI on Windows, AppImage + deb on
   # Linux. Runs on vX.Y.Z tags (and manual dispatch) after the check gate;
