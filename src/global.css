@@ -438,7 +438,7 @@ body {
 	color: var(--color-tertiary-400);
 }
 
-/* Checkerboard behind transparent previews (Outputs window, doc 04 §7.5) */
+/* Checkerboard behind transparent previews (Outputs window) */
 .checkerboard {
 	background-image:
 		linear-gradient(45deg, #475569 25%, transparent 25%),

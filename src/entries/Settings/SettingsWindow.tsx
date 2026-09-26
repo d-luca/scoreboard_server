@@ -8,7 +8,7 @@ import { ScoreboardTab } from "./Tabs/ScoreboardTab";
 import { ServerTab } from "./Tabs/ServerTab";
 
 /**
- * Settings window (doc 04 §7.4). Every change dispatches immediately and is
+ * Settings window. Every change dispatches immediately and is
  * persisted by Rust (debounced, atomic) — there is no Save button.
  * `Esc` closes the window.
  */

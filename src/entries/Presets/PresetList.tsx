@@ -79,7 +79,7 @@ function rowsOf(items: PresetListItem[], pending: PresetPendingItem | null): Pre
 }
 
 /**
- * Shared master column for the Presets window (doc 09 §7.2): selectable list
+ * Shared master column for the Presets window: selectable list
  * with colour swatches plus a create button underneath. Unsaved drafts appear
  * inline — a new one as a "new" badge row, an edit as a "modified" badge.
  */

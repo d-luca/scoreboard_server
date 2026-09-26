@@ -1,4 +1,4 @@
-//! Static assets embedded with `rust-embed` (tauri-rebuild doc 03 §4.3).
+//! Static assets embedded with `rust-embed`.
 //!
 //! The whole Vite `dist/` is compiled into the binary in release; in debug
 //! builds (`debug-embed` feature) files are read from disk, so
@@ -78,7 +78,7 @@ fn unauthorized_control_page() -> axum::response::Response {
         .into_response()
 }
 
-/// `GET /value/{property}` — transparent single-value page (doc 02 §5.1).
+/// `GET /value/{property}` — transparent single-value page.
 /// Unknown property → 404.
 pub async fn value_page(
     State(shared): State<Shared>,

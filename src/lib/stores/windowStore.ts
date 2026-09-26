@@ -4,7 +4,7 @@ import { listen } from "@tauri-apps/api/event";
 import type { AppWindow } from "../../bindings/AppWindow";
 
 /**
- * Mirrors which feature windows are open (doc 04 §4.5). Fed by the
+ * Mirrors which feature windows are open. Fed by the
  * `window:opened` / `window:closed` events emitted by the Rust window
  * manager, and seeded from `window_list` on first use.
  */

@@ -10,7 +10,7 @@ import { useLocalHotkeys } from "./lib/hooks/useLocalHotkeys";
 import { useBuzzerPlayback } from "./lib/hooks/useBuzzerPlayback";
 
 /**
- * Main window (doc 04 §7.1): a single-column control surface plus a status
+ * Main window: a single-column control surface plus a status
  * bar. No settings card, no preview, no two-column split — everything else
  * opens from the native menu.
  */

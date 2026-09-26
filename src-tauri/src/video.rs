@@ -1,18 +1,18 @@
-//! Video generation (tauri-rebuild doc 06 Part B, Phase 9).
+//! Video generation (see docs/features/recording-video.md).
 //!
 //! Pipeline: the video-generator webview re-draws each recording snapshot on
 //! a Canvas2D (the scoreboard is a skewed DOM composition with no rasterize
-//! API, doc 06 §B1.1) and pushes raw RGBA frames to Rust; Rust pipes them
+//! API) and pushes raw RGBA frames to Rust; Rust pipes them
 //! into an ffmpeg sidecar encoding WebM/VP9 with alpha (`yuva420p` +
 //! `-auto-alt-ref 0` — dropping either silently kills transparency).
 //!
-//! **ffmpeg distribution** (doc 08 open question 4, resolved): a bundled
+//! **ffmpeg distribution**: a bundled
 //! sidecar is tried first (`binaries/ffmpeg-<target-triple>[.exe]` under the
 //! resource dir, fetched at release time by `scripts/fetch-ffmpeg.mjs` and
 //! wired through `bundle.externalBin`), falling back to `ffmpeg` on `PATH`.
 //! The binary is never committed to git. ffmpeg is spawned with
-//! `std::process::Command` — doc 06 §B3's sanctioned simpler option: the
-//! shell plugin's only value here would be path resolution, which we do
+//! `std::process::Command` rather than the shell plugin: the
+//! plugin's only value here would be path resolution, which we do
 //! ourselves, and high-volume binary stdin is plain `write_all`.
 //!
 //! **Frame transport**: the webview passes one `Uint8Array` per batch as the
@@ -21,9 +21,9 @@
 //! object is expanded into a JSON number array — several times larger and
 //! slower). Buffer layout: `[u32 LE start][u32 LE frame_count][frames…]`,
 //! each frame `width × height × 4` bytes. `push_frames` awaits the write
-//! into ffmpeg's stdin, so the webview throttles itself (backpressure,
-//! doc 06 §B4): one batch in flight, no frame accumulation — memory stays
-//! flat regardless of recording length.
+//! into ffmpeg's stdin, so the webview throttles itself (backpressure):
+//! one batch in flight, no frame accumulation — memory stays flat
+//! regardless of recording length.
 //!
 //! stdin closes after the last frame; ffmpeg then drains and exits. A
 //! watcher task reads `-progress pipe:1` from stdout (which must be drained
@@ -32,7 +32,7 @@
 //! polling (never a blocking `wait` while holding the child mutex, so
 //! `cancel` can always `kill`), and emits the terminal progress event.
 //!
-//! Cancellation (doc 06 §B6): an `AtomicBool` checked before every batch;
+//! Cancellation: an `AtomicBool` checked before every batch;
 //! `cancel` also kills the child. The watcher deletes the partial output
 //! and emits `{ step: "error", error: "Generation cancelled" }`.
 
@@ -57,16 +57,15 @@ use crate::state::{AppState, Shared};
 /// therefore renders it as 600×80 centered in a 622×80 frame with 11 px of
 /// horizontal padding (see `pages/scoreboard.html`). Video frames use the
 /// same 622×80 so the skewed corners are not clipped and the video matches
-/// the OBS source pixel-for-pixel. (Doc 06 §B2's `round(600 × scale)` reads
-/// the board width as the frame width; the extra 22 px is the skew margin.)
+/// the OBS source pixel-for-pixel.
 pub const FRAME_BASE_WIDTH: u32 = 622;
 pub const FRAME_BASE_HEIGHT: u32 = 80;
 
-/// `video:progress` is throttled to ~10 Hz (doc 06 §B5); step transitions
+/// `video:progress` is throttled to ~10 Hz; step transitions
 /// always emit immediately.
 const PROGRESS_THROTTLE: Duration = Duration::from_millis(100);
 
-/// How many snapshot lines the metadata preview returns (doc 06 §B7).
+/// How many snapshot lines the metadata preview returns.
 const METADATA_PREVIEW_SNAPSHOTS: usize = 3;
 
 /// Bounded stderr tail kept for ffmpeg error messages.
@@ -96,13 +95,13 @@ fn ffmpeg_command(program: &Path) -> Command {
     command
 }
 
-/// Generation configuration (doc 06 §B2).
+/// Generation configuration.
 #[derive(Debug, Clone, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
 #[ts(export_to = "../../src/bindings/")]
 pub struct VideoGenerationConfig {
     pub recording_path: String,
-    /// Must end in `.webm` (doc 06 §B2).
+    /// Must end in `.webm`.
     pub output_path: String,
     /// 1..=60, default 30.
     pub frame_rate: u32,
@@ -110,7 +109,7 @@ pub struct VideoGenerationConfig {
     pub scoreboard_scale: f32,
 }
 
-/// Pipeline step (doc 06 §B5).
+/// Pipeline step.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, TS)]
 #[serde(rename_all = "lowercase")]
 #[ts(export_to = "../../src/bindings/")]
@@ -124,7 +123,7 @@ pub enum GenerationStep {
     Error,
 }
 
-/// Progress model (doc 06 §B5) emitted as `video:progress`.
+/// Progress model emitted as `video:progress`.
 #[derive(Debug, Clone, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
 #[ts(export_to = "../../src/bindings/")]
@@ -194,7 +193,7 @@ pub struct GenerationStarted {
 }
 
 /// Parsed recording header + first snapshots, for the generator window's
-/// Recording File card (doc 06 §B7).
+/// Recording File card.
 #[derive(Debug, Clone, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
 #[ts(export_to = "../../src/bindings/")]
@@ -232,7 +231,7 @@ fn lock_video(state: &AppState) -> MutexGuard<'_, Option<VideoSession>> {
 }
 
 /// Output dimensions: `round(base × scale)`, each rounded to the nearest
-/// even number (VP9 wants even dimensions, doc 06 §B2).
+/// even number (VP9 wants even dimensions).
 pub fn frame_dimensions(scale: f32) -> (u32, u32) {
     (
         even_rounded(FRAME_BASE_WIDTH as f32 * scale),
@@ -249,7 +248,7 @@ fn even_rounded(value: f32) -> u32 {
     }
 }
 
-/// Validate the config and parse the recording (doc 06 §B2/B7). The whole
+/// Validate the config and parse the recording. The whole
 /// parse fits in memory — ~650 KB of lines for a 90-minute match, a few MB
 /// parsed; flat memory is about not accumulating *frames*.
 fn validate(config: &VideoGenerationConfig) -> Result<(ParsedRecording, u32, u32), String> {
@@ -277,7 +276,7 @@ fn validate(config: &VideoGenerationConfig) -> Result<(ParsedRecording, u32, u32
     Ok((parsed, width, height))
 }
 
-/// ffmpeg CLI (doc 06 §B3): raw RGBA in at 1 fps (one frame per recording
+/// ffmpeg CLI: raw RGBA in at 1 fps (one frame per recording
 /// second), duplicated to `frame_rate` on output, VP9 with alpha,
 /// machine-readable progress on stdout.
 fn ffmpeg_args(width: u32, height: u32, frame_rate: u32, output: &Path) -> Vec<String> {
@@ -311,9 +310,8 @@ fn ffmpeg_args(width: u32, height: u32, frame_rate: u32, output: &Path) -> Vec<S
     ]
 }
 
-/// Resolve the ffmpeg executable: bundled sidecar first, then `PATH`
-/// (doc 08 open question 4 resolution). `app` is `None` in tests, where
-/// only the `PATH` fallback applies.
+/// Resolve the ffmpeg executable: bundled sidecar first, then `PATH`.
+/// `app` is `None` in tests, where only the `PATH` fallback applies.
 pub fn resolve_ffmpeg(app: Option<&AppHandle>) -> Option<PathBuf> {
     if let Some(app) = app {
         if let Ok(dir) = app.path().resource_dir() {
@@ -344,7 +342,7 @@ fn probe_ffmpeg(path: &Path) -> Option<PathBuf> {
         .map(|_| path.to_path_buf())
 }
 
-/// Read a recording and build the metadata preview (doc 06 §B7).
+/// Read a recording and build the metadata preview.
 pub fn load_metadata(path: &Path) -> Result<RecordingMetadata, String> {
     let parsed = recording::read_recording(path)?;
     Ok(RecordingMetadata {
@@ -354,7 +352,7 @@ pub fn load_metadata(path: &Path) -> Result<RecordingMetadata, String> {
         home_name: parsed.home_name,
         away_name: parsed.away_name,
         snapshot_count: parsed.snapshots.len() as u64,
-        // One snapshot per second (doc 06 §A2); the first lands one second
+        // One snapshot per second; the first lands one second
         // after start with t = 0, so the count is the duration.
         duration_secs: parsed.snapshots.len() as u64,
         first_snapshots: parsed
@@ -366,7 +364,7 @@ pub fn load_metadata(path: &Path) -> Result<RecordingMetadata, String> {
     })
 }
 
-/// Start a generation run (doc 06 §B1–B4): validate, parse, resolve ffmpeg,
+/// Start a generation run: validate, parse, resolve ffmpeg,
 /// spawn the encoder and its watcher, stash the session. The webview then
 /// pulls snapshots with [`frames`] and pushes rendered batches with
 /// [`push_frames`].
@@ -587,7 +585,7 @@ pub async fn push_frames(shared: &Shared, bytes: &[u8]) -> Result<(), String> {
             )
         };
         if session.pushed == total {
-            // Closing stdin ends the encode (doc 06 §B3); the watcher maps
+            // Closing stdin ends the encode; the watcher maps
             // ffmpeg's drain onto the encoding band from here.
             session.stdin_closed.store(true, Ordering::SeqCst);
             stdin_closed.store(true, Ordering::SeqCst);
@@ -616,7 +614,7 @@ pub async fn push_frames(shared: &Shared, bytes: &[u8]) -> Result<(), String> {
     Ok(())
 }
 
-/// Cancel the active run (doc 06 §B6): stop accepting frames, kill ffmpeg;
+/// Cancel the active run: stop accepting frames, kill ffmpeg;
 /// the watcher deletes the partial file and emits the terminal event.
 pub fn cancel(shared: &Shared) -> Result<(), String> {
     let (cancel, child) = {
@@ -653,7 +651,7 @@ struct WatcherParams {
 }
 
 /// Drain `-progress pipe:1` from stdout, reap the child, emit the terminal
-/// progress event and clear the session (doc 06 §B5/B6).
+/// progress event and clear the session.
 fn spawn_watcher(shared: &Shared, params: WatcherParams) {
     let WatcherParams {
         child,
@@ -712,7 +710,7 @@ fn spawn_watcher(shared: &Shared, params: WatcherParams) {
                         // Encoding band only after stdin closed: while
                         // streaming, rendering and encoding overlap and the
                         // push path reports the combined phase as
-                        // `rendering` (doc 06 §B5).
+                        // `rendering`.
                         if stdin_closed.load(Ordering::SeqCst)
                             && !cancel.load(Ordering::SeqCst)
                             && last_emit.elapsed() >= PROGRESS_THROTTLE

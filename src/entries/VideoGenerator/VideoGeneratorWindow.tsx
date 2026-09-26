@@ -24,7 +24,7 @@ const STEP_LABEL: Record<string, string> = {
 };
 
 /**
- * Video-generator window (doc 06 §B7): pick a recording, tune the encode,
+ * Video-generator window: pick a recording, tune the encode,
  * watch progress. There is deliberately no `useEscapeToClose` — `Esc` must
  * not risk hiding the window mid-generation.
  */
@@ -72,7 +72,7 @@ export function VideoGeneratorWindow(): React.JSX.Element {
 			</header>
 
 			<div className="grid flex-1 grid-cols-1 items-start gap-4 md:grid-cols-2">
-				{/* Recording File card (doc 06 §B7) */}
+				{/* Recording File card */}
 				<Card>
 					<CardHeader className="p-4 pb-2">
 						<CardTitle className="text-base">Recording File</CardTitle>
@@ -128,7 +128,7 @@ export function VideoGeneratorWindow(): React.JSX.Element {
 					</CardContent>
 				</Card>
 
-				{/* Video Settings card (doc 06 §B7) */}
+				{/* Video Settings card */}
 				<Card>
 					<CardHeader className="p-4 pb-2">
 						<CardTitle className="text-base">Video Settings</CardTitle>
@@ -195,7 +195,7 @@ export function VideoGeneratorWindow(): React.JSX.Element {
 				</Card>
 			</div>
 
-			{/* Progress (doc 06 §B5/B7) */}
+			{/* Progress */}
 			<Card>
 				<CardContent className="flex flex-col gap-2 p-4">
 					<div className="flex items-center justify-between text-sm">

@@ -1,11 +1,11 @@
-//! Native menu bar, attached to the `main` window only (doc 03 §7ter).
+//! Native menu bar, attached to the `main` window only (see docs/architecture.md).
 //!
 //! `[RISK]` Never call `app.set_menu(...)`: on Windows/Linux that applies the
 //! menu to windows created afterwards, which would put a menu bar on the
 //! frameless overlay windows. Attach with `main_window.set_menu(menu)`.
 //!
 //! The menu is rebuilt whenever a menu-rendered value changes — the preset
-//! library (doc 09 §6.1) or a timer loadout value: Tauri menu items are not
+//! library or a timer loadout value: Tauri menu items are not
 //! reactive, so a `ServerEvent` subscriber re-attaches a fresh menu,
 //! debounced, and always on the event-loop thread via `run_on_main_thread`.
 
@@ -22,7 +22,7 @@ pub const DOCS_URL: &str = "https://github.com/d-luca/scoreboard_server#readme";
 
 /// Menu rebuilds coalesce behind the same 500 ms debounce as the preset save,
 /// otherwise typing in the label field flickers the menu bar on every
-/// keystroke (doc 09 §6.1).
+/// keystroke.
 const MENU_REBUILD_DEBOUNCE: Duration = Duration::from_millis(500);
 
 /// Read the current library from state; empty when state is not managed yet
@@ -98,7 +98,7 @@ pub fn build(app: &AppHandle) -> tauri::Result<Menu<Wry>> {
         .build()
 }
 
-/// `Presets` submenu (doc 09 §6): `Manage Presets…`, then every fixture —
+/// `Presets` submenu: `Manage Presets…`, then every fixture —
 /// never bare teams. Empty library → a single disabled item so the menu is
 /// never an uninterpretable box. Capped at [`presets::MAX_MENU_FIXTURES`]
 /// most recently appended fixtures; the window lists the rest.
@@ -161,7 +161,7 @@ fn build_presets_menu(
 /// and team renames that change a derived label) or a timer loadout value
 /// (Settings window, remote patch — both publish `ServerEvent::State`).
 /// Triggered from this one subscriber — never from the commands — so no
-/// mutation path can forget it (doc 09 §6.1).
+/// mutation path can forget it.
 ///
 /// `[RISK]` `set_menu` must run on the event loop; rebuilding from a command's
 /// tokio thread hangs or crashes. Never `app.set_menu` — that would attach a
@@ -224,8 +224,7 @@ pub fn spawn_menu_rebuilder(app: &AppHandle, shared: Shared) {
 }
 
 /// Broadcast is assembled conditionally: items for features compiled out are
-/// never added (doc 03 §7ter). The overlay/recording/video features land in
-/// later phases; the menu entries appear with their Cargo features.
+/// never added; the menu entries appear with their Cargo features.
 fn build_broadcast_menu(app: &AppHandle) -> tauri::Result<Submenu<Wry>> {
     let builder = SubmenuBuilder::new(app, "Broadcast").item(
         &MenuItemBuilder::with_id("open:outputs", "Outputs & Sharing…")
@@ -245,7 +244,7 @@ fn build_broadcast_menu(app: &AppHandle) -> tauri::Result<Submenu<Wry>> {
     #[cfg(feature = "recording")]
     let builder = {
         // `Ctrl+R` shadows the webview reload in dev builds; only register
-        // the accelerator in release (doc 03 §7ter).
+        // the accelerator in release.
         let item = MenuItemBuilder::with_id("open:recording", "Recording…");
         #[cfg(not(debug_assertions))]
         let item = item.accelerator("CmdOrCtrl+R");
@@ -257,7 +256,7 @@ fn build_broadcast_menu(app: &AppHandle) -> tauri::Result<Submenu<Wry>> {
     builder.build()
 }
 
-/// Route a menu event to its effect (doc 03 §7ter).
+/// Route a menu event to its effect.
 pub fn on_menu_event(app: &AppHandle, event: tauri::menu::MenuEvent) {
     use tauri_plugin_opener::OpenerExt;
     match event.id().as_ref() {

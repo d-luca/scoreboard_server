@@ -1,4 +1,4 @@
-//! Monotonic countdown engine (tauri-rebuild doc 03 §3).
+//! Monotonic countdown engine (see docs/timer.md).
 //!
 //! `tokio::time::Instant` is monotonic and follows paused time in tests — a
 //! wall-clock jump (NTP step, DST) cannot corrupt the countdown. The Electron

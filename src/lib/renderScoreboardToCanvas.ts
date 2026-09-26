@@ -3,7 +3,7 @@ import { formatTimer } from "./format";
 import * as G from "./scoreboardGeometry";
 
 /**
- * Canvas2D re-implementation of the scoreboard (doc 06 §B1.1): the board is
+ * Canvas2D re-implementation of the scoreboard: the board is
  * a skewed DOM composition and no webview screenshot API exists, so video
  * generation re-draws each recording snapshot here. Geometry comes from
  * `scoreboardGeometry.ts`, which mirrors the Tailwind classes the React

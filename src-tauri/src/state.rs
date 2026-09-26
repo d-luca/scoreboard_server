@@ -1,4 +1,4 @@
-//! Single source of truth for the scoreboard domain (tauri-rebuild doc 03 §2).
+//! Single source of truth for the scoreboard domain (see docs/architecture.md).
 //!
 //! Every mutation in the entire program goes through [`AppState::dispatch`].
 //! Commands, the WS handler, the REST handler, the hotkey handler and the
@@ -56,19 +56,19 @@ pub enum ServerEvent {
     /// The control secret changed. The payload is a non-secret generation
     /// number used to revoke already-connected authorized WebSockets.
     ControlTokenRegenerated(u64),
-    /// A feature window was opened or closed (doc 03 §7bis). Payload is the
+    /// A feature window was opened or closed. Payload is the
     /// window label; emitted to all windows as `window:opened` /
     /// `window:closed`.
     Window(AppWindow, bool),
-    /// Settings were updated (doc 02 §8 `settings:changed`).
+    /// Settings were updated (`settings:changed`).
     Settings(Settings),
-    /// The preset library changed (doc 09 §4 `presets:changed`). Also the
-    /// single trigger for rebuilding the native `Presets` menu (doc 09 §6.1).
+    /// The preset library changed (`presets:changed`). Also the
+    /// single trigger for rebuilding the native `Presets` menu.
     Presets(PresetLibrary),
 }
 
 /// Geometry of one window, persisted in `window-geometry.json` under the
-/// window label (tauri-rebuild doc 03 §7bis).
+/// window label.
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct WindowGeometry {
@@ -163,7 +163,7 @@ pub struct ScoreboardState {
     pub timer: u32,
     pub half: u32,
     pub half_prefix: String,
-    /// Reserved; unimplemented (see doc 08 open question 3).
+    /// Reserved; unimplemented.
     pub event_logo: Option<String>,
     /// Read-only for clients; only the timer engine sets it.
     pub is_timer_running: bool,
@@ -277,8 +277,8 @@ pub enum Action {
     Reset,
 }
 
-/// Lightweight, frequently-changing server counters for the status bar
-/// (doc 02 §7.1.1). Emitted as `server:status`, coalesced to 2 Hz.
+/// Lightweight, frequently-changing server counters for the status bar.
+/// Emitted as `server:status`, coalesced to 2 Hz.
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
 #[ts(export_to = "../../src/bindings/")]
@@ -292,16 +292,16 @@ pub struct ServerStatus {
     pub ws_clients: u32,
     /// Connected WebSocket clients currently permitted to send commands.
     pub authorized_clients: u32,
-    /// [OPTIONAL] Overlay mode (Phase 7).
+    /// [OPTIONAL] Overlay mode; always false, the overlay is not implemented.
     pub overlay_active: bool,
-    /// [OPTIONAL] Match recording (Phase 8).
+    /// [OPTIONAL] Match recording.
     pub recording_active: bool,
-    /// [OPTIONAL] Elapsed recording seconds (Phase 8).
+    /// [OPTIONAL] Elapsed recording seconds.
     #[ts(type = "number")]
     pub recording_seconds: u64,
 }
 
-/// Heavy server description for the Outputs window (doc 02 §7.1): carries
+/// Heavy server description for the Outputs window: carries
 /// the LAN URLs and changes rarely. Emitted as `server:info`.
 #[derive(Debug, Clone, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
@@ -318,7 +318,7 @@ pub struct ServerInfo {
     pub control_url: String,
     /// Inline SVG encoding [`Self::control_url`].
     pub control_qr_svg: String,
-    /// Always true until the Phase 5 settings toggle lands.
+    /// Mirrors `settings.require_control_token`.
     pub token_required: bool,
 }
 
@@ -329,15 +329,15 @@ struct ControlToken {
 
 pub struct AppState {
     pub scoreboard: RwLock<ScoreboardState>,
-    /// Persisted application settings (doc 02 §9). Mutations go through
+    /// Persisted application settings. Mutations go through
     /// [`AppState::settings_set`].
     pub settings: RwLock<Settings>,
-    /// Team & match preset library (doc 09). Mutations go through the
+    /// Team & match preset library. Mutations go through the
     /// `*_preset_*` methods; loading one goes through [`AppState::preset_load`].
     pub presets: RwLock<PresetLibrary>,
     pub timer: Mutex<TimerEngine>,
     pub events: broadcast::Sender<ServerEvent>,
-    /// Persisted window geometry + zoom levels (doc 03 §7bis/§7ter).
+    /// Persisted window geometry + zoom levels.
     pub prefs: RwLock<AppPrefs>,
     /// Port the HTTP server actually bound (0 until it is up).
     pub server_port: AtomicU32,
@@ -353,21 +353,21 @@ pub struct AppState {
     control_mutation_gate: RwLock<()>,
     /// Last emitted `server:status`, to suppress redundant emissions.
     last_status: Mutex<Option<ServerStatus>>,
-    /// Active match-recording session (doc 06 Part A); `None` when idle.
+    /// Active match-recording session; `None` when idle.
     /// std mutex, never held across an `.await` — same discipline as
     /// `control_token`.
     pub recording: std::sync::Mutex<Option<crate::recording::RecordingSession>>,
-    /// Active video-generation session (doc 06 Part B); `None` when idle.
+    /// Active video-generation session; `None` when idle.
     /// Same std-mutex discipline as `recording`.
     pub video: std::sync::Mutex<Option<crate::video::VideoSession>>,
     /// Last emitted `video:progress`; seeds a freshly opened generator
     /// window via the `video_progress` command.
     pub video_progress: std::sync::Mutex<crate::video::GenerationProgress>,
     /// Recording path handed from the recording window to the next opened
-    /// video-generator window (doc 06 §B7 pre-fill).
+    /// video-generator window.
     pub video_pending_recording: std::sync::Mutex<Option<String>>,
     /// Handle of the running HTTP server task, so a port change can restart
-    /// it (Phase 5).
+    /// it.
     server_task: Mutex<Option<tauri::async_runtime::JoinHandle<()>>>,
     /// Number of in-flight `set_timer_and_publish` / state writes queued
     /// behind a settings save; used only to serialize persistence debounces.
@@ -398,7 +398,7 @@ impl AppState {
         Self::build(settings, prefs, PresetLibrary::empty())
     }
 
-    /// Test helper when a specific preset library is needed (doc 09 §9).
+    /// Test helper when a specific preset library is needed.
     #[cfg(test)]
     pub fn with_presets(presets: PresetLibrary) -> Shared {
         Self::build(Settings::default(), AppPrefs::default(), presets)
@@ -411,7 +411,7 @@ impl AppState {
 
     fn build(settings: Settings, prefs: AppPrefs, presets: PresetLibrary) -> Shared {
         let (events, _rx) = broadcast::channel(EVENT_CHANNEL_CAPACITY);
-        // Pinned tokens survive restarts (doc 02 §6); otherwise a fresh
+        // Pinned tokens survive restarts; otherwise a fresh
         // 128-bit token is generated every launch.
         let initial_token = settings
             .pinned_control_token
@@ -504,7 +504,7 @@ impl AppState {
         self.events.subscribe()
     }
 
-    /// Snapshot of the live server counters (doc 02 §7.1.1).
+    /// Snapshot of the live server counters.
     pub fn server_status(&self) -> ServerStatus {
         let port = self.server_port.load(Ordering::Relaxed);
         let recording = self
@@ -639,7 +639,7 @@ impl AppState {
         });
     }
 
-    /// Heavy server description for the Outputs window (doc 02 §7.1).
+    /// Heavy server description for the Outputs window.
     pub async fn server_info(&self) -> ServerInfo {
         let status = self.server_status();
         let token_required = self.settings.read().await.require_control_token;
@@ -706,14 +706,14 @@ impl AppState {
         self.server_info().await
     }
 
-    /// Current settings snapshot (doc 02 §7.1 `settings_get`).
+    /// Current settings snapshot (`settings_get`).
     pub async fn settings_snapshot(&self) -> Settings {
         self.settings.read().await.clone()
     }
 
     /// Apply a `SettingsPatch`, persist, and project identity fields onto the
     /// live scoreboard so the main window and OBS update immediately — with
-    /// no Save button (doc 04 §7.4).
+    /// no Save button.
     pub async fn settings_set(
         self: &Arc<Self>,
         patch: SettingsPatch,
@@ -804,7 +804,7 @@ impl AppState {
         }
     }
 
-    /// Current preset library snapshot (doc 09 §4 `presets_get`).
+    /// Current preset library snapshot (`presets_get`).
     pub async fn presets_snapshot(&self) -> PresetLibrary {
         self.presets.read().await.clone()
     }
@@ -838,7 +838,7 @@ impl AppState {
     }
 
     /// Blocked while any fixture references the team; the error names the
-    /// blocking fixtures (doc 09 §4.1).
+    /// blocking fixtures.
     pub async fn team_preset_delete(self: &Arc<Self>, id: &str) -> Result<(), DomainError> {
         let library = {
             let mut presets = self.presets.write().await;
@@ -888,7 +888,7 @@ impl AppState {
         Ok(())
     }
 
-    /// Load a fixture into `Settings` (doc 09 §5). That single
+    /// Load a fixture into `Settings`. That single
     /// `settings_set` call mirrors the identity into the live scoreboard,
     /// persists it, and notifies the Settings window — scores, half and
     /// timer are never touched.
@@ -916,7 +916,7 @@ impl AppState {
     }
 
     /// Every preset mutation ends here: persist (debounced) and broadcast,
-    /// which also triggers the native menu rebuild (doc 09 §6.1).
+    /// which also triggers the native menu rebuild.
     fn after_presets_mutation(self: &Arc<Self>, library: PresetLibrary) {
         self.schedule_presets_save();
         self.publish(ServerEvent::Presets(library));
@@ -942,7 +942,7 @@ impl AppState {
     }
 
     /// Restart the HTTP server on a new preferred port. Old sockets drop,
-    /// clients reconnect on their exponential backoff (doc 02 §4.3).
+    /// clients reconnect on their exponential backoff.
     async fn restart_server(self: &Arc<Self>, preferred_port: u16) {
         {
             let mut slot = self.server_task.lock().await;
@@ -984,15 +984,15 @@ impl AppState {
         }
     }
 
-    /// Emit `recording:status` to all windows (doc 06 §A4). Deliberately not
+    /// Emit `recording:status` to all windows. Deliberately not
     /// a [`ServerEvent`]: recording control is desktop-only, so nothing is
     /// pushed to LAN sockets.
     pub(crate) fn emit_recording_status(&self, status: crate::recording::RecordingStatus) {
         self.emit_app("recording:status", status);
     }
 
-    /// Emit `video:progress` to all windows and remember it as the latest
-    /// (doc 06 §B5). Desktop-only, like recording.
+    /// Emit `video:progress` to all windows and remember it as the latest.
+    /// Desktop-only, like recording.
     pub(crate) fn emit_video_progress(&self, progress: crate::video::GenerationProgress) {
         *self
             .video_progress
@@ -1192,7 +1192,7 @@ fn decrement_gauge(gauge: &AtomicU32) {
 }
 
 /// `pub(crate)` so `presets.rs` reuses the exact rule — a preset must never
-/// hold a value `settings_set` would later reject (doc 09 §2.1).
+/// hold a value `settings_set` would later reject.
 pub(crate) fn validate_name(raw: &str) -> Result<String, DomainError> {
     let trimmed = raw.trim();
     if trimmed.is_empty() {

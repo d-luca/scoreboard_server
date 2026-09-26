@@ -16,7 +16,7 @@ function formatSize(bytes: number): string {
 }
 
 /**
- * Recording window (doc 06 §A6): output directory, Start/Stop, live REC
+ * Recording window: output directory, Start/Stop, live REC
  * status and the recent-recordings list. There is deliberately no
  * `useEscapeToClose` here — `Esc` must not risk hiding the window mid-work
  * — and closing the window never stops the recording; the main status bar
@@ -66,7 +66,7 @@ export function RecordingWindow(): React.JSX.Element {
 				)}
 			</header>
 
-			{/* Start / Stop (doc 06 §A6) */}
+			{/* Start / Stop */}
 			<Card>
 				<CardHeader className="p-4 pb-2">
 					<CardTitle className="text-base">Match recording</CardTitle>
@@ -105,7 +105,7 @@ export function RecordingWindow(): React.JSX.Element {
 				</CardContent>
 			</Card>
 
-			{/* Output directory (doc 06 §A3) */}
+			{/* Output directory */}
 			<Card>
 				<CardHeader className="p-4 pb-2">
 					<CardTitle className="text-base">Output directory</CardTitle>
@@ -125,7 +125,7 @@ export function RecordingWindow(): React.JSX.Element {
 				</CardContent>
 			</Card>
 
-			{/* Recent recordings (doc 06 §A6) */}
+			{/* Recent recordings */}
 			<Card>
 				<CardHeader className="p-4 pb-2">
 					<CardTitle className="text-base">Recent recordings</CardTitle>
@@ -164,7 +164,7 @@ export function RecordingWindow(): React.JSX.Element {
 
 			<footer className="mt-auto flex items-center justify-between gap-3">
 				<p className="text-app-quaternary text-xs">The REC badge in the main window keeps counting.</p>
-				{/* Pre-fills the most recent recording via the video_pending_recording handoff (doc 06 §B7). */}
+				{/* Pre-fills the most recent recording via the video_pending_recording handoff. */}
 				<Button
 					size="sm"
 					variant="secondary"

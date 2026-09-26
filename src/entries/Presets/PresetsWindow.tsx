@@ -7,7 +7,7 @@ import { TeamsTab } from "./Tabs/TeamsTab";
 export type Tab = "teams" | "matches";
 
 /**
- * Presets window (doc 09 §7): master/detail with `Teams` | `Matches` tabs.
+ * Presets window: master/detail with `Teams` | `Matches` tabs.
  *
  * Unlike Settings, edits are explicit — the detail pane edits a local draft
  * with Save/Discard, because immediate persistence would put a half-typed

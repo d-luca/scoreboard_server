@@ -51,7 +51,7 @@ pub fn query_token(raw_query: Option<&str>) -> Option<&str> {
 }
 
 /// Authenticate a query token, bearer token, or control cookie, in that
-/// order. When `require_control_token` is off (trusted LANs, doc 02 §6),
+/// order. When `require_control_token` is off (trusted LANs),
 /// every request is authorized — read-only pages like `/scoreboard` and the
 /// remote behave identically, writes are simply open.
 pub async fn check(

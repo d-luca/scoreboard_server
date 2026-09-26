@@ -5,7 +5,7 @@ import type { ServerInfo } from "../../bindings/ServerInfo";
 import type { ServerStatus } from "../../bindings/ServerStatus";
 
 /**
- * Mirrors of the Rust server state (doc 04 §4.4).
+ * Mirrors of the Rust server state.
  *
  * `ServerInfo` is heavy (LAN URLs, later a QR SVG) and rarely changes;
  * `ServerStatus` is light and changes often. They are separate slices so a

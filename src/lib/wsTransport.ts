@@ -4,7 +4,7 @@ import type { AuthorizationStatus, ConnectionStatus, Transport, TransportEvent }
 
 /**
  * Reconnecting WebSocket client for the LAN pages (`/scoreboard`,
- * `/control`, `/value/:property`) — tauri-rebuild doc 02 §4.3.
+ * `/control`, `/value/:property`) — see docs/protocol.md.
  *
  * Exponential backoff (250 ms → 5 s, jittered), a full-state resync on
  * every open, and an `onStatus` callback driving the connection indicator.

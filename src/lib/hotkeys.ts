@@ -1,11 +1,11 @@
 import type { Action } from "../bindings/Action";
 
 /**
- * Local (window-focused) hotkeys, defaults from doc 05 §5.1 [PARITY].
+ * Local (window-focused) hotkeys, with the Electron app's defaults [PARITY].
  *
  * These are *window* hotkeys: they fire only while the window is focused.
- * The global hotkeys that work while another app is focused are a separate
- * `[OPTIONAL]` feature (Phase 7) backed by `tauri-plugin-global-shortcut`.
+ * The global hotkeys that work while another app is focused are a separate,
+ * planned `[OPTIONAL]` feature backed by `tauri-plugin-global-shortcut`.
  */
 
 export type HotkeyAction =
@@ -35,7 +35,7 @@ export interface HotkeyBinding {
 	alt?: boolean;
 }
 
-/** Default map (doc 05 §5.1). Keys are stored lowercase for comparison. */
+/** Default map. Keys are stored lowercase for comparison. */
 export const DEFAULT_HOTKEYS: Record<HotkeyAction, HotkeyBinding> = {
 	increaseHomeScore: { key: "q" },
 	decreaseHomeScore: { key: "a" },

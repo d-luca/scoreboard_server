@@ -15,9 +15,9 @@ function maskControlToken(url: string): string {
 }
 
 /**
- * Outputs & Sharing window (doc 04 §7.5): everything the old
- * `ScoreboardFeedback` card held, minus the cramped iframe. The remote
- * control section (QR, token) lands in Phase 4.
+ * Outputs & Sharing window: everything the old
+ * `ScoreboardFeedback` card held, minus the cramped iframe, plus the remote
+ * control section (QR, token).
  */
 
 const PREVIEW_SCALES = [50, 100, 200] as const;
@@ -97,7 +97,7 @@ export function OutputsWindow(): React.JSX.Element {
 				</span>
 			</header>
 
-			{/* Preview (doc 04 §7.5) */}
+			{/* Preview */}
 			<Card>
 				<CardHeader className="flex-row items-center justify-between space-y-0 p-4 pb-2">
 					<CardTitle className="text-base">Preview</CardTitle>

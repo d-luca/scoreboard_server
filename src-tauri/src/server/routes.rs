@@ -1,4 +1,4 @@
-//! REST handlers (tauri-rebuild doc 03 §4.4, doc 02 §5).
+//! REST handlers (see docs/protocol.md).
 
 use axum::extract::{Path, State};
 use axum::http::{HeaderMap, StatusCode};
@@ -98,7 +98,7 @@ pub async fn post_action(
 const DEFAULT_BUZZER: &[u8] = include_bytes!("../../assets/buzzer.mp3");
 
 /// `GET /buzzer.mp3` — the user-selected buzzer track if one is configured
-/// and still readable, otherwise the bundled default (doc 02 §5).
+/// and still readable, otherwise the bundled default.
 /// Unauthenticated: the remote page needs the audio before the operator has
 /// typed anything.
 pub async fn buzzer_audio(State(shared): State<Shared>) -> impl IntoResponse {
@@ -164,8 +164,7 @@ fn serde_error_message(error: &serde_json::Error) -> String {
 }
 
 /// Scalar rendering shared by `GET /api/scoreboard/{property}` and the
-/// `/value/{property}` page. `eventLogo` and `revision` are excluded
-/// (doc 02 §5.1).
+/// `/value/{property}` page. `eventLogo` and `revision` are excluded.
 pub fn property_value(state: &ScoreboardState, property: &str) -> Option<String> {
     match property {
         "teamHomeName" => Some(state.team_home_name.clone()),
@@ -185,7 +184,7 @@ pub fn property_value(state: &ScoreboardState, property: &str) -> Option<String>
     }
 }
 
-/// `MM:SS` (doc 02 §5.1).
+/// `MM:SS`.
 fn format_timer(seconds: u32) -> String {
     format!("{:02}:{:02}", seconds / 60, seconds % 60)
 }

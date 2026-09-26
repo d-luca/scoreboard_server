@@ -9,7 +9,7 @@ import { StatusDot } from "./StatusDot";
 import { StatusButton } from "./StatusButton";
 
 /**
- * Status strip at the bottom of the main window (doc 04 §7.3).
+ * Status strip at the bottom of the main window.
  *
  * Live connection, timer, server, client, control-token and REC badges. The
  * overlay badge is added by its optional phase.
@@ -35,7 +35,7 @@ export function StatusBar(): JSX.Element {
 	const clients = serverStatus?.wsClients ?? 0;
 	const authorizedClients = serverStatus?.authorizedClients ?? 0;
 	const tokenRequired = serverInfo?.tokenRequired;
-	// REC badge (doc 06 §A6): hidden when idle, pulsing red `● REC MM:SS`
+	// REC badge: hidden when idle, pulsing red `● REC MM:SS`
 	// while recording; driven by `ServerStatus.recording*`.
 	const recordingActive = serverStatus?.recordingActive ?? false;
 	const recordingSeconds = serverStatus?.recordingSeconds ?? 0;
@@ -66,7 +66,7 @@ export function StatusBar(): JSX.Element {
 
 			<VerticalDivider />
 
-			{/* Server (doc 04 §7.3) — opens the Outputs window. */}
+			{/* Server — opens the Outputs window. */}
 			<StatusButton
 				active={running}
 				activeColor="bg-success-500"
@@ -104,7 +104,7 @@ export function StatusBar(): JSX.Element {
 
 			<VerticalDivider />
 
-			{/* Buzzer auto-play (doc 04 §4.3) — opens Settings › Buzzer. */}
+			{/* Buzzer auto-play — opens Settings › Buzzer. */}
 			<StatusButton
 				// active={settings?.buzzerAutoPlay ?? true}
 				label={
@@ -121,7 +121,7 @@ export function StatusBar(): JSX.Element {
 				visibleTitle={"Buzzer"}
 			/>
 
-			{/* Recording (doc 04 §7.3) — hidden when idle; opens the Recording window. */}
+			{/* Recording — hidden when idle; opens the Recording window. */}
 			{recordingActive ? (
 				<>
 					<VerticalDivider />

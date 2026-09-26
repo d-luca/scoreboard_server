@@ -14,7 +14,7 @@ interface TeamDraft {
 
 const NEW_TEAM_DRAFT: TeamDraft = { name: "", color: "#0066cc" };
 
-/** Delete-blocked fixtures listed inline before `…and N more` (doc 09 §4.1). */
+/** Delete-blocked fixtures listed inline before `…and N more`. */
 const MAX_LISTED_BLOCKING = 5;
 
 interface TeamsTabProps {
@@ -25,7 +25,7 @@ interface TeamsTabProps {
 }
 
 /**
- * Teams tab (doc 09 §7.2): team list with colour swatches on the left, a
+ * Teams tab: team list with colour swatches on the left, a
  * name + colour draft form on the right. Save is disabled while the draft is
  * invalid or unchanged; deleting a referenced team renders the blocking
  * fixtures as links that jump to the Matches tab.

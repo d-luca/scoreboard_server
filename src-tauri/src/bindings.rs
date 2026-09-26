@@ -2,7 +2,7 @@
 //!
 //! `cargo test --manifest-path src-tauri/Cargo.toml export_bindings`
 //! (wired as `pnpm bindings`) regenerates `src/bindings/*.ts` from the
-//! authoritative Rust types (tauri-rebuild doc 02 §1). The generated files
+//! authoritative Rust types (see docs/protocol.md). The generated files
 //! are committed; CI fails if they drift.
 //!
 //! The test lives in `tests/export_bindings.rs` (an integration test) so

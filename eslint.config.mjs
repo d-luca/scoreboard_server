@@ -29,8 +29,7 @@ export default defineConfig(
 		},
 	},
 	// The scoreboard/control/value entries are served over plain HTTP to LAN
-	// clients (OBS, phones). They must never pull in the Tauri IPC API
-	// (doc 04 §2).
+	// clients (OBS, phones). They must never pull in the Tauri IPC API.
 	{
 		files: [
 			"src/entries/scoreboard.tsx",

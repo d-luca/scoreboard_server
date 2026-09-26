@@ -6,7 +6,7 @@ import { WsTransport } from "../lib/wsTransport";
 import "../scoreboard.css";
 
 /**
- * OBS browser-source page (doc 04 §5/§6), served over plain HTTP by the
+ * OBS browser-source page, served over plain HTTP by the
  * embedded axum server — this entry must never import `@tauri-apps/*`
  * (enforced by an ESLint `no-restricted-imports` rule).
  *

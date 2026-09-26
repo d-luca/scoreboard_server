@@ -7,7 +7,7 @@ import { useServerStore } from "./serverStore";
 import { useSettingsStore } from "./settingsStore";
 
 /**
- * Buzzer playback state for the desktop (doc 04 §4.3).
+ * Buzzer playback state for the desktop.
  *
  * The audio element source comes from `convertFileSrc(path)` (asset
  * protocol) rather than shuttling bytes over IPC. Preloaded once; a trigger

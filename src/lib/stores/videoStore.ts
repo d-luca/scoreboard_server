@@ -7,7 +7,7 @@ import type { RecordingMetadata } from "../../bindings/RecordingMetadata";
 import { runRenderLoop } from "../videoGeneration";
 
 /**
- * Backing store for the video-generator window (doc 06 §B7). Fed by the
+ * Backing store for the video-generator window. Fed by the
  * `video:progress` event (throttled ~10 Hz by Rust) and seeded from
  * `video_progress` on mount, so a window opened mid-generation shows the
  * current state. The recording pre-fill arrives via
@@ -72,7 +72,7 @@ export const useVideoStore = create<VideoStore>((set, get) => ({
 			progress,
 			generating: progress.step !== "complete" && progress.step !== "error" && progress.step !== "idle",
 		});
-		// Pre-fill from the recording window (doc 06 §B7), if any.
+		// Pre-fill from the recording window, if any.
 		const pending = await invoke<string | null>("video_take_pending_recording");
 		if (pending !== null && !get().generating) {
 			await get().loadRecording(pending);

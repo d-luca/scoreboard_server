@@ -6,7 +6,7 @@ import type { RecordingStatus } from "../../bindings/RecordingStatus";
 import type { RecordingStopped } from "../../bindings/RecordingStopped";
 
 /**
- * Mirror of the Rust recorder (doc 06 §A4). Fed by the `recording:status`
+ * Mirror of the Rust recorder. Fed by the `recording:status`
  * event (start, stop and every snapshot) and seeded from `recording_status`
  * on first use. The output directory lives in settings; `selectOutputDir`
  * opens the native folder picker and persists the choice.

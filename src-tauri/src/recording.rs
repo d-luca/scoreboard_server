@@ -1,16 +1,16 @@
-//! Match recording (tauri-rebuild doc 06 Part A).
+//! Match recording (see docs/features/recording-video.md).
 //!
 //! While recording, the full match state is appended to a `.sbrec` file once
 //! per second: a JSON header line, then one JSON snapshot per line, flushed
 //! every second. Append-only, crash-safe (at most the last second is lost),
-//! constant memory (doc 06 §A2 — the Electron app rewrote the whole file
+//! constant memory (the Electron app rewrote the whole file
 //! every 5 s, O(n²) I/O over a match). A trailer line is written on stop; a
 //! missing trailer means the recording was interrupted, which the reader
 //! tolerates.
 //!
 //! [`read_recording`] is the v1 importer: it also parses the Electron app's
 //! pretty-printed `.json` recordings (`"version": "1.0"`) so existing files
-//! still work (doc 06 §A2). Its consumer is the video generator (Phase 9).
+//! still work. Its consumer is the video generator.
 
 use std::fs::File;
 use std::io::{BufWriter, Write};
@@ -25,13 +25,13 @@ use ts_rs::TS;
 
 use crate::state::{AppState, ScoreboardState, Shared};
 
-/// Snapshot cadence (doc 06 §A1: once per second).
+/// Snapshot cadence: once per second.
 const TICK: Duration = Duration::from_secs(1);
 
 /// Cap on the recent-recordings list shown in the recording window.
 const MAX_RECENT: usize = 10;
 
-/// Live recording status (doc 06 §A4). Emitted as `recording:status` on
+/// Live recording status. Emitted as `recording:status` on
 /// start, stop and every snapshot.
 #[derive(Debug, Clone, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
@@ -46,7 +46,7 @@ pub struct RecordingStatus {
     pub duration_secs: u64,
 }
 
-/// Result of `recording_stop` (doc 06 §A4).
+/// Result of `recording_stop`.
 #[derive(Debug, Clone, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
 #[ts(export_to = "../../src/bindings/")]
@@ -56,8 +56,7 @@ pub struct RecordingStopped {
     pub total_snapshots: u64,
 }
 
-/// One entry of the recent-recordings list in the recording window
-/// (doc 06 §A6).
+/// One entry of the recent-recordings list in the recording window.
 #[derive(Debug, Clone, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
 #[ts(export_to = "../../src/bindings/")]
@@ -70,10 +69,10 @@ pub struct RecentRecording {
     pub modified_unix_secs: u64,
 }
 
-/// One per-second capture of the match state (doc 06 §A2.1). Field names are
+/// One per-second capture of the match state. Field names are
 /// deliberately short — the line repeats ~5 400 times in a 90-minute match.
 /// Names/colours/prefix repeat on every line so each line is independently
-/// renderable. TS-exported for the video generator's render loop (Phase 9).
+/// renderable. TS-exported for the video generator's render loop.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[ts(export_to = "../../src/bindings/")]
 pub struct Snapshot {
@@ -165,7 +164,7 @@ fn lock_recording(state: &AppState) -> MutexGuard<'_, Option<RecordingSession>> 
 }
 
 /// `settings.recording_output_dir`, falling back to
-/// `document_dir()/ScoreboardRecordings` (doc 06 §A3 [PARITY]).
+/// `document_dir()/ScoreboardRecordings` [PARITY].
 pub async fn configured_output_dir(app: &AppHandle, state: &AppState) -> PathBuf {
     let configured = state.settings.read().await.recording_output_dir.clone();
     configured
@@ -184,7 +183,7 @@ pub fn default_output_dir(app: &AppHandle) -> PathBuf {
         .join("ScoreboardRecordings")
 }
 
-/// Start recording (doc 06 §A5). Errors with `"Recording already in
+/// Start recording. Errors with `"Recording already in
 /// progress"` when one is active [PARITY].
 pub async fn start(shared: &Shared, output_dir: PathBuf) -> Result<RecordingStatus, String> {
     // Read the state BEFORE locking: the recording mutex is never held
@@ -283,7 +282,7 @@ pub fn status(state: &AppState) -> RecordingStatus {
     }
 }
 
-/// `RunEvent::ExitRequested` handler (doc 06 §A5): flush and write the
+/// `RunEvent::ExitRequested` handler: flush and write the
 /// trailer so an in-flight recording survives app exit. Synchronous — the
 /// tokio runtime is being torn down, so no async here.
 pub fn flush_on_exit(state: &AppState) {
@@ -297,7 +296,7 @@ pub fn flush_on_exit(state: &AppState) {
 }
 
 /// The newest `.sbrec` (and legacy Electron `.json`) files in the output
-/// directory, for the recording window's recent list (doc 06 §A6). A
+/// directory, for the recording window's recent list. A
 /// missing directory is not an error — it just means "no recordings yet".
 pub fn list_recent(dir: &Path) -> Vec<RecentRecording> {
     let Ok(entries) = std::fs::read_dir(dir) else {
@@ -330,7 +329,7 @@ pub fn list_recent(dir: &Path) -> Vec<RecentRecording> {
     recordings
 }
 
-/// One line per second (doc 06 §A5). The first snapshot is written one
+/// One line per second. The first snapshot is written one
 /// second after start with `t = 0` [PARITY] — a plain `interval` fires
 /// immediately, so the ticker is anchored at `started + 1 s`. The anchor is
 /// captured by the caller at session creation: evaluated here it would be
@@ -341,7 +340,7 @@ fn spawn_tick(shared: &Shared, started: tokio::time::Instant) -> JoinHandle<()> 
         let mut ticker = tokio::time::interval_at(started + TICK, TICK);
         // Missed ticks are real elapsed seconds in the recording timeline:
         // backfill them so the line count always equals the duration in
-        // seconds (doc 08 P8 acceptance). `Delay` would silently drop them.
+        // seconds. `Delay` would silently drop them.
         ticker.set_missed_tick_behavior(MissedTickBehavior::Burst);
         loop {
             ticker.tick().await;
@@ -382,11 +381,11 @@ fn spawn_tick(shared: &Shared, started: tokio::time::Instant) -> JoinHandle<()> 
 fn write_line(writer: &mut BufWriter<File>, value: &impl Serialize) -> Result<(), String> {
     let line = serde_json::to_string(value).map_err(|error| error.to_string())?;
     writeln!(writer, "{line}").map_err(|error| error.to_string())?;
-    // One ~120-byte flush per second; negligible (doc 06 §A5).
+    // One ~120-byte flush per second; negligible.
     writer.flush().map_err(|error| error.to_string())
 }
 
-/// Trailer line + flush + fsync (doc 06 §A2).
+/// Trailer line + flush + fsync.
 fn finalize(session: &mut RecordingSession) -> Result<RecordingStopped, String> {
     let trailer = serde_json::json!({
         "endedAt": iso_utc(chrono::Utc::now()),
@@ -407,8 +406,7 @@ fn iso_utc(at: chrono::DateTime<chrono::Utc>) -> String {
     at.format("%Y-%m-%dT%H:%M:%SZ").to_string()
 }
 
-/// `<sanitizedHome>-<sanitizedAway>-<ISO, ':' → '-', no ms>.sbrec`
-/// (doc 06 §A3 [PARITY]).
+/// `<sanitizedHome>-<sanitizedAway>-<ISO, ':' → '-', no ms>.sbrec` [PARITY].
 fn build_filename(home: &str, away: &str, at: chrono::DateTime<chrono::Utc>) -> String {
     format!(
         "{}-{}-{}.sbrec",
@@ -419,7 +417,7 @@ fn build_filename(home: &str, away: &str, at: chrono::DateTime<chrono::Utc>) -> 
 }
 
 /// Replace every char not in `[a-zA-Z0-9-_]` with `_`, collapse repeated
-/// underscores, trim leading/trailing underscores (doc 06 §A3, same rules
+/// underscores, trim leading/trailing underscores (same rules
 /// as the Electron app). Empty result falls back to `team` [NEW] — the
 /// Electron app would have produced a broken `--…` filename.
 fn sanitize_filename(name: &str) -> String {
@@ -468,11 +466,11 @@ fn unique_path(path: PathBuf) -> PathBuf {
 }
 
 // ---------------------------------------------------------------------------
-// Reader: v2 `.sbrec` line format + v1 Electron `.json` importer (doc 06 §A2)
+// Reader: v2 `.sbrec` line format + v1 Electron `.json` importer
 // ---------------------------------------------------------------------------
 
 /// A parsed recording, normalized across format versions. The video
-/// generator (Phase 9) consumes this.
+/// generator consumes this.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ParsedRecording {
     pub recording_id: String,
@@ -488,7 +486,7 @@ pub struct ParsedRecording {
 /// Read a recording file, auto-detecting the format: a leading JSON line
 /// with `"version": 2` is a `.sbrec` line-delimited file; a leading `{`
 /// introducing a single pretty-printed document with `"version": "1.0"` is
-/// a legacy Electron recording (doc 06 §A2).
+/// a legacy Electron recording.
 pub fn read_recording(path: &Path) -> Result<ParsedRecording, String> {
     let raw = std::fs::read_to_string(path)
         .map_err(|error| format!("cannot read {}: {error}", path.display()))?;

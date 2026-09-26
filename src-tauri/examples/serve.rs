@@ -27,6 +27,8 @@ async fn main() {
     .expect("server failed to start");
     shared.set_server_port(port).await;
     println!("listening on http://localhost:{port}");
+    // Token-bearing URL for the smoke scripts (`scripts/ws-*.mjs`) and phones.
+    println!("control: {}", shared.server_info().await.control_url);
 
     // Keep the process alive; Ctrl+C to stop.
     loop {

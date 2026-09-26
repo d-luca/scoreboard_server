@@ -65,7 +65,7 @@ export default defineConfig(async () => ({
 		},
 	},
 
-	// Multi-entry build (tauri-rebuild doc 04 §2): one bundle per window / LAN page,
+	// Multi-entry build: one bundle per window / LAN page,
 	// all served from the same dist/ folder. The HTML shells live in pages/ but the
 	// keys keep dist/ flat (dist/<name>.html) because rust-embed and the Tauri
 	// windows reference them by bare filename.

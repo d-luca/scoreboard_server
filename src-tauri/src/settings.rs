@@ -1,4 +1,4 @@
-//! Settings persistence (tauri-rebuild doc 03 §6, doc 02 §9).
+//! Settings persistence (see docs/protocol.md#settings).
 //!
 //! `Settings` is the single place everything the app must remember lives:
 //! team identity, loadouts, server port, control-token policy, buzzer
@@ -17,7 +17,7 @@ use crate::state::{ScoreboardState, TimerDirection};
 /// Current on-disk schema. Bump when the shape changes; `migrate` upgrades.
 pub const SCHEMA_VERSION: u32 = 1;
 
-/// Default HTTP port for the LAN server (doc 02 §9).
+/// Default HTTP port for the LAN server.
 pub const DEFAULT_SERVER_PORT: u16 = 3001;
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
@@ -33,10 +33,10 @@ pub struct Settings {
     /// Custom buzzer track selected by the user; `None` = built-in default.
     pub buzzer_track_path: Option<String>,
     pub buzzer_auto_play: bool,
-    /// [OPTIONAL] Match-recording output directory (doc 06 §A3); `None` =
+    /// [OPTIONAL] Match-recording output directory; `None` =
     /// `document_dir()/ScoreboardRecordings`.
     pub recording_output_dir: Option<String>,
-    /// [NEW] Windows first-run firewall explainer (doc 07 §4.1). Once the
+    /// [NEW] Windows first-run firewall explainer. Once the
     /// dialog has been acknowledged it is never shown again.
     pub firewall_notice_shown: bool,
     pub half_prefix: String,
@@ -233,7 +233,7 @@ pub fn apply_patch(settings: &mut Settings, patch: SettingsPatch) -> Result<(), 
     Ok(())
 }
 
-/// Seed a `ScoreboardState` from persisted settings at startup (doc 03 §6).
+/// Seed a `ScoreboardState` from persisted settings at startup.
 pub fn seed_scoreboard(settings: &Settings) -> ScoreboardState {
     let default = ScoreboardState::default();
     ScoreboardState {

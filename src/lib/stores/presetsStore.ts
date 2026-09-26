@@ -8,7 +8,7 @@ import type { TeamPreset } from "../../bindings/TeamPreset";
 import type { TeamPresetPatch } from "../../bindings/TeamPresetPatch";
 
 /**
- * Mirror of the `PresetLibrary` from Rust (doc 09 §7.4). Persistence lives in
+ * Mirror of the `PresetLibrary` from Rust. Persistence lives in
  * Rust (`presets.json`, atomic + debounced) — no `persist` middleware.
  * `refresh()` subscribes once to `presets:changed`; every mutation command
  * emits it, so the window stays in sync with the native menu without extra
@@ -59,7 +59,7 @@ export const usePresetsStore = create<PresetsStore>((set) => ({
 
 /**
  * What the menu and the window show for a fixture: the label when set,
- * otherwise the derived `"{home} vs {away}"` (doc 09 §2).
+ * otherwise the derived `"{home} vs {away}"`.
  */
 export function matchDisplayName(library: PresetLibrary, fixture: MatchPreset): string {
 	const label = fixture.label?.trim();

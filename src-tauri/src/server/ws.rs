@@ -1,4 +1,4 @@
-//! WebSocket endpoint at `/ws` (tauri-rebuild doc 03 §4.2, doc 02 §4).
+//! WebSocket endpoint at `/ws` (see docs/protocol.md).
 //!
 //! Every client gets a full `state` frame on connect and after every
 //! mutation — no deltas. A lagging broadcast receiver is resynced with a
@@ -17,15 +17,15 @@ use tokio::sync::broadcast::error::RecvError;
 use super::auth::{self, Authorization};
 use crate::state::{Action, ScoreboardState, ServerEvent, Shared};
 
-/// Server-side heartbeat interval (doc 02 §4.2).
+/// Server-side heartbeat interval.
 const HEARTBEAT_INTERVAL: Duration = Duration::from_secs(30);
 /// Rate limit: 30 commands per second per connection, token bucket.
 const RATE_LIMIT_CAPACITY: u32 = 30;
 const RATE_LIMIT_REFILL: Duration = Duration::from_secs(1);
 
-/// `1008 Policy Violation` — rate-limited clients (doc 02 §4.2).
+/// `1008 Policy Violation` — rate-limited clients.
 const CLOSE_RATE_LIMITED: CloseCode = 1008;
-/// `1003 Unsupported Data` — unparseable frames (doc 02 §4.2).
+/// `1003 Unsupported Data` — unparseable frames.
 const CLOSE_BAD_FRAME: CloseCode = 1003;
 
 #[derive(Deserialize)]
@@ -154,7 +154,7 @@ async fn client_loop(
                     // Only the presentation knob the LAN board consumes is
                     // forwarded, and only when it actually flips — typing a
                     // team name must not re-tick the board. The initial value
-                    // is part of the page bootstrap (doc assets), so no
+                    // is part of the page bootstrap (`server/assets.rs`), so no
                     // connect-time frame is needed.
                     Ok(ServerEvent::Settings(settings)) => {
                         let animation = settings.score_animation_enabled;

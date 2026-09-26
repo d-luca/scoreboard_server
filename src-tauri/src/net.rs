@@ -1,4 +1,4 @@
-//! LAN address enumeration (tauri-rebuild doc 03 §7).
+//! LAN address enumeration.
 //!
 //! The server binds `0.0.0.0`, so every non-loopback IPv4 interface is a
 //! candidate URL for OBS / phones. Loopback and link-local (`169.254/16`)

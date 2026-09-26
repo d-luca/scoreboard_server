@@ -4,7 +4,7 @@ import React from "react";
 import { INPUT_CLASS } from "./constants";
 
 /**
- * `MM:SS` loadout input (doc 04 §7.4): filter allows digits and one colon;
+ * `MM:SS` loadout input: filter allows digits and one colon;
  * on blur, `^([0-9]{1,3})(?::([0-5]?[0-9]))?$` — empty means zero, invalid
  * reverts to the stored value.
  */

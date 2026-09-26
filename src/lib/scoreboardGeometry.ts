@@ -1,5 +1,5 @@
 /**
- * Shared scoreboard geometry (doc 04 §6, doc 06 §B1.1).
+ * Shared scoreboard geometry (see docs/frontend.md).
  *
  * The React scoreboard renders these values through Tailwind classes
  * (`w-28` = 112 px, `gap-3` = 12 px, …) and inline skew transforms; the
@@ -7,7 +7,7 @@
  * class name is documented next to each constant so a design tweak has one
  * obvious home.
  *
- * The *board* is 600×80 (doc 04 §6.3 parity item 11), but the −15° skew
+ * The *board* is 600×80, but the −15° skew
  * widens its bounding box by 80·tan(15°) ≈ 21.4 px, so the render frame is
  * 622×80 with the board centered — identical to `pages/scoreboard.html`.
  */
@@ -52,7 +52,7 @@ export const SCORE_BLOCK_WIDTH = SCORE_BOX_WIDTH * 2 + DIVIDER_WIDTH; // 130
 export const STRIP_WIDTH = TEAM_ROW_WIDTH * 2 + SCORE_BLOCK_WIDTH + STRIP_GAP * 2; // 410
 
 /** Video frame size: `round(base × scale)`, each rounded up to even (VP9
- * wants even dimensions, doc 06 §B2). Mirrors `video::frame_dimensions`. */
+ * wants even dimensions). Mirrors `video::frame_dimensions`. */
 export function frameDimensions(scale: number): { width: number; height: number } {
 	const even = (value: number): number => {
 		const rounded = Math.max(2, Math.round(value));

@@ -2,7 +2,7 @@
 import type { GenerationStep } from "./GenerationStep";
 
 /**
- * Progress model (doc 06 §B5) emitted as `video:progress`.
+ * Progress model emitted as `video:progress`.
  */
 export type GenerationProgress = {
 	step: GenerationStep;

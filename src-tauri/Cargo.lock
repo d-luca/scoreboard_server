@@ -3244,7 +3244,6 @@ dependencies = [
  "anyhow",
  "axum",
  "chrono",
- "embed-resource",
  "futures",
  "gtk",
  "http-body-util",

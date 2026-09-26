@@ -1,4 +1,4 @@
-//! Embedded LAN server (tauri-rebuild doc 03 §4, doc 02 §5).
+//! Embedded LAN server (see docs/protocol.md).
 //!
 //! One axum router serves the REST API, the WebSocket at `/ws`, and the
 //! Vite build embedded with `rust-embed`. OBS Browser Sources, phones and
@@ -23,7 +23,7 @@ const PORT_FALLBACK_ATTEMPTS: u16 = 10;
 
 /// Start the HTTP server on `preferred_port` (or the next free one).
 /// Returns the port actually bound and the serve task, so the caller can
-/// restart the server when the port setting changes (Phase 5).
+/// restart the server when the port setting changes.
 pub async fn start(
     shared: Shared,
     preferred_port: u16,
@@ -76,7 +76,7 @@ pub fn router(shared: Shared) -> Router {
 /// ephemeral port (`0`). All on `0.0.0.0` so LAN clients can reach the app.
 ///
 /// `[RISK]` Binding `0.0.0.0` triggers the Windows Firewall prompt on first
-/// run; "Allow on private networks" is required (doc 03 §4.1).
+/// run; "Allow on private networks" is required.
 async fn bind_with_fallback(preferred: u16) -> anyhow::Result<tokio::net::TcpListener> {
     for offset in 0..=PORT_FALLBACK_ATTEMPTS {
         let Some(port) = preferred.checked_add(offset) else {
@@ -455,7 +455,7 @@ mod tests {
         assert_ne!(listener.local_addr().unwrap().port(), preferred);
     }
 
-    /* ---- Phase 5: settings-driven behaviour ---- */
+    /* ---- settings-driven behaviour ---- */
 
     #[tokio::test]
     async fn disabled_token_policy_opens_writes_without_credentials() {

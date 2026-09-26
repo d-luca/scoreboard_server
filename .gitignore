@@ -8,8 +8,8 @@ pnpm-debug.log*
 lerna-debug.log*
 
 node_modules
-# `rust-embed` requires `dist/` to exist for a bare `cargo check`
-# (doc 03 §4.3); ignore the bundle contents but keep the placeholder.
+# `rust-embed` requires `dist/` to exist for a bare `cargo check`;
+# ignore the bundle contents but keep the placeholder.
 dist/*
 !dist/.gitkeep
 dist-ssr
@@ -28,5 +28,5 @@ dist-ssr
 *.sw?
 
 # ffmpeg sidecar binaries are fetched at release time by
-# scripts/fetch-ffmpeg.mjs (doc 06 §B3); never commit them.
+# scripts/fetch-ffmpeg.mjs; never commit them.
 src-tauri/binaries/

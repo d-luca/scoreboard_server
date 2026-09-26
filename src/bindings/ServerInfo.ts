@@ -2,7 +2,7 @@
 import type { LanAddress } from "./LanAddress";
 
 /**
- * Heavy server description for the Outputs window (doc 02 §7.1): carries
+ * Heavy server description for the Outputs window: carries
  * the LAN URLs and changes rarely. Emitted as `server:info`.
  */
 export type ServerInfo = {
@@ -26,7 +26,7 @@ export type ServerInfo = {
 	 */
 	controlQrSvg: string;
 	/**
-	 * Always true until the Phase 5 settings toggle lands.
+	 * Mirrors `settings.require_control_token`.
 	 */
 	tokenRequired: boolean;
 };

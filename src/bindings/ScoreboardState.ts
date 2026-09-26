@@ -16,7 +16,7 @@ export type ScoreboardState = {
 	half: number;
 	halfPrefix: string;
 	/**
-	 * Reserved; unimplemented (see doc 08 open question 3).
+	 * Reserved; unimplemented.
 	 */
 	eventLogo: string | null;
 	/**

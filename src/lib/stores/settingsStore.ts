@@ -5,7 +5,7 @@ import type { Settings } from "../../bindings/Settings";
 import type { SettingsPatch } from "../../bindings/SettingsPatch";
 
 /**
- * Mirror of `Settings` from Rust (doc 04 §4.2). `set(patch)` invokes
+ * Mirror of `Settings` from Rust. `set(patch)` invokes
  * `settings_set`; Rust persists atomically (debounced) and broadcasts
  * `settings:changed` to every window. There is no `persist` middleware —
  * persistence lives in Rust.

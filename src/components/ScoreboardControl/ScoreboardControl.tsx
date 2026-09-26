@@ -9,8 +9,8 @@ import { useWindowStore } from "../../lib/stores/windowStore";
 import { DEFAULT_HOTKEYS, hotkeyLabel } from "../../lib/hotkeys";
 
 /**
- * The match-operation control surface (doc 04 §7.2). No `Card` chrome — the
- * window *is* the card (doc 04 §7.1). Single column, fills the window.
+ * The match-operation control surface. No `Card` chrome — the
+ * window *is* the card. Single column, fills the window.
  */
 export function ScoreboardControl(): JSX.Element {
 	const state = useScoreboardStore((store) => store.state);

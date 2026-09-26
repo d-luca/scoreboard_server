@@ -2,7 +2,7 @@ import { useEffect } from "react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 
 /**
- * Close the current window when `Esc` is pressed (doc 01 §9.2). Used on
+ * Close the current window when `Esc` is pressed. Used on
  * `settings`, `outputs` and `about` — not on `recording` or
  * `video-generator`, where `Esc` could interrupt work.
  */

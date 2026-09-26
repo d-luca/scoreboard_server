@@ -27,7 +27,7 @@ export function TimerControl(): JSX.Element {
 	};
 
 	// Start and Reset are disabled when the timer is at 0 and not running
-	// [PARITY] (doc 04 §7.2) — countdown only; count-up can always start
+	// [PARITY] — countdown only; count-up can always start
 	// from 0 (the Rust engine has no zero guard for the up direction).
 	const startResetDisabled = !isTimerRunning && timer === 0 && timerDirection !== "up";
 

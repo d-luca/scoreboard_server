@@ -7,7 +7,7 @@ import { Timer } from "./Timer";
 
 /**
  * The visual scoreboard, ported verbatim from the Electron build
- * (doc 04 §6). Must render pixel-identical at 600×80.
+ * (see docs/frontend.md). Must render pixel-identical at 600×80.
  *
  * All props are optional with the documented fallbacks (names "T-H"/"T-A",
  * colours #00ff00/#ff0000, scores 0, timer 0, half 1). `scoreAnimation`

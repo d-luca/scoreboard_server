@@ -1,4 +1,4 @@
-//! Integration tests for video generation (doc 06 Part B, Phase 9).
+//! Integration tests for video generation.
 //!
 //! Lives in `tests/` (not a lib unit test) so the Windows comctl32 v6
 //! manifest from build.rs is linked in — see tests/export_bindings.rs.
@@ -29,7 +29,7 @@ fn temp_dir(tag: &str) -> PathBuf {
     dir
 }
 
-/// A minimal valid v2 `.sbrec` with `count` snapshots (doc 06 §A2).
+/// A minimal valid v2 `.sbrec` with `count` snapshots.
 fn write_fixture(dir: &Path, count: usize) -> PathBuf {
     let path = dir.join("HOME-AWAY-2026-08-28T12-00-00.sbrec");
     let mut content = String::from(
@@ -211,7 +211,7 @@ async fn generates_webm_with_alpha_end_to_end() {
         );
     }
 
-    // Generating twice in a row must work (doc 06 §B8).
+    // Generating twice in a row must work.
     let started = video::generate(
         &shared,
         None,
@@ -279,7 +279,7 @@ async fn cancel_kills_ffmpeg_and_removes_partial_output() {
     assert_eq!(progress.error.as_deref(), Some("Generation cancelled"));
     assert!(
         !output.exists(),
-        "partial output must be deleted on cancel (doc 06 §B6)"
+        "partial output must be deleted on cancel"
     );
 
     std::fs::remove_dir_all(&dir).ok();

@@ -1,33 +1,39 @@
 fn main() {
-    tauri_build::build();
+    // Workaround for https://github.com/tauri-apps/tauri/issues/13419:
+    // `tauri-build` embeds the Windows app manifest (Common-Controls v6, which
+    // exports `TaskDialogIndirect`, imported via tauri-plugin-dialog) with
+    // `cargo:rustc-link-arg-bins`, so only the app binary gets it. Every test
+    // executable then fails at process load with STATUS_ENTRYPOINT_NOT_FOUND
+    // (0xc0000139) before any test runs. On Windows MSVC targets we embed the
+    // manifest ourselves instead: tauri-build's copy is disabled and the same
+    // XML is passed to the linker via the target-unspecific
+    // `cargo:rustc-link-arg`, which reaches bins, tests, examples, and benches
+    // alike (the `-bins`/`-tests` scoped variants never cover the lib's own
+    // unit-test binary). windows-app-manifest.xml is a byte-for-byte copy of
+    // tauri-build's default manifest, so the shipped binary is unchanged.
+    let is_windows_msvc = std::env::var("CARGO_CFG_TARGET_OS").as_deref() == Ok("windows")
+        && std::env::var("CARGO_CFG_TARGET_ENV").as_deref() == Ok("msvc");
+
+    let mut attributes = tauri_build::Attributes::new();
+    if is_windows_msvc {
+        attributes = attributes
+            .windows_attributes(tauri_build::WindowsAttributes::new_without_app_manifest());
+    }
+    tauri_build::try_build(attributes).expect("failed to run tauri-build");
+
+    if is_windows_msvc {
+        let manifest =
+            std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("windows-app-manifest.xml");
+        println!("cargo:rerun-if-changed={}", manifest.display());
+        println!("cargo:rustc-link-arg=/MANIFEST:EMBED");
+        println!("cargo:rustc-link-arg=/MANIFESTINPUT:{}", manifest.display());
+    }
 
     // The video generator resolves its bundled ffmpeg sidecar as
-    // `binaries/ffmpeg-<target-triple>[.exe]` under the resource dir
-    // (doc 06 §B3); make the triple available to the crate.
+    // `binaries/ffmpeg-<target-triple>[.exe]` under the resource dir;
+    // make the triple available to the crate.
     println!(
         "cargo:rustc-env=TARGET_TRIPLE={}",
         std::env::var("TARGET").expect("TARGET not set")
     );
-
-    // `tauri-build` embeds the Windows manifest (Common-Controls v6, …) only
-    // into bin targets. Test binaries then fail at process load with
-    // STATUS_ENTRYPOINT_NOT_FOUND (0xc0000139) because they import
-    // `TaskDialogIndirect` (via tauri-plugin-dialog), which only exists in
-    // comctl32 v6. Link the same generated resource into test binaries too.
-    //
-    // Caveat: Cargo applies `cargo:rustc-link-arg-tests` (and the plain
-    // `cargo:rustc-link-arg`) to integration tests but not to the library's
-    // own unit-test target, so the `--lib` test binary still lacks the
-    // manifest on Windows. To run the lib unit tests locally, embed the
-    // manifest post-link, e.g.:
-    //   cargo test --lib --no-run
-    //   mt.exe -manifest comctl32-v6.manifest -outputresource:<test-exe>;1
-    //   <test-exe>
-    if std::env::var("CARGO_CFG_TARGET_OS").as_deref() == Ok("windows") {
-        let rc = std::path::PathBuf::from(std::env::var("OUT_DIR").expect("OUT_DIR not set"))
-            .join("resource.rc");
-        if rc.exists() {
-            let _ = embed_resource::compile_for_tests(&rc, embed_resource::NONE);
-        }
-    }
 }

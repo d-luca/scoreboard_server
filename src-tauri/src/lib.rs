@@ -23,7 +23,7 @@ use tauri::Manager;
 use video::{GenerationProgress, GenerationStarted, RecordingMetadata, VideoGenerationConfig};
 use windows::AppWindow;
 
-/// Start the embedded LAN server (doc 03 §4). Exposed for the
+/// Start the embedded LAN server. Exposed for the
 /// `examples/serve.rs` smoke-test binary; the app calls it from `setup`.
 pub async fn start_server(
     shared: Shared,
@@ -142,7 +142,7 @@ async fn settings_set(
         .map_err(|error| error.to_string())
 }
 
-/// Full preset library snapshot (doc 09 §4).
+/// Full preset library snapshot.
 #[tauri::command]
 async fn presets_get(state: tauri::State<'_, Shared>) -> Result<PresetLibrary, String> {
     Ok(state.presets_snapshot().await)
@@ -219,7 +219,7 @@ async fn match_preset_delete(id: String, state: tauri::State<'_, Shared>) -> Res
         .map_err(|error| error.to_string())
 }
 
-/// Load a fixture into `Settings` (doc 09 §5): identity only — scores, half
+/// Load a fixture into `Settings`: identity only — scores, half
 /// and timer are never touched.
 #[tauri::command]
 async fn preset_load(id: String, state: tauri::State<'_, Shared>) -> Result<Settings, String> {
@@ -230,7 +230,7 @@ async fn preset_load(id: String, state: tauri::State<'_, Shared>) -> Result<Sett
         .map_err(|error| error.to_string())
 }
 
-/// Currently configured buzzer track (doc 02 §7.2). `path` is `null` when
+/// Currently configured buzzer track. `path` is `null` when
 /// the built-in default is in use.
 #[derive(serde::Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -270,7 +270,7 @@ async fn buzzer_select_track(
         .map_err(|error| error.to_string())?
         .to_string_lossy()
         .into_owned();
-    // The configured asset-protocol scope starts empty (doc 07 §3); grant
+    // The configured asset-protocol scope starts empty; grant
     // the picked file so `convertFileSrc` can play it.
     if let Err(error) = app.asset_protocol_scope().allow_file(&path) {
         tracing::warn!(?error, path, "failed to grant asset scope for buzzer track");
@@ -309,7 +309,7 @@ fn track_file_name(path: &str) -> String {
         .unwrap_or_else(|| path.to_string())
 }
 
-// --- Match recording (doc 06 Part A, Phase 8) ---
+// --- Match recording (docs/features/recording-video.md) ---
 
 #[tauri::command]
 async fn recording_start(
@@ -342,7 +342,7 @@ async fn recording_get_output_dir(
 }
 
 /// Folder picker for the recording output directory; persists the choice to
-/// `settings.json` (doc 06 §A3). `None` = cancelled.
+/// `settings.json`. `None` = cancelled.
 #[tauri::command]
 async fn recording_select_output_dir(
     app: tauri::AppHandle,
@@ -369,7 +369,7 @@ async fn recording_select_output_dir(
 }
 
 /// Newest `.sbrec` / legacy `.json` files in the output directory, for the
-/// recording window's recent list (doc 06 §A6).
+/// recording window's recent list.
 #[tauri::command]
 async fn recording_list_recent(
     app: tauri::AppHandle,
@@ -379,14 +379,14 @@ async fn recording_list_recent(
     Ok(recording::list_recent(&dir))
 }
 
-// --- Video generation (doc 06 Part B, Phase 9) ---
+// --- Video generation (docs/features/recording-video.md) ---
 //
 // Compiled unconditionally like the recording commands (they are
 // unreachable when the `video` Cargo feature gates the menu/window), so CI
 // type-checks them in every configuration.
 
 /// Parse a `.sbrec` / legacy `.json` recording for the generator window's
-/// Recording File card (doc 06 §B7).
+/// Recording File card.
 #[tauri::command]
 async fn video_load_recording(path: String) -> Result<RecordingMetadata, String> {
     video::load_metadata(std::path::Path::new(&path))
@@ -443,8 +443,8 @@ async fn video_select_output(
     }))
 }
 
-/// Validate, parse, spawn ffmpeg and start the render loop's backend
-/// (doc 06 §B1–B4). The webview pulls snapshots (`video_frames`) and pushes
+/// Validate, parse, spawn ffmpeg and start the render loop's backend.
+/// The webview pulls snapshots (`video_frames`) and pushes
 /// rendered batches (`video_push_frames`) after this returns.
 #[tauri::command]
 async fn video_generate(
@@ -469,7 +469,7 @@ async fn video_frames(
 /// `[u32 LE start][u32 LE frame_count][frame_count × width × height × 4]`.
 /// The frontend passes the `Uint8Array` as the *sole* invoke argument so
 /// Tauri transfers it as `application/octet-stream` instead of expanding it
-/// into a JSON number array (doc 06 §B4).
+/// into a JSON number array.
 #[tauri::command]
 async fn video_push_frames(
     state: tauri::State<'_, Shared>,
@@ -483,7 +483,7 @@ async fn video_push_frames(
     }
 }
 
-/// Cancel the active run (doc 06 §B6).
+/// Cancel the active run.
 #[tauri::command]
 async fn video_cancel(state: tauri::State<'_, Shared>) -> Result<(), String> {
     video::cancel(state.inner())
@@ -496,7 +496,7 @@ async fn video_progress(state: tauri::State<'_, Shared>) -> Result<GenerationPro
 }
 
 /// Open the video-generator window with a pre-filled recording path
-/// (doc 06 §B7, from the recording window). The path is stashed in state
+/// (from the recording window). The path is stashed in state
 /// and picked up by the generator on mount via `video_take_pending_recording`.
 #[tauri::command]
 async fn video_open_with_recording(
@@ -526,7 +526,7 @@ async fn video_take_pending_recording(
         .take())
 }
 
-/// Windows first-run firewall explainer (doc 07 §4.1): the first `0.0.0.0`
+/// Windows first-run firewall explainer: the first `0.0.0.0`
 /// bind raises the Windows Firewall prompt, and choosing the wrong network
 /// profile silently breaks OBS/phone access. Explain once, then persist the
 /// acknowledgement. The app never touches firewall rules itself.
@@ -593,7 +593,7 @@ pub fn run() {
                     );
                 }
             }
-            // Windows first-run firewall explainer (doc 07 §4.1).
+            // Windows first-run firewall explainer.
             let show_firewall_notice =
                 cfg!(target_os = "windows") && !settings.firewall_notice_shown;
 
@@ -603,7 +603,7 @@ pub fn run() {
 
             // Rebuild the native menu whenever a menu-rendered value changes:
             // the preset library or a timer loadout (debounced, main-thread
-            // only — doc 09 §6.1).
+            // only).
             menu::spawn_menu_rebuilder(app.handle(), app.state::<Shared>().inner().clone());
 
             // Splash window: a tiny static page (no JS bundle) that covers
@@ -636,7 +636,7 @@ pub fn run() {
                 // Stays hidden until the frontend invokes `startup_ready`.
             }
 
-            // Embedded LAN server (doc 03 §4). The bound port is published
+            // Embedded LAN server. The bound port is published
             // as `server:status` / `server:info` once known.
             let shared_for_server = app.state::<Shared>().inner().clone();
             tauri::async_runtime::spawn(async move {
@@ -656,7 +656,7 @@ pub fn run() {
         })
         .on_menu_event(menu::on_menu_event)
         .on_window_event(|window, event| {
-            // Closing `main` closes everything and exits (doc 03 §7bis).
+            // Closing `main` closes everything and exits.
             if window.label() == "main" {
                 if let tauri::WindowEvent::CloseRequested { .. } = event {
                     windows::close_all(window.app_handle());
@@ -707,7 +707,7 @@ pub fn run() {
         .expect("error while building tauri application");
 
     app.run(|handle, event| {
-        // Flush-on-exit (doc 06 §A5): an in-flight recording gets its trailer
+        // Flush-on-exit: an in-flight recording gets its trailer
         // and a final flush before the process goes away, so a quit mid-match
         // loses at most the last second.
         if let tauri::RunEvent::ExitRequested { .. } = event {

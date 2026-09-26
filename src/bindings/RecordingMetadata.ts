@@ -3,7 +3,7 @@ import type { Snapshot } from "./Snapshot";
 
 /**
  * Parsed recording header + first snapshots, for the generator window's
- * Recording File card (doc 06 §B7).
+ * Recording File card.
  */
 export type RecordingMetadata = {
 	recordingId: string;

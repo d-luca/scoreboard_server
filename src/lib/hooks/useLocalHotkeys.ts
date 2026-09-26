@@ -3,7 +3,7 @@ import { useScoreboardStore } from "../stores/desktopScoreboardStore";
 import { DEFAULT_HOTKEYS, hotkeyToAction, matchesHotkey, type HotkeyAction } from "../hotkeys";
 
 /**
- * Window-focused keyboard shortcuts (doc 04 §9, doc 05 §5.1) [PARITY].
+ * Window-focused keyboard shortcuts [PARITY].
  *
  * Ignores events whose target is an `INPUT`, `TEXTAREA` or `contentEditable`
  * element, so typing in a field never triggers a hotkey. Iterates the

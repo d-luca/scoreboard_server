@@ -1,4 +1,4 @@
-//! Team & match presets (tauri-rebuild doc 09).
+//! Team & match presets (see docs/features/presets.md).
 //!
 //! A team preset is a reusable identity (`name` + `color`); a match preset is
 //! a fixture referencing two teams by id, so renaming a team updates every
@@ -21,8 +21,8 @@ use crate::state::DomainError;
 /// Current on-disk schema for `presets.json`.
 pub const PRESETS_SCHEMA_VERSION: u32 = 1;
 
-/// A preset id is 12 lowercase hex characters, generated randomly (doc 09
-/// §2): a counter that resets after a corrupt-file recovery would make a
+/// A preset id is 12 lowercase hex characters, generated randomly:
+/// a counter that resets after a corrupt-file recovery would make a
 /// stale menu item load the wrong fixture, and random ids merge cleanly if
 /// import/export is added later.
 pub type PresetId = String;
@@ -32,7 +32,7 @@ pub type PresetId = String;
 pub const MAX_MENU_FIXTURES: usize = 20;
 
 /// Fixture names listed in a delete-blocked error before `…and N more`, so a
-/// 30-fixture tournament does not produce an unreadable string (doc 09 §4.1).
+/// 30-fixture tournament does not produce an unreadable string.
 const MAX_BLOCKING_NAMES: usize = 5;
 
 /// A reusable team identity. Referenced by [`MatchPreset`], never inlined,
@@ -121,7 +121,7 @@ fn new_id(library: &PresetLibrary) -> PresetId {
     }
 }
 
-/// `label` → trimmed; empty becomes `None` (doc 09 §2.1).
+/// `label` → trimmed; empty becomes `None`.
 fn validate_label(raw: Option<String>) -> Option<String> {
     raw.and_then(|label| {
         let trimmed = label.trim();
@@ -151,7 +151,7 @@ fn find_match<'a>(library: &'a PresetLibrary, id: &str) -> Result<&'a MatchPrese
 }
 
 /// A fixture's references must resolve to existing teams, and a fixture
-/// needs two different teams (doc 09 §2.1).
+/// needs two different teams.
 fn validate_fixture_refs(
     library: &PresetLibrary,
     home: &str,
@@ -168,8 +168,8 @@ fn validate_fixture_refs(
 }
 
 /// Validation reuses `state::validate_name` / `state::validate_color` so a
-/// preset can never hold a value `settings_set` would later reject (doc 09
-/// §2.1 — a divergent copy would surface as a menu click that does nothing).
+/// preset can never hold a value `settings_set` would later reject (a
+/// divergent copy would surface as a menu click that does nothing).
 pub fn create_team(
     library: &mut PresetLibrary,
     name: &str,
@@ -216,7 +216,7 @@ pub fn update_team(
 }
 
 /// Deleting a team referenced by fixtures is blocked; the error names the
-/// blocking fixtures (capped, doc 09 §4.1).
+/// blocking fixtures (capped).
 pub fn delete_team(library: &mut PresetLibrary, id: &str) -> Result<(), DomainError> {
     let team = find_team(library, id)?;
     let blocking: Vec<String> = library
@@ -304,7 +304,7 @@ pub fn delete_match(library: &mut PresetLibrary, id: &str) -> Result<(), DomainE
 }
 
 /// What the menu and the window show: the label when set, otherwise the
-/// derived `"{home} vs {away}"` (doc 09 §2).
+/// derived `"{home} vs {away}"`.
 pub fn display_name(library: &PresetLibrary, fixture: &MatchPreset) -> String {
     if let Some(label) = fixture
         .label
@@ -331,7 +331,7 @@ pub fn display_name(library: &PresetLibrary, fixture: &MatchPreset) -> String {
 
 /// On Windows `&` in a menu label is a mnemonic marker, so a team named
 /// `Rangers & Co` would render as `Rangers _Co`. Double it — this affects
-/// only the label, never the stored name (doc 09 §6.1).
+/// only the label, never the stored name.
 pub fn escape_menu_label(label: &str) -> String {
     label.replace('&', "&&")
 }
@@ -346,7 +346,7 @@ pub fn path(app: &AppHandle) -> PathBuf {
 
 /// Load from disk; never fails. A missing file yields an empty library. A
 /// corrupt file is renamed to `presets.corrupt-<unix_ts>.json`, a warning is
-/// logged, and an empty library is used (doc 09 §3).
+/// logged, and an empty library is used.
 pub fn load(app: &AppHandle) -> PresetLibrary {
     load_from(&path(app))
 }

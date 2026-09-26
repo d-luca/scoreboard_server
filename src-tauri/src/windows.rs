@@ -1,4 +1,4 @@
-//! Singleton window manager (tauri-rebuild doc 03 §7bis, doc 01 §9.2).
+//! Singleton window manager (see docs/architecture.md#windows).
 //!
 //! Only `main` is declared in `tauri.conf.json`; every feature window is
 //! created on demand, is a singleton keyed by its label, restores its saved
@@ -66,7 +66,7 @@ impl AppWindow {
         }
     }
 
-    /// Default inner size (doc 01 §7 table).
+    /// Default inner size.
     pub fn size(self) -> (f64, f64) {
         match self {
             Self::Settings => (760.0, 620.0),
@@ -82,15 +82,14 @@ impl AppWindow {
         match self {
             Self::Settings => (640.0, 520.0),
             Self::Outputs => (700.0, 520.0),
-            // Master/detail needs the width (doc 09 §7.1).
+            // Master/detail needs the width.
             Self::Presets => (700.0, 520.0),
             other => other.size(),
         }
     }
 
-    /// Whether the window's optional Cargo feature is compiled in
-    /// (doc 06 §B8: with the feature disabled, the window cannot be
-    /// opened). Core windows are always enabled.
+    /// Whether the window's optional Cargo feature is compiled in; a disabled
+    /// feature's window cannot be opened. Core windows are always enabled.
     pub fn enabled(self) -> bool {
         // With both features disabled every `cfg!` is `false` and the match
         // is constant-foldable, tripping clippy's `match_like_matches_macro`;
@@ -107,7 +106,7 @@ impl AppWindow {
         }
     }
 
-    /// `Esc` closes `settings`, `outputs` and `about` (doc 01 §9.2) —
+    /// `Esc` closes `settings`, `outputs` and `about` —
     /// handled in the frontend via `useEscapeToClose`, not here.
     #[allow(dead_code)]
     pub fn from_label(label: &str) -> Option<Self> {
@@ -126,7 +125,7 @@ impl AppWindow {
 /// Open a feature window, or focus it if it is already open. Never allows
 /// two instances of a label.
 pub fn open(app: &AppHandle, which: AppWindow) -> tauri::Result<()> {
-    // An optional feature that was compiled out has no window (doc 06 §B8).
+    // An optional feature that was compiled out has no window.
     if !which.enabled() {
         return Err(std::io::Error::new(
             std::io::ErrorKind::Unsupported,
@@ -297,7 +296,7 @@ fn wire_window_events(app: &AppHandle, window: &WebviewWindow, which: AppWindow)
     });
 }
 
-/// Adjust the zoom of the currently focused window (doc 03 §7ter).
+/// Adjust the zoom of the currently focused window.
 pub fn zoom_by(app: &AppHandle, delta: f64) {
     if let Some(window) = focused_window(app) {
         let label = window.label().to_string();
@@ -348,7 +347,7 @@ pub fn close_all(app: &AppHandle) {
 
 /// Wire geometry persistence for the `main` window and restore its saved
 /// geometry. `main` is declared in `tauri.conf.json`, so it is not built by
-/// [`open`] — but its position should still survive a restart (doc 01 §7).
+/// [`open`] — but its position should still survive a restart.
 pub fn wire_main_window(app: &AppHandle, window: &WebviewWindow) {
     // Restore saved geometry, clamped to a visible monitor.
     if let Some(state) = app.try_state::<Shared>() {

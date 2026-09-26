@@ -4,7 +4,7 @@ import { tauriTransport } from "@/lib/tauriTransport";
 import { useEffect } from "react";
 
 /**
- * Desktop buzzer playback (doc 03 §3.4): the `main` webview decides based on
+ * Desktop buzzer playback: the `main` webview decides based on
  * the persisted `buzzerAutoPlay` setting. `buzzer:play` (manual presses from
  * the desktop or the phone remote) always plays; `timer:finished` plays only
  * when auto-play is on.

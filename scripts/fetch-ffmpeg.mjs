@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
- * Downloads the ffmpeg sidecar for release bundles (doc 06 §B3, doc 08 open
- * question 4): the binary is fetched at release time — never committed to
+ * Downloads the ffmpeg sidecar for release bundles (see
+ * docs/build-release.md): the binary is fetched at release time — never committed to
  * git (`src-tauri/binaries/` is ignored) — and wired into the bundle via
  * `TAURI_CONFIG='{"bundle":{"externalBin":["binaries/ffmpeg"]}}'` (see the
  * `bundle` CI job). At runtime the app prefers this sidecar and falls back

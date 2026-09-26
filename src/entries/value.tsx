@@ -7,7 +7,7 @@ import { WsTransport } from "../lib/wsTransport";
 import "../scoreboard.css";
 
 /**
- * Single-value page at `/value/:property` (doc 02 §5.1) — a transparent,
+ * Single-value page at `/value/:property` — a transparent,
  * white, 48 px bold centred value that updates over WebSocket, for
  * compositing individual fields in OBS. Served over plain HTTP: never
  * import `@tauri-apps/*` here.

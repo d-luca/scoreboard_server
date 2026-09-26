@@ -4,14 +4,14 @@ import type { Snapshot } from "../bindings/Snapshot";
 import { renderScoreboardToCanvas } from "./renderScoreboardToCanvas";
 
 /**
- * Frames per IPC batch (doc 06 §B4): 30 frames ≈ 5.6 MB at scale 1 — one
+ * Frames per IPC batch: 30 frames ≈ 5.6 MB at scale 1 — one
  * batch in flight (each push awaits the write into ffmpeg's stdin, which is
  * the backpressure), so memory stays flat regardless of recording length.
  */
 const BATCH_SIZE = 30;
 
 /**
- * The render loop (doc 06 §B1/B4): pull a batch of snapshots, re-draw each
+ * The render loop: pull a batch of snapshots, re-draw each
  * on a detached canvas, push the raw RGBA frames to Rust in one raw IPC
  * body — `[u32 LE start][u32 LE frame_count][frames…]`. Passing the
  * `Uint8Array` as the *sole* invoke argument makes Tauri transfer it as
@@ -33,7 +33,7 @@ export async function runRenderLoop(started: GenerationStarted, isCancelled: () 
 	}
 
 	// Fonts must be loaded before the first draw or the first frames come
-	// out in a fallback font (doc 06 §B1.1).
+	// out in a fallback font.
 	const fontScale = height / 80;
 	await Promise.all([
 		document.fonts.load(`${Math.round(36 * fontScale)}px Anton`),
