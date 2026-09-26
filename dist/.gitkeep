@@ -1,0 +1,4 @@
+Placeholder so `dist/` exists on a fresh checkout — `rust-embed`
+(src-tauri/src/server/assets.rs) requires the folder at compile time,
+e.g. for `pnpm bindings` / `cargo check` before the frontend is built.
+The real build output (`pnpm build`) replaces it.
