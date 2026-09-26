@@ -25,6 +25,29 @@ function copyMainIndexToRoot(): Plugin {
 	};
 }
 
+/**
+ * `emptyOutDir` wipes the committed `dist/.gitkeep` on every build. The
+ * placeholder must exist on a fresh checkout because rust-embed requires
+ * `dist/` at compile time (e.g. `pnpm bindings` before any frontend build),
+ * so re-emit it — byte-identical to the committed file, keeping git clean.
+ */
+const DIST_GITKEEP = `Placeholder so \`dist/\` exists on a fresh checkout — \`rust-embed\`
+(src-tauri/src/server/assets.rs) requires the folder at compile time,
+e.g. for \`pnpm bindings\` / \`cargo check\` before the frontend is built.
+Re-emitted by every \`vite build\` (keepDistPlaceholder in vite.config.ts);
+do not edit — keep in sync with the plugin's emitted source.
+`;
+
+function keepDistPlaceholder(): Plugin {
+	return {
+		name: "keep-dist-placeholder",
+		enforce: "post",
+		generateBundle() {
+			this.emitFile({ type: "asset", fileName: ".gitkeep", source: DIST_GITKEEP });
+		},
+	};
+}
+
 // https://vite.dev/config/
 export default defineConfig(async () => ({
 	plugins: [
@@ -37,6 +60,7 @@ export default defineConfig(async () => ({
 		}),
 		tailwindcss(),
 		copyMainIndexToRoot(),
+		keepDistPlaceholder(),
 	],
 
 	resolve: {

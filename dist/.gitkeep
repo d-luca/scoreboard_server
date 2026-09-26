@@ -1,0 +1,5 @@
+Placeholder so `dist/` exists on a fresh checkout — `rust-embed`
+(src-tauri/src/server/assets.rs) requires the folder at compile time,
+e.g. for `pnpm bindings` / `cargo check` before the frontend is built.
+Re-emitted by every `vite build` (keepDistPlaceholder in vite.config.ts);
+do not edit — keep in sync with the plugin's emitted source.
