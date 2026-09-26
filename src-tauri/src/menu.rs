@@ -56,7 +56,7 @@ fn format_loadout(seconds: u32) -> String {
 }
 
 pub fn build(app: &AppHandle) -> tauri::Result<Menu<Wry>> {
-    let file = SubmenuBuilder::new(app, "File")
+    let app_menu = SubmenuBuilder::new(app, "Scoreboard")
         .item(
             &MenuItemBuilder::with_id("open:settings", "Settings…")
                 .accelerator("CmdOrCtrl+,")
@@ -67,12 +67,6 @@ pub fn build(app: &AppHandle) -> tauri::Result<Menu<Wry>> {
         .build()?;
 
     let view = SubmenuBuilder::new(app, "View")
-        .item(
-            &MenuItemBuilder::with_id("open:outputs", "Outputs & Sharing…")
-                .accelerator("CmdOrCtrl+O")
-                .build(app)?,
-        )
-        .separator()
         .item(
             &MenuItemBuilder::with_id("view:zoom-in", "Zoom In")
                 .accelerator("CmdOrCtrl+Plus")
@@ -90,11 +84,9 @@ pub fn build(app: &AppHandle) -> tauri::Result<Menu<Wry>> {
         )
         .build()?;
 
-    let presets_menu = build_presets_menu(app, &current_library(app))?;
+    let presets_menu = build_presets_menu(app, &current_library(app), &current_loadouts(app))?;
 
-    let timer_menu = build_timer_menu(app, &current_loadouts(app))?;
-
-    let tools = build_tools_menu(app)?;
+    let broadcast = build_broadcast_menu(app)?;
 
     let help = SubmenuBuilder::new(app, "Help")
         .item(&MenuItemBuilder::with_id("help:docs", "Documentation").build(app)?)
@@ -102,7 +94,7 @@ pub fn build(app: &AppHandle) -> tauri::Result<Menu<Wry>> {
         .build()?;
 
     MenuBuilder::new(app)
-        .items(&[&file, &view, &presets_menu, &timer_menu, &tools, &help])
+        .items(&[&app_menu, &view, &presets_menu, &broadcast, &help])
         .build()
 }
 
@@ -110,53 +102,53 @@ pub fn build(app: &AppHandle) -> tauri::Result<Menu<Wry>> {
 /// never bare teams. Empty library → a single disabled item so the menu is
 /// never an uninterpretable box. Capped at [`presets::MAX_MENU_FIXTURES`]
 /// most recently appended fixtures; the window lists the rest.
-fn build_presets_menu(app: &AppHandle, library: &PresetLibrary) -> tauri::Result<Submenu<Wry>> {
-    let mut builder = SubmenuBuilder::new(app, "Presets").item(
-        &MenuItemBuilder::with_id("open:presets", "Manage Presets…")
-            .accelerator("CmdOrCtrl+P")
-            .build(app)?,
-    );
+///
+/// A second section holds the three timer loadout shortcuts. The label shows
+/// the current value so the operator sees what applying a slot will set;
+/// those labels go stale when a loadout changes, so [`spawn_menu_rebuilder`]
+/// also watches `ServerEvent::State` for triple changes.
+///
+/// No accelerators on the timer items: `Ctrl+1/2/3` stay registered in the
+/// webview (`useLocalHotkeys`), whose editable-target guard a native
+/// accelerator would bypass (loadout applied while typing in an input).
+fn build_presets_menu(
+    app: &AppHandle,
+    library: &PresetLibrary,
+    loadouts: &[u32; 3],
+) -> tauri::Result<Submenu<Wry>> {
+    let mut builder = SubmenuBuilder::new(app, "Presets")
+        .item(
+            &MenuItemBuilder::with_id("open:presets", "Manage Presets…")
+                .accelerator("CmdOrCtrl+P")
+                .build(app)?,
+        )
+        .separator();
     if library.matches.is_empty() {
-        return builder
-            .separator()
-            .item(
-                &MenuItemBuilder::with_id("presets:empty", "No presets saved")
-                    .enabled(false)
+        builder = builder.item(
+            &MenuItemBuilder::with_id("presets:empty", "No presets saved")
+                .enabled(false)
+                .build(app)?,
+        );
+    } else {
+        let start = library
+            .matches
+            .len()
+            .saturating_sub(presets::MAX_MENU_FIXTURES);
+        for fixture in &library.matches[start..] {
+            let label = presets::escape_menu_label(&presets::display_name(library, fixture));
+            builder = builder.item(
+                &MenuItemBuilder::with_id(format!("preset:load:{}", fixture.id), label)
                     .build(app)?,
-            )
-            .build();
+            );
+        }
     }
     builder = builder.separator();
-    let start = library
-        .matches
-        .len()
-        .saturating_sub(presets::MAX_MENU_FIXTURES);
-    for fixture in &library.matches[start..] {
-        let label = presets::escape_menu_label(&presets::display_name(library, fixture));
-        builder = builder.item(
-            &MenuItemBuilder::with_id(format!("preset:load:{}", fixture.id), label).build(app)?,
-        );
-    }
-    builder.build()
-}
-
-/// `Timer` submenu: the three loadout shortcuts, moved here from the control
-/// surface. The label shows the current value so the operator sees what
-/// applying a slot will set; those labels go stale when a loadout changes,
-/// so [`spawn_menu_rebuilder`] also watches `ServerEvent::State` for triple
-/// changes.
-///
-/// No accelerators: `Ctrl+1/2/3` stay registered in the webview
-/// (`useLocalHotkeys`), whose editable-target guard a native accelerator
-/// would bypass (loadout applied while typing in an input).
-fn build_timer_menu(app: &AppHandle, loadouts: &[u32; 3]) -> tauri::Result<Submenu<Wry>> {
-    let mut builder = SubmenuBuilder::new(app, "Timer");
     for (index, seconds) in loadouts.iter().enumerate() {
         let slot = index + 1;
         builder = builder.item(
             &MenuItemBuilder::with_id(
                 format!("timer:loadout:{slot}"),
-                format!("Loadout {slot} ({})", format_loadout(*seconds)),
+                format!("Timer {slot} ({})", format_loadout(*seconds)),
             )
             .build(app)?,
         );
@@ -178,7 +170,7 @@ pub fn spawn_menu_rebuilder(app: &AppHandle, shared: Shared) {
     let mut rx = shared.events.subscribe();
     let app = app.clone();
     tauri::async_runtime::spawn(async move {
-        // Loadout triple as last rendered into the `Timer` submenu. `State`
+        // Loadout triple as last rendered into the `Presets` submenu. `State`
         // fires on every timer tick, so rebuild only when the triple itself
         // changes. Read it with `await` here — `current_loadouts` blocks and
         // must stay on the main thread.
@@ -231,21 +223,25 @@ pub fn spawn_menu_rebuilder(app: &AppHandle, shared: Shared) {
     });
 }
 
-/// Tools is assembled conditionally: items for features compiled out are
+/// Broadcast is assembled conditionally: items for features compiled out are
 /// never added (doc 03 §7ter). The overlay/recording/video features land in
 /// later phases; the menu entries appear with their Cargo features.
-fn build_tools_menu(app: &AppHandle) -> tauri::Result<Submenu<Wry>> {
-    let builder = SubmenuBuilder::new(app, "Tools");
+fn build_broadcast_menu(app: &AppHandle) -> tauri::Result<Submenu<Wry>> {
+    let builder = SubmenuBuilder::new(app, "Broadcast").item(
+        &MenuItemBuilder::with_id("open:outputs", "Outputs & Sharing…")
+            .accelerator("CmdOrCtrl+O")
+            .build(app)?,
+    );
     #[cfg(feature = "overlay")]
     let builder = {
-        builder
-            .item(
-                &tauri::menu::CheckMenuItemBuilder::with_id("tools:overlay", "Overlay Mode")
-                    .accelerator("F9")
-                    .build(app)?,
-            )
-            .separator()
+        builder.separator().item(
+            &tauri::menu::CheckMenuItemBuilder::with_id("tools:overlay", "Overlay Mode")
+                .accelerator("F9")
+                .build(app)?,
+        )
     };
+    #[cfg(any(feature = "recording", feature = "video"))]
+    let builder = builder.separator();
     #[cfg(feature = "recording")]
     let builder = {
         // `Ctrl+R` shadows the webview reload in dev builds; only register
