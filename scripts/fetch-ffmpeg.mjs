@@ -14,7 +14,15 @@
  * - Linux x64:   https://johnvansickle.com/ffmpeg (static amd64)
  */
 import { execFileSync } from "node:child_process";
-import { createWriteStream, existsSync, mkdirSync, readdirSync, renameSync, rmSync } from "node:fs";
+import {
+	copyFileSync,
+	createWriteStream,
+	existsSync,
+	mkdirSync,
+	readdirSync,
+	renameSync,
+	rmSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { pipeline } from "node:stream/promises";
@@ -60,6 +68,7 @@ if (!target) {
 }
 
 const dest = join(BINARIES_DIR, `ffmpeg-${triple}${target.exe}`);
+const stagingDest = `${dest}.tmp-${process.pid}`;
 if (existsSync(dest)) {
 	console.log(`ffmpeg sidecar already present: ${dest}`);
 	process.exit(0);
@@ -84,11 +93,13 @@ try {
 	if (!existsSync(binary)) {
 		throw new Error(`ffmpeg binary not found in archive at ${binary}`);
 	}
-	renameSync(binary, dest);
+	copyFileSync(binary, stagingDest);
+	renameSync(stagingDest, dest);
 	if (process.platform !== "win32") {
 		execFileSync("chmod", ["755", dest]);
 	}
 	console.log(`ffmpeg sidecar ready: ${dest}`);
 } finally {
+	rmSync(stagingDest, { force: true });
 	rmSync(work, { recursive: true, force: true });
 }
