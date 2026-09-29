@@ -75,6 +75,10 @@ WebSocket smoke tests against a running server: [`scripts/ws-smoke.mjs`](../scri
 
 - AppImage is the portable option, deb for Debian/Ubuntu. AppImage does not bundle
   `libwebkit2gtk`; very old distros need the system package.
+- The release AppImage must **not** bundle `libwayland-*`: the host Mesa EGL driver needs
+  the host's (newer) libwayland, and with the 22.04 copy EGL fails to load, so every
+  window stays blank on the splash. [`scripts/tauri-ci.mjs`](../scripts/tauri-ci.mjs)
+  (tauri-action `tauriScript`) strips them and repacks the AppImage after `tauri build`.
 
 ## ffmpeg sidecar
 
@@ -107,8 +111,9 @@ tag and manual dispatch.
    — the OBS and phone bundles must be Tauri-free
 
 **`bundle`** (after `check`, only on `v*` tags or manual dispatch; `windows-latest` and
-`ubuntu-22.04`): fetch ffmpeg, then `tauri-apps/tauri-action` with the `TAURI_CONFIG` merge,
-creating a **draft** GitHub Release named `Scoreboard Server <tag>`.
+`ubuntu-22.04`): fetch ffmpeg, then `tauri-apps/tauri-action` with the `TAURI_CONFIG` merge
+(building through `scripts/tauri-ci.mjs`, see Linux above), creating a **draft** GitHub
+Release named `Scoreboard Server <tag>`.
 
 ## Versioning and release
 
