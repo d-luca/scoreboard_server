@@ -226,7 +226,8 @@ export function MatchesTab({
 	): React.JSX.Element => (
 		<div className="flex flex-col gap-1.5">
 			<Label htmlFor={id}>{label}</Label>
-			<Select value={value === "" ? undefined : value} onValueChange={onValueChange}>
+			{/* Stay controlled: `undefined` would make Radix keep the previous selection; `""` shows the placeholder. */}
+			<Select value={value} onValueChange={onValueChange}>
 				<SelectTrigger id={id}>
 					<SelectValue placeholder="Select a team" />
 				</SelectTrigger>
