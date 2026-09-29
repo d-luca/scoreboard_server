@@ -3,6 +3,12 @@ import { Button } from "../ui/Button/Button";
 import { HotkeyBadge } from "../ui/HotkeyBadge";
 import { DEFAULT_HOTKEYS, hotkeyLabel, type HotkeyAction } from "../../lib/hotkeys";
 
+// Light grey outline keeps dark team colours legible on the dark background.
+const OUTLINE_COLOR = "rgb(212 212 216 / 0.9)";
+const NAME_OUTLINE = ["-1px -1px", "0 -1px", "1px -1px", "-1px 0", "1px 0", "-1px 1px", "0 1px", "1px 1px"]
+	.map((offset) => `${offset} 0 ${OUTLINE_COLOR}`)
+	.join(", ");
+
 export type TeamControlProps = {
 	score: number;
 	/** Team name, displayed above the score and tinted with the team colour. */
@@ -35,8 +41,8 @@ export function TeamControl({
 				type="button"
 				onDoubleClick={onOpenSettings}
 				title="Double-click to edit in Settings"
-				className="cursor-text text-base font-semibold tracking-wide uppercase"
-				style={{ color }}
+				className="max-w-full cursor-text truncate px-0.5 text-xl font-semibold tracking-wide uppercase xl:text-2xl 2xl:text-3xl"
+				style={{ color, textShadow: NAME_OUTLINE }}
 			>
 				{name}
 			</button>
