@@ -1,7 +1,6 @@
 import { formatTimer } from "@/lib/format";
 import React from "react";
 import { useStore } from "zustand";
-import { DraftInput } from "../components/DraftInput";
 import { RemoteButton } from "../components/RemoteButton";
 import { SectionHeading } from "../components/SectionHeading";
 import { SectionProps } from "./types";
@@ -33,6 +32,12 @@ export function TimerSection({ store, disabled }: SectionProps): React.JSX.Eleme
 	const atZero = !running && timer === 0 && timerDirection !== "up";
 	const setTimer = useStore(store, (current) => current.setTimer);
 	const applyLoadout = useStore(store, (current) => current.applyLoadout);
+	const [draft, setDraft] = React.useState("");
+
+	const commitDraft = (): void => {
+		const seconds = parseManualTimer(draft.trim());
+		if (seconds !== null && seconds !== timer) run(setTimer(seconds));
+	};
 
 	return (
 		<section className={`${PANEL_CLASS} col-span-12 min-[720px]:col-span-5`} aria-labelledby="timer-heading">
@@ -74,24 +79,19 @@ export function TimerSection({ store, disabled }: SectionProps): React.JSX.Eleme
 				Set timer (MM:SS or seconds)
 			</label>
 			<div className="grid grid-cols-[1fr_auto] gap-2">
-				<DraftInput
+				<input
 					id="manual-timer"
 					className={`${INPUT_CLASS} remote-timer`}
-					value={formatTimer(timer)}
+					value={draft}
 					disabled={disabled}
 					inputMode="numeric"
 					placeholder="15:00"
-					onCommit={(value) => {
-						const seconds = parseManualTimer(value);
-						if (seconds === null) return false;
-						if (seconds !== timer) run(setTimer(seconds));
+					onChange={(event) => setDraft(event.currentTarget.value)}
+					onKeyDown={(event) => {
+						if (event.key === "Enter") commitDraft();
 					}}
 				/>
-				<RemoteButton
-					tone="amber"
-					disabled={disabled}
-					onClick={() => document.getElementById("manual-timer")?.blur()}
-				>
+				<RemoteButton tone="amber" disabled={disabled} onClick={commitDraft}>
 					Set
 				</RemoteButton>
 			</div>
