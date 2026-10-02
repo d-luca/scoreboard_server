@@ -29,7 +29,7 @@ wrong fixture.
 Reuses `state::validate_name` / `validate_color` (never a copy — a preset must not be able
 to hold a value that `settings_set` would reject):
 
-- name: trimmed, non-empty, truncated to 32 chars; colour: `#rrggbb`, lowercased;
+- name: trimmed, non-empty, truncated to 32 chars; color: `#rrggbb`, lowercased;
   label: trimmed, empty → none.
 - A fixture's teams must both exist and must differ.
 - Team names need not be unique (the window shows a soft warning).
@@ -99,7 +99,7 @@ Presets
 820×620 (min 700×520), master/detail with **Teams** | **Matches** tabs, header styled like
 Settings.
 
-- Teams: list with swatches; detail edits name and colour (`ColorPicker`).
+- Teams: list with swatches; detail edits name and color (`ColorPicker`).
 - Matches: list with both team swatches; detail edits the optional label (placeholder =
   derived name) and two team selects. The team chosen in one slot is disabled in the
   other.

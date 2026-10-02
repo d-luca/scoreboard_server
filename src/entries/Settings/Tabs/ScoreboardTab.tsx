@@ -48,13 +48,13 @@ export function ScoreboardTab(): React.JSX.Element {
 					</Field>
 				</div>
 				<div className="grid gap-4 sm:grid-cols-2">
-					<Field label="Home Colour">
+					<Field label="Home Color">
 						<ColorPicker
 							value={settings.teamHomeColor}
 							onChange={(color) => commit({ teamHomeColor: color })}
 						/>
 					</Field>
-					<Field label="Away Colour">
+					<Field label="Away Color">
 						<ColorPicker
 							value={settings.teamAwayColor}
 							onChange={(color) => commit({ teamAwayColor: color })}

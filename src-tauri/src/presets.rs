@@ -455,7 +455,7 @@ mod tests {
     }
 
     #[test]
-    fn create_validates_name_and_colour() {
+    fn create_validates_name_and_color() {
         let mut library = PresetLibrary::empty();
         let team = create_team(&mut library, "  bears  ", "#ABCDEF").unwrap();
         assert_eq!(team.name, "bears", "validate_name trims, never uppercases");

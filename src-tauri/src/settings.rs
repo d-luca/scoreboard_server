@@ -318,7 +318,7 @@ fn validate_color(raw: &str) -> Result<String, String> {
     let valid =
         bytes.len() == 7 && bytes[0] == b'#' && bytes[1..].iter().all(u8::is_ascii_hexdigit);
     if !valid {
-        return Err(format!("invalid colour {raw:?}: must match #RRGGBB"));
+        return Err(format!("invalid color {raw:?}: must match #RRGGBB"));
     }
     Ok(raw.to_ascii_lowercase())
 }

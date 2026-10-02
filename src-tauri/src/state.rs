@@ -1089,7 +1089,7 @@ impl AppState {
                     emit_buzzer = true;
                 }
                 Action::Reset => {
-                    // Stop zeroes the timer; names, colours, prefix and
+                    // Stop zeroes the timer; names, colors, prefix and
                     // loadouts are preserved [PARITY].
                     self.timer
                         .lock()
@@ -1212,7 +1212,7 @@ pub(crate) fn validate_color(raw: &str) -> Result<String, DomainError> {
         bytes.len() == 7 && bytes[0] == b'#' && bytes[1..].iter().all(u8::is_ascii_hexdigit);
     if !valid {
         return Err(DomainError::Validation(format!(
-            "invalid colour {raw:?}: must match #RRGGBB"
+            "invalid color {raw:?}: must match #RRGGBB"
         )));
     }
     Ok(raw.to_ascii_lowercase())
@@ -1258,7 +1258,7 @@ fn apply_patch(sb: &mut ScoreboardState, p: ScoreboardPatch) -> Result<(), Domai
     Ok(())
 }
 
-/// `Reset` preserves names, colours, prefix, direction and loadouts [PARITY].
+/// `Reset` preserves names, colors, prefix, direction and loadouts [PARITY].
 fn reset_match(sb: &mut ScoreboardState) {
     sb.team_home_score = 0;
     sb.team_away_score = 0;
@@ -1370,7 +1370,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn patch_validates_colours() {
+    async fn patch_validates_colors() {
         let state = AppState::new();
         for bad in ["00ff00", "#00ff0", "#00ff000", "#gggggg", ""] {
             let err = state
@@ -1391,7 +1391,7 @@ mod tests {
         let result = state
             .dispatch(Action::Patch(ScoreboardPatch {
                 team_home_name: Some("LIONS".into()),
-                team_home_color: Some("not-a-colour".into()),
+                team_home_color: Some("not-a-color".into()),
                 ..Default::default()
             }))
             .await;

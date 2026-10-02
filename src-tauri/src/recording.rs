@@ -71,7 +71,7 @@ pub struct RecentRecording {
 
 /// One per-second capture of the match state. Field names are
 /// deliberately short — the line repeats ~5 400 times in a 90-minute match.
-/// Names/colours/prefix repeat on every line so each line is independently
+/// Names/colors/prefix repeat on every line so each line is independently
 /// renderable. TS-exported for the video generator's render loop.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[ts(export_to = "../../src/bindings/")]
@@ -91,7 +91,7 @@ pub struct Snapshot {
     /// Home / away names.
     pub hn: String,
     pub an: String,
-    /// Home / away colours.
+    /// Home / away colors.
     pub hc: String,
     pub ac: String,
     /// Half prefix.

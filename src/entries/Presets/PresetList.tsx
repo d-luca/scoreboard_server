@@ -7,7 +7,7 @@ import React from "react";
 export interface PresetListItem {
 	id: string;
 	primary: string;
-	/** Colour chips shown on the right (one for teams, two for fixtures). */
+	/** Color chips shown on the right (one for teams, two for fixtures). */
 	swatches: string[];
 }
 
@@ -80,7 +80,7 @@ function rowsOf(items: PresetListItem[], pending: PresetPendingItem | null): Pre
 
 /**
  * Shared master column for the Presets window: selectable list
- * with colour swatches plus a create button underneath. Unsaved drafts appear
+ * with color swatches plus a create button underneath. Unsaved drafts appear
  * inline — a new one as a "new" badge row, an edit as a "modified" badge.
  */
 export function PresetList({

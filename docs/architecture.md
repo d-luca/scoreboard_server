@@ -1,7 +1,7 @@
 # Architecture
 
 Scoreboard Server is a desktop app for live sports streaming. It keeps one authoritative
-**match state** (team names, colours, scores, timer, period) and publishes it to:
+**match state** (team names, colors, scores, timer, period) and publishes it to:
 
 1. the **desktop control UI**, where the operator drives the match;
 2. an **HTTP/WebSocket server on the LAN**, so OBS Studio can render the scoreboard as a
@@ -138,10 +138,10 @@ Invariants:
   liveness and order frames.
 - `timer` inside a `Patch` is routed to `TimerSet`, never written directly, or a patch
   would desync the running engine.
-- Settings that also live in the scoreboard (names, colours, prefix, loadouts, timer
+- Settings that also live in the scoreboard (names, colors, prefix, loadouts, timer
   direction) are written through `settings_set`, which mirrors them into the live state.
   `timerDirection` goes through `TimerSetDirection` so the engine stays in sync.
-- Validation (names trimmed, non-empty, ≤ 32 chars; colours `#rrggbb` lowercased; half ≥ 1;
+- Validation (names trimmed, non-empty, ≤ 32 chars; colors `#rrggbb` lowercased; half ≥ 1;
   loadouts ≤ 99:59:59) lives in `state.rs` and is reused by presets.
 
 ### Event flow

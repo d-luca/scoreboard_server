@@ -66,10 +66,10 @@ Run before a release (see [build-release.md](build-release.md#release-checklist)
 
 - [ ] Scores never go below 0; half never below 1.
 - [ ] Stop zeroes the timer; Pause keeps the value.
-- [ ] Reset clears scores, half and timer but keeps team names, colours, prefix and
+- [ ] Reset clears scores, half and timer but keeps team names, colors, prefix and
       loadouts.
 - [ ] In countdown, a timer at 0 disables Start and Reset.
-- [ ] Defaults: loadouts 900 / 2700 / 1200 s, half prefix `PERIODO`, colours `#00ff00` /
+- [ ] Defaults: loadouts 900 / 2700 / 1200 s, half prefix `PERIODO`, colors `#00ff00` /
       `#ff0000`.
 - [ ] Hotkeys are ignored while typing in a field.
 
@@ -91,7 +91,7 @@ Run before a release (see [build-release.md](build-release.md#release-checklist)
 ### Presets
 
 - [ ] Create, rename and delete team and match presets; deleting a referenced team fails.
-- [ ] Loading a fixture sets both team names and colours, leaves score, half and timer
+- [ ] Loading a fixture sets both team names and colors, leaves score, half and timer
       untouched, and survives a restart and a Reset.
 - [ ] The `Presets` menu updates after every change.
 

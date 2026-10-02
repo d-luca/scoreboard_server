@@ -44,7 +44,7 @@ interface MatchesTabProps {
 
 /**
  * Matches tab: fixture list on the left (derived name + both
- * team colours), optional label and two team selects on the right. The team
+ * team colors), optional label and two team selects on the right. The team
  * already chosen for the other slot is disabled, which enforces the
  * "two different teams" rule in the UI instead of via an error toast.
  */

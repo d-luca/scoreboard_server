@@ -32,7 +32,7 @@ Line-delimited JSON: a header line, one snapshot per line, and a trailer on stop
   counts lines. On app exit (`RunEvent::ExitRequested`) an active recording is flushed and
   gets its trailer.
 - Snapshot fields ([`Snapshot`](../../src/bindings/Snapshot.ts)): `t` relative seconds
-  from 0, `hs`/`as` scores, `tm` timer, `hf` half, `hn`/`an` names, `hc`/`ac` colours,
+  from 0, `hs`/`as` scores, `tm` timer, `hf` half, `hn`/`an` names, `hc`/`ac` colors,
   `hp` half prefix. Identity repeats on every line (~120 B/s, ~650 KB per 90 min) so each
   line renders on its own.
 - **Legacy import**: pretty-printed `.json` recordings from the old Electron app

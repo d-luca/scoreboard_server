@@ -50,7 +50,7 @@ export function renderScoreboardToCanvas(ctx: CanvasRenderingContext2D, snapshot
 	const scoreBlockX = stripX + G.TEAM_ROW_WIDTH + G.STRIP_GAP;
 	const awayRowX = scoreBlockX + G.SCORE_BLOCK_WIDTH + G.STRIP_GAP;
 
-	// Board background, team strip, score block, divider, colour bars —
+	// Board background, team strip, score block, divider, color bars —
 	// these carry no counter-skew, so the board skew keeps them slanted.
 	ctx.fillStyle = G.COLOR_BOARD;
 	ctx.fillRect(boardX, 0, G.BOARD_WIDTH, G.BOARD_HEIGHT);

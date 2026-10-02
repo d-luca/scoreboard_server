@@ -10,7 +10,7 @@ import { Timer } from "./Timer";
  * (see docs/frontend.md). Must render pixel-identical at 600×80.
  *
  * All props are optional with the documented fallbacks (names "T-H"/"T-A",
- * colours #00ff00/#ff0000, scores 0, timer 0, half 1). `scoreAnimation`
+ * colors #00ff00/#ff0000, scores 0, timer 0, half 1). `scoreAnimation`
  * defaults to true — the setting's default.
  */
 export type ScoreboardProps = Partial<

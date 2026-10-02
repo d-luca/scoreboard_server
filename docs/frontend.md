@@ -66,10 +66,10 @@ Components: [`src/components/Scoreboard/`](../src/components/Scoreboard/). Geome
 constants shared with the video renderer: [`scoreboardGeometry.ts`](../src/lib/scoreboardGeometry.ts).
 
 - The board is **600 × 80**, skewed **−15°**; every text-bearing child is counter-skewed
-  +15°, while the colour bars keep the skew so they stay parallelograms.
-- Layout widths: team name `w-28` (112 px), colour bar `w-2` (8 px), score box `w-16`
+  +15°, while the color bars keep the skew so they stay parallelograms.
+- Layout widths: team name `w-28` (112 px), color bar `w-2` (8 px), score box `w-16`
   (64 px), divider 2 px at two-thirds height.
-- Colours: board `#ffffff`, team strip `#1e1b4b` (indigo-950), divider `#64748b`.
+- Colors: board `#ffffff`, team strip `#1e1b4b` (indigo-950), divider `#64748b`.
 - Fonts: **Anton** for the timer, team names and scores; **Poppins** for the half label
   and app chrome. Both are embedded (`src/assets/`, OFL) and preloaded, so OBS renders
   correctly on machines without them and the first video frame is not in a fallback font.
@@ -96,7 +96,7 @@ usable at 640×480 without a scrollbar.
 **ScoreboardControl** ([`components/ScoreboardControl/`](../src/components/ScoreboardControl/)):
 home `TeamControl` | `HalfControl` | away `TeamControl`, then `TimerControl` (value,
 Start/Pause, Reset, ±1s/±1m, Buzzer, three loadout buttons labelled with their duration)
-and a full-width Reset Scoreboard. Team names and colours are displayed here but edited in
+and a full-width Reset Scoreboard. Team names and colors are displayed here but edited in
 Settings. In countdown, Start and Reset are disabled at `00:00`; count-up can start from
 `00:00`. Buttons with a hotkey show a `HotkeyBadge` and a tooltip.
 
@@ -122,7 +122,7 @@ ignored; the first match calls `preventDefault()` and dispatches.
 ## Feature windows
 
 - **Settings** ([`entries/Settings/`](../src/entries/Settings/)) — tabs _Scoreboard_
-  (names, colours, prefix; timer direction toggle and `MM:SS` loadouts; Appearance →
+  (names, colors, prefix; timer direction toggle and `MM:SS` loadouts; Appearance →
   Score animation), _Server_ (port, require token, regenerate token, bound addresses), _Buzzer_ (auto
   play, track, default, test). No Save button: every change is applied immediately.
   Loadout inputs accept digits and one colon, validate on blur against
@@ -138,7 +138,7 @@ ignored; the first match calls `preventDefault()` and dispatches.
 ## LAN remote (`/control`)
 
 [`src/features/remote/RemoteControl/`](../src/features/remote/RemoteControl/): sections
-for teams (name, colour, score ±), timer (display, ±1m/±1s, Start/Pause, Reset, set
+for teams (name, color, score ±), timer (display, ±1m/±1s, Start/Pause, Reset, set
 `MM:SS`, loadouts), half, buzzer, and settings (prefix, loadouts, Reset All with confirm).
 
 - **Focused inputs are never overwritten** by incoming state (`DraftInput`); this is what

@@ -25,8 +25,8 @@ interface TeamsTabProps {
 }
 
 /**
- * Teams tab: team list with colour swatches on the left, a
- * name + colour draft form on the right. Save is disabled while the draft is
+ * Teams tab: team list with color swatches on the left, a
+ * name + color draft form on the right. Save is disabled while the draft is
  * invalid or unchanged; deleting a referenced team renders the blocking
  * fixtures as links that jump to the Matches tab.
  */
@@ -212,10 +212,13 @@ export function TeamsTab({
 							)}
 						</div>
 						<div className="flex flex-col gap-1.5">
-							<Label>Colour</Label>
-							{/* Remount on external change: the picker keeps internal state. */}
+							<Label>Color</Label>
+							{/* Key on team identity only. Adding the color would remount
+							    mid-drag and dismiss the open native color picker; external
+							    color changes resync inside the picker, so no color-based
+							    remount is needed. */}
 							<ColorPicker
-								key={`${selectedId ?? "new"}-${draft.color}`}
+								key={selectedId ?? "new"}
 								value={draft.color}
 								onChange={(color) => setDraft({ ...draft, color })}
 							/>

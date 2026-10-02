@@ -16,7 +16,7 @@ Available for **Windows and Linux**.
   and start, pause or stop the timer.
 - **Flexible timer**: count down or up, save three timer durations for quick
   access, and sound a buzzer when the countdown reaches zero.
-- **Your team's look**: customize team names, colours and period labels, with
+- **Your team's look**: customize team names, colors and period labels, with
   optional rolling score animations. Settings are remembered between sessions.
 - **Team and match presets**: save teams and fixtures to set up the next match
   without entering everything again.
@@ -49,7 +49,7 @@ Server. All rights to OBS Studio belong to their respective owners.
 
 ### Scoreboard settings
 
-![Team names and colours, period label, timer direction, loadouts and score animation settings](screenshots/settings-scoreboard.png)
+![Team names and colors, period label, timer direction, loadouts and score animation settings](screenshots/settings-scoreboard.png)
 
 ### Server settings
 
@@ -61,7 +61,7 @@ Server. All rights to OBS Studio belong to their respective owners.
 
 ### Team presets
 
-![Saved teams with their colours in the Presets window](screenshots/presets-teams.png)
+![Saved teams with their colors in the Presets window](screenshots/presets-teams.png)
 
 ### Match presets
 
@@ -109,7 +109,7 @@ The AppImage requires the system WebKitGTK 4.1 runtime
 
 1. Launch **Scoreboard Server** and wait for the server badge in the status bar
    to turn green.
-2. Open **Settings → Scoreboard** to set team names, colours, the period label
+2. Open **Settings → Scoreboard** to set team names, colors, the period label
    and timer durations.
 3. Open **Broadcast → Outputs & Sharing** and copy the scoreboard URL into an
    OBS Browser Source. Set its size to **600 × 80**.
@@ -127,7 +127,7 @@ The AppImage requires the system WebKitGTK 4.1 runtime
 - **Count down or up**: choose the direction in **Settings → Scoreboard**.
   Countdown can sound the buzzer at `00:00`; count-up stops at `99:59:59`
   without a buzzer.
-- **Appearance**: change team names, colours and the period label in Settings.
+- **Appearance**: change team names, colors and the period label in Settings.
   Enable rolling scores under **Settings → Scoreboard → Appearance**.
 - **Presets**: save teams and match setups in the **Presets** window and load
   them again for your next fixture.

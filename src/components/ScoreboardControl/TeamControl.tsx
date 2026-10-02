@@ -3,7 +3,7 @@ import { Button } from "../ui/Button/Button";
 import { HotkeyBadge } from "../ui/HotkeyBadge";
 import { DEFAULT_HOTKEYS, hotkeyLabel, type HotkeyAction } from "../../lib/hotkeys";
 
-// Light grey outline keeps dark team colours legible on the dark background.
+// Light grey outline keeps dark team colors legible on the dark background.
 const OUTLINE_COLOR = "rgb(212 212 216 / 0.9)";
 const NAME_OUTLINE = ["-1px -1px", "0 -1px", "1px -1px", "-1px 0", "1px 0", "-1px 1px", "0 1px", "1px 1px"]
 	.map((offset) => `${offset} 0 ${OUTLINE_COLOR}`)
@@ -11,7 +11,7 @@ const NAME_OUTLINE = ["-1px -1px", "0 -1px", "1px -1px", "-1px 0", "1px 0", "-1p
 
 export type TeamControlProps = {
 	score: number;
-	/** Team name, displayed above the score and tinted with the team colour. */
+	/** Team name, displayed above the score and tinted with the team color. */
 	name: string;
 	color: string;
 	teamType: "home" | "away";

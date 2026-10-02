@@ -20,7 +20,7 @@ so a Rust type change without regenerated bindings cannot land.
 ## Match state
 
 [`ScoreboardState`](../src/bindings/ScoreboardState.ts) is the whole match: team names,
-scores, colours, `timer` (seconds), `half`, `halfPrefix`, `isTimerRunning`,
+scores, colors, `timer` (seconds), `half`, `halfPrefix`, `isTimerRunning`,
 `timerDirection`, the three loadouts, `eventLogo` (reserved, unused) and `revision`.
 
 Defaults: `HOME` / `AWAY`, `#00ff00` / `#ff0000`, prefix `PERIODO`, loadouts
@@ -35,20 +35,20 @@ One [`Action`](../src/bindings/Action.ts) enum drives desktop buttons, hotkeys, 
 items, WebSocket commands and `POST /api/action`. Serialized as
 `{ "action": "<kebab-case>", "data": ... }`.
 
-| Action                                     | Effect                                                                                             |
-| ------------------------------------------ | -------------------------------------------------------------------------------------------------- |
-| `patch`                                    | Merge validated fields; `timer` in a patch is routed to `timer-set`                                |
-| `score-home-inc/dec`, `score-away-inc/dec` | ±1; never below 0                                                                                  |
-| `half-inc` / `half-dec`                    | ±1; never below 1                                                                                  |
-| `timer-start`                              | Countdown: no-op at 0 or when running. Count-up: starts from any value                             |
-| `timer-pause`                              | Freeze, keep the value                                                                             |
-| `timer-stop`                               | Freeze **and** set the timer to 0                                                                  |
-| `timer-set` `{seconds}`                    | Absolute value, capped at 99:59:59. Countdown: 0 while running pauses                              |
-| `timer-adjust` `{delta}`                   | `timer + delta`, clamped at 0                                                                      |
-| `timer-loadout` `{slot}`                   | Pause, then set to loadout 1/2/3 (resolved server-side)                                            |
-| `timer-set-direction` `{direction}`        | Pause, keep the value, switch `down` ↔ `up`                                                        |
-| `buzzer-play`                              | Emits `buzzer:play` to the main window; no state change                                            |
-| `reset`                                    | Stop the timer; scores 0, half 1, timer 0. Names, colours, prefix, direction and loadouts are kept |
+| Action                                     | Effect                                                                                            |
+| ------------------------------------------ | ------------------------------------------------------------------------------------------------- |
+| `patch`                                    | Merge validated fields; `timer` in a patch is routed to `timer-set`                               |
+| `score-home-inc/dec`, `score-away-inc/dec` | ±1; never below 0                                                                                 |
+| `half-inc` / `half-dec`                    | ±1; never below 1                                                                                 |
+| `timer-start`                              | Countdown: no-op at 0 or when running. Count-up: starts from any value                            |
+| `timer-pause`                              | Freeze, keep the value                                                                            |
+| `timer-stop`                               | Freeze **and** set the timer to 0                                                                 |
+| `timer-set` `{seconds}`                    | Absolute value, capped at 99:59:59. Countdown: 0 while running pauses                             |
+| `timer-adjust` `{delta}`                   | `timer + delta`, clamped at 0                                                                     |
+| `timer-loadout` `{slot}`                   | Pause, then set to loadout 1/2/3 (resolved server-side)                                           |
+| `timer-set-direction` `{direction}`        | Pause, keep the value, switch `down` ↔ `up`                                                       |
+| `buzzer-play`                              | Emits `buzzer:play` to the main window; no state change                                           |
+| `reset`                                    | Stop the timer; scores 0, half 1, timer 0. Names, colors, prefix, direction and loadouts are kept |
 
 Timer details are in [timer.md](timer.md).
 

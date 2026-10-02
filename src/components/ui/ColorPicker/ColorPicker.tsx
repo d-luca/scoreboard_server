@@ -27,7 +27,7 @@ export function ColorPicker({
 	// discard, or the parent selecting a different team) instead of forcing a
 	// remount. We set `selectedColor` before calling `onChange`, so a value we
 	// just emitted converges on the same render and this guard stays false —
-	// no remount (which would dismiss the open native colour picker mid-drag).
+	// no remount (which would dismiss the open native color picker mid-drag).
 	if (value !== selectedColor) {
 		setSelectedColor(value);
 	}

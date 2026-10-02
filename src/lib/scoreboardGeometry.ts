@@ -44,7 +44,7 @@ export const LETTER_SPACING_WIDE_EM = 0.025; // tracking-wide on names
 export const FONT_DISPLAY = "Anton";
 export const FONT_HALF = "Poppins";
 
-/** One team row: colour bar + gap + name box. */
+/** One team row: color bar + gap + name box. */
 export const TEAM_ROW_WIDTH = COLOR_BAR_WIDTH + ROW_GAP + TEAM_NAME_WIDTH; // 128
 /** Score block: two score boxes + divider. */
 export const SCORE_BLOCK_WIDTH = SCORE_BOX_WIDTH * 2 + DIVIDER_WIDTH; // 130

@@ -3,7 +3,7 @@
 /**
  * One per-second capture of the match state. Field names are
  * deliberately short — the line repeats ~5 400 times in a 90-minute match.
- * Names/colours/prefix repeat on every line so each line is independently
+ * Names/colors/prefix repeat on every line so each line is independently
  * renderable. TS-exported for the video generator's render loop.
  */
 export type Snapshot = {
@@ -33,7 +33,7 @@ export type Snapshot = {
 	hn: string;
 	an: string;
 	/**
-	 * Home / away colours.
+	 * Home / away colors.
 	 */
 	hc: string;
 	ac: string;
