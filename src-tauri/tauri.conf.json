@@ -1,7 +1,7 @@
 {
 	"$schema": "https://schema.tauri.app/config/2",
 	"productName": "Scoreboard Server",
-	"version": "1.0.0",
+	"version": "1.0.1",
 	"identifier": "dev.dluca.scoreboard-server",
 	"build": {
 		"beforeDevCommand": "pnpm bindings && pnpm vite:dev",

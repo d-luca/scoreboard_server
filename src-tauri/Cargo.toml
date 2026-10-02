@@ -1,6 +1,6 @@
 [package]
 name = "scoreboard_server"
-version = "1.0.0"
+version = "1.0.1"
 description = "LAN scoreboard server for OBS browser sources and phone remotes"
 authors = ["Luca Davi"]
 edition = "2021"

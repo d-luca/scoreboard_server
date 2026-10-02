@@ -1,7 +1,7 @@
 {
 	"name": "scoreboard_server",
 	"private": true,
-	"version": "1.0.0",
+	"version": "1.0.1",
 	"type": "module",
 	"packageManager": "pnpm@10.12.1",
 	"scripts": {
@@ -17,6 +17,7 @@
 		"rust:fmt": "cargo fmt --manifest-path src-tauri/Cargo.toml",
 		"rust:clippy": "cargo clippy --manifest-path src-tauri/Cargo.toml -- -D warnings",
 		"rust:test": "cargo test --manifest-path src-tauri/Cargo.toml",
+		"version:app": "node scripts/update-version.mjs",
 		"check": "pnpm lint && pnpm vite:build && pnpm rust:clippy && pnpm rust:test",
 		"tauri": "tauri"
 	},
