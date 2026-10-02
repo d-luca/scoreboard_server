@@ -1186,7 +1186,7 @@ impl AppState {
 }
 
 fn decrement_gauge(gauge: &AtomicU32) {
-    let _ = gauge.fetch_update(Ordering::Relaxed, Ordering::Relaxed, |value| {
+    let _ = gauge.try_update(Ordering::Relaxed, Ordering::Relaxed, |value| {
         value.checked_sub(1)
     });
 }
