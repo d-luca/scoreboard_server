@@ -4,6 +4,7 @@ import { useSettingsStore } from "@/lib/stores/settingsStore";
 import { useEscapeToClose } from "@/lib/hooks/useEscapeToClose";
 import React from "react";
 import { BuzzerTab } from "./Tabs/BuzzerTab";
+import { KeyBindingsTab } from "./Tabs/KeyBindingsTab";
 import { ScoreboardTab } from "./Tabs/ScoreboardTab";
 import { ServerTab } from "./Tabs/ServerTab";
 
@@ -13,7 +14,7 @@ import { ServerTab } from "./Tabs/ServerTab";
  * `Esc` closes the window.
  */
 
-export type Tab = "scoreboard" | "server" | "buzzer";
+export type Tab = "scoreboard" | "server" | "buzzer" | "keybindings";
 
 export function SettingsWindow(): React.JSX.Element {
 	useEscapeToClose();
@@ -48,6 +49,7 @@ export function SettingsWindow(): React.JSX.Element {
 							["scoreboard", "Scoreboard"],
 							["server", "Server"],
 							["buzzer", "Buzzer"],
+							["keybindings", "Key Bindings"],
 						] as const
 					).map(([key, label]) => (
 						<button
@@ -66,6 +68,7 @@ export function SettingsWindow(): React.JSX.Element {
 				{tab === "scoreboard" && <ScoreboardTab />}
 				{tab === "server" && <ServerTab />}
 				{tab === "buzzer" && <BuzzerTab />}
+				{tab === "keybindings" && <KeyBindingsTab />}
 			</main>
 			<footer className="text-app-quaternary border-app-primary border-t px-4 py-2 text-xs">
 				Changes apply immediately and are saved automatically. Press Esc to close.

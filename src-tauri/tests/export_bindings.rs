@@ -19,7 +19,7 @@ use scoreboard_server_lib::presets::{
 use scoreboard_server_lib::recording::{
     RecentRecording, RecordingStatus, RecordingStopped, Snapshot,
 };
-use scoreboard_server_lib::settings::{Settings, SettingsPatch};
+use scoreboard_server_lib::settings::{HotkeyBinding, Settings, SettingsPatch};
 use scoreboard_server_lib::state::{
     Action, ScoreboardPatch, ScoreboardState, ServerInfo, ServerStatus, TimerDirection,
 };
@@ -42,6 +42,7 @@ fn export_bindings() {
     ServerStatus::export().expect("failed to export ServerStatus");
     Settings::export().expect("failed to export Settings");
     SettingsPatch::export().expect("failed to export SettingsPatch");
+    HotkeyBinding::export().expect("failed to export HotkeyBinding");
     TeamPreset::export().expect("failed to export TeamPreset");
     MatchPreset::export().expect("failed to export MatchPreset");
     TeamPresetPatch::export().expect("failed to export TeamPresetPatch");

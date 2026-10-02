@@ -2,7 +2,8 @@ import { JSX } from "react";
 import { Button } from "../ui/Button/Button";
 import { HotkeyBadge } from "../ui/HotkeyBadge";
 import { useScoreboardStore } from "../../lib/stores/desktopScoreboardStore";
-import { DEFAULT_HOTKEYS, hotkeyLabel } from "../../lib/hotkeys";
+import { hotkeyLabel } from "../../lib/hotkeys";
+import { useHotkeys } from "../../lib/hooks/useHotkeys";
 import { formatTimer } from "../../lib/format";
 import { BellIcon } from "../icons/BellIcon";
 import { PlayIcon } from "../icons/PlayIcon";
@@ -17,6 +18,7 @@ export function TimerControl(): JSX.Element {
 	const stopTimer = useScoreboardStore((store) => store.stopTimer);
 	const adjustTimer = useScoreboardStore((store) => store.adjustTimer);
 	const playBuzzer = useScoreboardStore((store) => store.playBuzzer);
+	const hotkeys = useHotkeys();
 
 	const handleToggleTimer = (): void => {
 		if (isTimerRunning) {
@@ -31,10 +33,12 @@ export function TimerControl(): JSX.Element {
 	// from 0 (the Rust engine has no zero guard for the up direction).
 	const startResetDisabled = !isTimerRunning && timer === 0 && timerDirection !== "up";
 
-	const startPauseHotkey = hotkeyLabel(
-		isTimerRunning ? DEFAULT_HOTKEYS.pauseTimer : DEFAULT_HOTKEYS.startTimer,
-	);
-	const stopHotkey = hotkeyLabel(DEFAULT_HOTKEYS.stopTimer);
+	const startPauseHotkey = hotkeyLabel(isTimerRunning ? hotkeys.pauseTimer : hotkeys.startTimer);
+	const stopHotkey = hotkeyLabel(hotkeys.stopTimer);
+	const decreaseSecondHotkey = hotkeyLabel(hotkeys.decreaseTimerSecond);
+	const decreaseMinuteHotkey = hotkeyLabel(hotkeys.decreaseTimerMinute);
+	const increaseSecondHotkey = hotkeyLabel(hotkeys.increaseTimerSecond);
+	const increaseMinuteHotkey = hotkeyLabel(hotkeys.increaseTimerMinute);
 
 	return (
 		<div className="flex w-full flex-col gap-4 px-4">
@@ -72,19 +76,19 @@ export function TimerControl(): JSX.Element {
 								variant="destructive"
 								className="flex h-full min-h-16 flex-col items-center justify-center text-base xl:text-2xl"
 								onClick={() => void adjustTimer(-1)}
-								title={`Hotkey: ${hotkeyLabel(DEFAULT_HOTKEYS.decreaseTimerSecond)}`}
+								title={`Hotkey: ${decreaseSecondHotkey}`}
 							>
 								-1s
-								<HotkeyBadge hotkey={hotkeyLabel(DEFAULT_HOTKEYS.decreaseTimerSecond)} />
+								<HotkeyBadge hotkey={decreaseSecondHotkey} />
 							</Button>
 							<Button
 								variant="destructive"
 								className="flex h-full min-h-16 flex-col items-center justify-center text-base xl:text-2xl"
 								onClick={() => void adjustTimer(-60)}
-								title={`Hotkey: ${hotkeyLabel(DEFAULT_HOTKEYS.decreaseTimerMinute)}`}
+								title={`Hotkey: ${decreaseMinuteHotkey}`}
 							>
 								-1m
-								<HotkeyBadge hotkey={hotkeyLabel(DEFAULT_HOTKEYS.decreaseTimerMinute)} />
+								<HotkeyBadge hotkey={decreaseMinuteHotkey} />
 							</Button>
 						</div>
 
@@ -92,18 +96,18 @@ export function TimerControl(): JSX.Element {
 							<Button
 								className="flex h-full min-h-16 flex-col items-center justify-center text-base xl:text-2xl"
 								onClick={() => void adjustTimer(1)}
-								title={`Hotkey: ${hotkeyLabel(DEFAULT_HOTKEYS.increaseTimerSecond)}`}
+								title={`Hotkey: ${increaseSecondHotkey}`}
 							>
 								+1s
-								<HotkeyBadge hotkey={hotkeyLabel(DEFAULT_HOTKEYS.increaseTimerSecond)} />
+								<HotkeyBadge hotkey={increaseSecondHotkey} />
 							</Button>
 							<Button
 								className="flex h-full min-h-16 flex-col items-center justify-center text-base xl:text-2xl"
 								onClick={() => void adjustTimer(60)}
-								title={`Hotkey: ${hotkeyLabel(DEFAULT_HOTKEYS.increaseTimerMinute)}`}
+								title={`Hotkey: ${increaseMinuteHotkey}`}
 							>
 								+1m
-								<HotkeyBadge hotkey={hotkeyLabel(DEFAULT_HOTKEYS.increaseTimerMinute)} />
+								<HotkeyBadge hotkey={increaseMinuteHotkey} />
 							</Button>
 						</div>
 					</div>

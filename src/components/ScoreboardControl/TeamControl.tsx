@@ -1,7 +1,8 @@
 import { JSX } from "react";
 import { Button } from "../ui/Button/Button";
 import { HotkeyBadge } from "../ui/HotkeyBadge";
-import { DEFAULT_HOTKEYS, hotkeyLabel, type HotkeyAction } from "../../lib/hotkeys";
+import { hotkeyLabel, type HotkeyAction } from "../../lib/hotkeys";
+import { useHotkeys } from "../../lib/hooks/useHotkeys";
 
 // Light grey outline keeps dark team colors legible on the dark background.
 const OUTLINE_COLOR = "rgb(212 212 216 / 0.9)";
@@ -30,10 +31,11 @@ export function TeamControl({
 	onDecreaseScore,
 	onOpenSettings,
 }: TeamControlProps): JSX.Element {
+	const hotkeys = useHotkeys();
 	const increaseAction: HotkeyAction = teamType === "home" ? "increaseHomeScore" : "increaseAwayScore";
 	const decreaseAction: HotkeyAction = teamType === "home" ? "decreaseHomeScore" : "decreaseAwayScore";
-	const increaseHotkey = hotkeyLabel(DEFAULT_HOTKEYS[increaseAction]);
-	const decreaseHotkey = hotkeyLabel(DEFAULT_HOTKEYS[decreaseAction]);
+	const increaseHotkey = hotkeyLabel(hotkeys[increaseAction]);
+	const decreaseHotkey = hotkeyLabel(hotkeys[decreaseAction]);
 
 	return (
 		<div className="border-app-primary flex min-w-0 flex-1 flex-col items-center gap-4 px-4 first:border-r">

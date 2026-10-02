@@ -6,6 +6,7 @@
 //! aside and defaults are used), saved atomically (tmp + fsync + rename),
 //! debounced by the callers that mutate it rapidly.
 
+use std::collections::BTreeMap;
 use std::path::PathBuf;
 
 use serde::{Deserialize, Serialize};
@@ -19,6 +20,26 @@ pub const SCHEMA_VERSION: u32 = 1;
 
 /// Default HTTP port for the LAN server.
 pub const DEFAULT_SERVER_PORT: u16 = 3001;
+
+/// Bounds for `Settings::hotkeys`, so a bad patch cannot bloat `settings.json`.
+const MAX_HOTKEYS: usize = 64;
+const MAX_HOTKEY_ACTION_LEN: usize = 64;
+const MAX_HOTKEY_KEY_LEN: usize = 32;
+
+/// A window hotkey: a `KeyboardEvent.key` value plus modifiers.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export_to = "../../src/bindings/")]
+pub struct HotkeyBinding {
+    /// `KeyboardEvent.key`; single characters are stored lowercase.
+    pub key: String,
+    #[serde(default)]
+    pub ctrl: bool,
+    #[serde(default)]
+    pub shift: bool,
+    #[serde(default)]
+    pub alt: bool,
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase", default)]
@@ -49,6 +70,10 @@ pub struct Settings {
     /// [NEW] Odometer-style score roll on the board; `false` switches the
     /// scores to a static readout (OBS + desktop + `/value` pages follow).
     pub score_animation_enabled: bool,
+    /// [NEW] User overrides of the window hotkeys, keyed by action id
+    /// (`increaseHomeScore`, …). Absent actions use the defaults in
+    /// `src/lib/hotkeys.ts`; unknown ids are ignored by the frontend.
+    pub hotkeys: BTreeMap<String, HotkeyBinding>,
 }
 
 impl Default for Settings {
@@ -75,6 +100,7 @@ impl Default for Settings {
             ],
             timer_direction: scoreboard.timer_direction,
             score_animation_enabled: true,
+            hotkeys: BTreeMap::new(),
         }
     }
 }
@@ -118,6 +144,9 @@ pub struct SettingsPatch {
     pub timer_direction: Option<TimerDirection>,
     #[ts(optional)]
     pub score_animation_enabled: Option<bool>,
+    /// Replaces the whole override map; `{}` restores every default.
+    #[ts(optional)]
+    pub hotkeys: Option<BTreeMap<String, HotkeyBinding>>,
 }
 
 /// `app_config_dir()/settings.json`.
@@ -230,6 +259,10 @@ pub fn apply_patch(settings: &mut Settings, patch: SettingsPatch) -> Result<(), 
     if let Some(enabled) = patch.score_animation_enabled {
         settings.score_animation_enabled = enabled;
     }
+    if let Some(hotkeys) = patch.hotkeys {
+        validate_hotkeys(&hotkeys)?;
+        settings.hotkeys = hotkeys;
+    }
     Ok(())
 }
 
@@ -313,6 +346,24 @@ fn validate_name(raw: &str) -> Result<String, String> {
     Ok(trimmed.chars().take(crate::state::MAX_NAME_LEN).collect())
 }
 
+fn validate_hotkeys(hotkeys: &BTreeMap<String, HotkeyBinding>) -> Result<(), String> {
+    if hotkeys.len() > MAX_HOTKEYS {
+        return Err(format!("too many hotkeys (max {MAX_HOTKEYS})"));
+    }
+    for (action, binding) in hotkeys {
+        let valid_action = !action.is_empty()
+            && action.len() <= MAX_HOTKEY_ACTION_LEN
+            && action.bytes().all(|byte| byte.is_ascii_alphanumeric());
+        if !valid_action {
+            return Err(format!("invalid hotkey action {action:?}"));
+        }
+        if binding.key.is_empty() || binding.key.chars().count() > MAX_HOTKEY_KEY_LEN {
+            return Err(format!("invalid key for hotkey {action:?}"));
+        }
+    }
+    Ok(())
+}
+
 fn validate_color(raw: &str) -> Result<String, String> {
     let bytes = raw.as_bytes();
     let valid =
@@ -373,6 +424,68 @@ mod tests {
         assert!(err.contains("empty"), "{err}");
         // The failed patch did not clobber the good name.
         assert_eq!(settings.team_home_name, "LIONS");
+    }
+
+    #[test]
+    fn hotkeys_patch_replaces_and_validates() {
+        let mut settings = Settings::default();
+        let binding = HotkeyBinding {
+            key: "k".into(),
+            ctrl: true,
+            shift: false,
+            alt: false,
+        };
+        apply_patch(
+            &mut settings,
+            SettingsPatch {
+                hotkeys: Some(BTreeMap::from([("startTimer".into(), binding.clone())])),
+                ..Default::default()
+            },
+        )
+        .unwrap();
+        assert_eq!(settings.hotkeys.get("startTimer"), Some(&binding));
+
+        for (action, key) in [("bad id", "k"), ("", "k"), ("startTimer", "")] {
+            let err = apply_patch(
+                &mut settings,
+                SettingsPatch {
+                    hotkeys: Some(BTreeMap::from([(
+                        action.to_string(),
+                        HotkeyBinding {
+                            key: key.into(),
+                            ..binding.clone()
+                        },
+                    )])),
+                    ..Default::default()
+                },
+            )
+            .unwrap_err();
+            assert!(err.contains("hotkey"), "{err}");
+        }
+        // Rejected patches leave the stored overrides untouched.
+        assert_eq!(settings.hotkeys.len(), 1);
+
+        apply_patch(
+            &mut settings,
+            SettingsPatch {
+                hotkeys: Some(BTreeMap::new()),
+                ..Default::default()
+            },
+        )
+        .unwrap();
+        assert!(settings.hotkeys.is_empty());
+    }
+
+    #[test]
+    fn hotkeys_deserialize_with_missing_modifiers() {
+        let settings: Settings =
+            serde_json::from_str(r#"{"hotkeys":{"pauseTimer":{"key":"x"}}}"#).unwrap();
+        let binding = &settings.hotkeys["pauseTimer"];
+        assert_eq!(binding.key, "x");
+        assert!(!binding.ctrl && !binding.shift && !binding.alt);
+        // Older files without the field load with no overrides.
+        let settings: Settings = serde_json::from_str("{}").unwrap();
+        assert!(settings.hotkeys.is_empty());
     }
 
     #[test]

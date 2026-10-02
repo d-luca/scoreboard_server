@@ -72,6 +72,8 @@ Run before a release (see [build-release.md](build-release.md#release-checklist)
 - [ ] Defaults: loadouts 900 / 2700 / 1200 s, half prefix `PERIODO`, colors `#00ff00` /
       `#ff0000`.
 - [ ] Hotkeys are ignored while typing in a field.
+- [ ] A shortcut changed in Settings → Key Bindings works at once in the main window,
+      updates its button badge, and survives an app restart.
 
 ### Outputs
 

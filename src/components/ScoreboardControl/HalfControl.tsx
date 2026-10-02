@@ -2,15 +2,17 @@ import { JSX } from "react";
 import { Button } from "../ui/Button/Button";
 import { HotkeyBadge } from "../ui/HotkeyBadge";
 import { useScoreboardStore } from "../../lib/stores/desktopScoreboardStore";
-import { DEFAULT_HOTKEYS, hotkeyLabel } from "../../lib/hotkeys";
+import { hotkeyLabel } from "../../lib/hotkeys";
+import { useHotkeys } from "../../lib/hooks/useHotkeys";
 
 export function HalfControl(): JSX.Element {
 	const half = useScoreboardStore((store) => store.state.half);
 	const incHalf = useScoreboardStore((store) => store.incHalf);
 	const decHalf = useScoreboardStore((store) => store.decHalf);
+	const hotkeys = useHotkeys();
 
-	const increaseHotkey = hotkeyLabel(DEFAULT_HOTKEYS.increaseHalf);
-	const decreaseHotkey = hotkeyLabel(DEFAULT_HOTKEYS.decreaseHalf);
+	const increaseHotkey = hotkeyLabel(hotkeys.increaseHalf);
+	const decreaseHotkey = hotkeyLabel(hotkeys.decreaseHalf);
 
 	return (
 		<div className="flex w-full min-w-0 flex-col items-center gap-4 px-4">

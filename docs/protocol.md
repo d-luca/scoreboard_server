@@ -204,6 +204,7 @@ plays only when `buzzerAutoPlay` is on
 - validates with the same rules as `ScoreboardPatch`;
 - mirrors identity, prefix and loadouts into the live scoreboard (bumping `revision`);
 - routes `timerDirection` through `TimerSetDirection`;
+- replaces the whole `hotkeys` override map when present (`{}` restores the defaults);
 - emits `settings:changed` so every open window updates;
 - schedules a debounced save.
 

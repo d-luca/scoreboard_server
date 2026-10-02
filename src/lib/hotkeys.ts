@@ -1,4 +1,8 @@
 import type { Action } from "../bindings/Action";
+import type { HotkeyBinding } from "../bindings/HotkeyBinding";
+import type { Settings } from "../bindings/Settings";
+
+export type { HotkeyBinding };
 
 /**
  * Local (window-focused) hotkeys, with the Electron app's defaults [PARITY].
@@ -6,6 +10,9 @@ import type { Action } from "../bindings/Action";
  * These are *window* hotkeys: they fire only while the window is focused.
  * The global hotkeys that work while another app is focused are a separate,
  * planned `[OPTIONAL]` feature backed by `tauri-plugin-global-shortcut`.
+ *
+ * User overrides live in `Settings.hotkeys` (persisted by Rust); see
+ * `resolveHotkeys` and the Key Bindings tab in Settings.
  */
 
 export type HotkeyAction =
@@ -27,34 +34,88 @@ export type HotkeyAction =
 	| "timerLoadout3"
 	| "resetScoreboard";
 
-export interface HotkeyBinding {
-	/** `KeyboardEvent.key` value, e.g. `"q"`, `" "`, `"ArrowUp"`, `"]"`. */
-	key: string;
-	ctrl?: boolean;
-	shift?: boolean;
-	alt?: boolean;
+function bind(key: string, modifiers: Partial<Omit<HotkeyBinding, "key">> = {}): HotkeyBinding {
+	return { key, ctrl: false, shift: false, alt: false, ...modifiers };
 }
 
 /** Default map. Keys are stored lowercase for comparison. */
 export const DEFAULT_HOTKEYS: Record<HotkeyAction, HotkeyBinding> = {
-	increaseHomeScore: { key: "q" },
-	decreaseHomeScore: { key: "a" },
-	increaseAwayScore: { key: "e" },
-	decreaseAwayScore: { key: "d" },
-	increaseHalf: { key: "]" },
-	decreaseHalf: { key: "[" },
-	startTimer: { key: " " },
-	pauseTimer: { key: "p" },
-	stopTimer: { key: "s" },
-	increaseTimerSecond: { key: "ArrowUp" },
-	decreaseTimerSecond: { key: "ArrowDown" },
-	increaseTimerMinute: { key: "ArrowUp", shift: true },
-	decreaseTimerMinute: { key: "ArrowDown", shift: true },
-	timerLoadout1: { key: "1", ctrl: true },
-	timerLoadout2: { key: "2", ctrl: true },
-	timerLoadout3: { key: "3", ctrl: true },
-	resetScoreboard: { key: "r", ctrl: true, shift: true },
+	increaseHomeScore: bind("q"),
+	decreaseHomeScore: bind("a"),
+	increaseAwayScore: bind("e"),
+	decreaseAwayScore: bind("d"),
+	increaseHalf: bind("]"),
+	decreaseHalf: bind("["),
+	startTimer: bind(" "),
+	pauseTimer: bind("p"),
+	stopTimer: bind("s"),
+	increaseTimerSecond: bind("ArrowUp"),
+	decreaseTimerSecond: bind("ArrowDown"),
+	increaseTimerMinute: bind("ArrowUp", { shift: true }),
+	decreaseTimerMinute: bind("ArrowDown", { shift: true }),
+	timerLoadout1: bind("1", { ctrl: true }),
+	timerLoadout2: bind("2", { ctrl: true }),
+	timerLoadout3: bind("3", { ctrl: true }),
+	resetScoreboard: bind("r", { ctrl: true, shift: true }),
 };
+
+/** Defaults with the user's overrides (`Settings.hotkeys`) applied; unknown ids are ignored. */
+export function resolveHotkeys(
+	overrides: Settings["hotkeys"] | undefined,
+): Record<HotkeyAction, HotkeyBinding> {
+	const resolved = { ...DEFAULT_HOTKEYS };
+	if (!overrides) return resolved;
+	for (const action of Object.keys(DEFAULT_HOTKEYS) as HotkeyAction[]) {
+		const binding = overrides[action];
+		if (binding) resolved[action] = binding;
+	}
+	return resolved;
+}
+
+function normalizeKey(key: string): string {
+	return key.length === 1 ? key.toLowerCase() : key;
+}
+
+/** True when both bindings describe the same key combination. */
+export function sameHotkey(a: HotkeyBinding, b: HotkeyBinding): boolean {
+	return (
+		normalizeKey(a.key) === normalizeKey(b.key) && a.ctrl === b.ctrl && a.shift === b.shift && a.alt === b.alt
+	);
+}
+
+/** Keys that cannot complete a combination on their own. */
+const NON_BINDABLE_KEYS = new Set([
+	"Shift",
+	"Control",
+	"Alt",
+	"AltGraph",
+	"Meta",
+	"OS",
+	"Fn",
+	"FnLock",
+	"CapsLock",
+	"NumLock",
+	"ScrollLock",
+	"Dead",
+	"Process",
+	"Unidentified",
+]);
+
+/**
+ * Binding captured from a key press, or `null` while only modifiers are held.
+ * Meta (Win/Cmd) combos are rejected: `matchesHotkey` does not check Meta.
+ */
+export function hotkeyFromEvent(event: KeyboardEvent): HotkeyBinding | null {
+	if (event.metaKey || NON_BINDABLE_KEYS.has(event.key)) return null;
+	return bind(normalizeKey(event.key), { ctrl: event.ctrlKey, shift: event.shiftKey, alt: event.altKey });
+}
+
+/** Main-window native menu accelerators (src-tauri/src/menu.rs); the menu would also fire. */
+const MENU_ACCELERATORS = [",", "=", "+", "-", "0", "p"].map((key) => bind(key, { ctrl: true }));
+
+export function isReservedHotkey(binding: HotkeyBinding): boolean {
+	return MENU_ACCELERATORS.some((reserved) => sameHotkey(reserved, binding));
+}
 
 /** Human-readable label for tooltips and badges, e.g. `Ctrl + Shift + R`. */
 export function hotkeyLabel(binding: HotkeyBinding): string {
@@ -70,13 +131,11 @@ export function hotkeyLabel(binding: HotkeyBinding): string {
 
 /** True when the event matches the binding (key + all modifiers). */
 export function matchesHotkey(event: KeyboardEvent, binding: HotkeyBinding): boolean {
-	const key = event.key.length === 1 ? event.key.toLowerCase() : event.key;
-	const bindingKey = binding.key.length === 1 ? binding.key.toLowerCase() : binding.key;
 	return (
-		key === bindingKey &&
-		event.ctrlKey === (binding.ctrl ?? false) &&
-		event.altKey === (binding.alt ?? false) &&
-		event.shiftKey === (binding.shift ?? false)
+		normalizeKey(event.key) === normalizeKey(binding.key) &&
+		event.ctrlKey === binding.ctrl &&
+		event.altKey === binding.alt &&
+		event.shiftKey === binding.shift
 	);
 }
 

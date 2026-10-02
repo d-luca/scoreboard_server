@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import { useScoreboardStore } from "../stores/desktopScoreboardStore";
-import { DEFAULT_HOTKEYS, hotkeyToAction, matchesHotkey, type HotkeyAction } from "../hotkeys";
+import { hotkeyToAction, matchesHotkey, type HotkeyAction } from "../hotkeys";
+import { useHotkeys } from "./useHotkeys";
 
 /**
  * Window-focused keyboard shortcuts [PARITY].
@@ -12,6 +13,7 @@ import { DEFAULT_HOTKEYS, hotkeyToAction, matchesHotkey, type HotkeyAction } fro
  */
 export function useLocalHotkeys(): void {
 	const dispatch = useScoreboardStore((store) => store.dispatch);
+	const hotkeys = useHotkeys();
 
 	useEffect(() => {
 		const onKeyDown = (event: KeyboardEvent): void => {
@@ -23,8 +25,8 @@ export function useLocalHotkeys(): void {
 				return;
 			}
 
-			for (const action of Object.keys(DEFAULT_HOTKEYS) as HotkeyAction[]) {
-				const binding = DEFAULT_HOTKEYS[action];
+			for (const action of Object.keys(hotkeys) as HotkeyAction[]) {
+				const binding = hotkeys[action];
 				if (matchesHotkey(event, binding)) {
 					event.preventDefault();
 					void dispatch(hotkeyToAction(action)).catch(() => undefined);
@@ -35,5 +37,5 @@ export function useLocalHotkeys(): void {
 
 		window.addEventListener("keydown", onKeyDown);
 		return () => window.removeEventListener("keydown", onKeyDown);
-	}, [dispatch]);
+	}, [dispatch, hotkeys]);
 }

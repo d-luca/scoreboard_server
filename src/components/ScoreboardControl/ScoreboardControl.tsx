@@ -6,7 +6,8 @@ import { HalfControl } from "./HalfControl";
 import { TimerControl } from "./TimerControl";
 import { useScoreboardStore } from "../../lib/stores/desktopScoreboardStore";
 import { useWindowStore } from "../../lib/stores/windowStore";
-import { DEFAULT_HOTKEYS, hotkeyLabel } from "../../lib/hotkeys";
+import { hotkeyLabel } from "../../lib/hotkeys";
+import { useHotkeys } from "../../lib/hooks/useHotkeys";
 
 /**
  * The match-operation control surface. No `Card` chrome — the
@@ -20,6 +21,7 @@ export function ScoreboardControl(): JSX.Element {
 	const decAway = useScoreboardStore((store) => store.decAway);
 	const reset = useScoreboardStore((store) => store.reset);
 	const openWindow = useWindowStore((store) => store.openWindow);
+	const resetHotkey = hotkeyLabel(useHotkeys().resetScoreboard);
 
 	const openSettings = (): void => {
 		void openWindow("settings");
@@ -64,10 +66,10 @@ export function ScoreboardControl(): JSX.Element {
 					variant="destructive"
 					className="flex h-16 w-full flex-col items-center justify-center text-base xl:text-2xl"
 					onClick={() => void reset()}
-					title={`Hotkey: ${hotkeyLabel(DEFAULT_HOTKEYS.resetScoreboard)}`}
+					title={`Hotkey: ${resetHotkey}`}
 				>
 					Reset Scoreboard
-					<HotkeyBadge hotkey={hotkeyLabel(DEFAULT_HOTKEYS.resetScoreboard)} />
+					<HotkeyBadge hotkey={resetHotkey} />
 				</Button>
 			</div>
 		</div>

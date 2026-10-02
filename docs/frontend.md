@@ -117,14 +117,19 @@ never wrapping; every badge is a real `<button>`.
 window-focused only. Defaults: `Q`/`A` home ±, `E`/`D` away ±, `]`/`[` half ±, `Space`
 start, `P` pause, `S` stop, `↑`/`↓` ±1 s, `Shift+↑`/`↓` ±1 min, `Ctrl+1/2/3` loadouts,
 `Ctrl+Shift+R` reset. Events from `INPUT`, `TEXTAREA` or `contentEditable` targets are
-ignored; the first match calls `preventDefault()` and dispatches.
+ignored; the first match calls `preventDefault()` and dispatches. User overrides live in
+`Settings.hotkeys` (only the actions that differ from the defaults); `useHotkeys` merges them
+over the defaults, and both the listener and the button badges read from it.
 
 ## Feature windows
 
 - **Settings** ([`entries/Settings/`](../src/entries/Settings/)) — tabs _Scoreboard_
   (names, colors, prefix; timer direction toggle and `MM:SS` loadouts; Appearance →
   Score animation), _Server_ (port, require token, regenerate token, bound addresses), _Buzzer_ (auto
-  play, track, default, test). No Save button: every change is applied immediately.
+  play, track, default, test), _Key Bindings_ (click a shortcut and press the new combo;
+  Esc cancels; per-row Reset and Restore All Defaults; duplicates and the native menu
+  accelerators `Ctrl+,` `Ctrl+=` `Ctrl+-` `Ctrl+0` `Ctrl+P` are rejected). No Save button:
+  every change is applied immediately.
   Loadout inputs accept digits and one colon, validate on blur against
   `^([0-9]{1,3})(?::([0-5]?[0-9]))?$`, revert when invalid.
 - **Outputs & Sharing** ([`entries/Outputs/`](../src/entries/Outputs/)) — live preview
