@@ -79,10 +79,12 @@ constants shared with the video renderer: [`scoreboardGeometry.ts`](../src/lib/s
   `"<prefix> <n>"`.
 - `scoreboard.html` has a transparent background so OBS composites it.
 
-**RollingScore.** When `scoreAnimationEnabled` is on, each changed digit rolls
-odometer-style (460 ms; up on increase or carry, down on decrease). A press mid-roll
-retargets from the in-flight value. At rest the score is plain, untransformed text, so
-the OBS frame stays crisp. When off, the score is a static readout.
+**RollingScore.** When `scoreAnimationEnabled` is on, the whole score rolls as one
+block from the previous number to the new number (460 ms; up on increase, down on
+decrease). All digits move together, including when the digit count changes. A press
+mid-roll retargets from the previous target. At rest the score is plain,
+untransformed text, so the OBS frame stays crisp. When off or reduced motion is
+preferred, the score is a static readout.
 
 The canvas renderer for video ([`renderScoreboardToCanvas.ts`](../src/lib/renderScoreboardToCanvas.ts))
 re-implements this spec; change both together.
