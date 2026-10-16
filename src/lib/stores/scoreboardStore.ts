@@ -67,11 +67,16 @@ export interface ScoreboardStore {
 
 export function createScoreboardStore(
 	transport: ScoreAnimationAwareTransport,
+	confirmTimerChange: (
+		message: string,
+		action: "timer-loadout" | "timer-stop",
+	) => boolean | Promise<boolean> = (message) => window.confirm(message),
 ): UseBoundStore<StoreApi<ScoreboardStore>> {
 	let unsubscribe: (() => void) | undefined;
 	let unsubscribeStatus: (() => void) | undefined;
 	let unsubscribeAuthorization: (() => void) | undefined;
 	let unsubscribeScoreAnimation: (() => void) | undefined;
+	let timerChangePending = false;
 
 	return create<ScoreboardStore>((set, get) => {
 		const acceptState = (next: ScoreboardState): void => {
@@ -107,12 +112,30 @@ export function createScoreboardStore(
 				}
 			},
 			dispatch: async (action) => {
+				const timerAction =
+					action.action === "timer-loadout" || action.action === "timer-stop" ? action.action : null;
+				if (timerAction !== null && timerChangePending) return;
+				const requiresConfirmation = timerAction !== null && get().state.isTimerRunning;
+				if (requiresConfirmation) timerChangePending = true;
 				set({ error: null });
 				try {
+					if (
+						requiresConfirmation &&
+						!(await confirmTimerChange(
+							timerAction === "timer-stop"
+								? "The timer is running. Resetting it will stop it and set the time to 00:00. Continue?"
+								: "The timer is running. Loading a preset will pause it and replace the current time. Continue?",
+							timerAction,
+						))
+					) {
+						return;
+					}
 					await transport.dispatch(action);
 				} catch (error) {
 					set({ error: error instanceof Error ? error.message : String(error) });
 					throw error;
+				} finally {
+					if (requiresConfirmation) timerChangePending = false;
 				}
 			},
 			incHome: () => get().dispatch({ action: "score-home-inc" }),

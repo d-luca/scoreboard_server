@@ -102,6 +102,14 @@ and a full-width Reset Scoreboard. Team names and colors are displayed here but 
 Settings. In countdown, Start and Reset are disabled at `00:00`; count-up can start from
 `00:00`. Buttons with a hotkey show a `HotkeyBadge` and a tooltip.
 
+Loading a preset or resetting the timer while it is running asks for confirmation.
+Resetting stops the timer and sets it to `00:00`; loading a preset pauses it and replaces
+its time. Cancelling leaves the running timer untouched; paused timers apply either
+action immediately. The shared store applies this guard to desktop buttons,
+keyboard shortcuts, and remote-control buttons. Desktop uses the asynchronous native
+Tauri dialog (`dialog:allow-message`); the phone remote uses browser confirmation.
+Repeated preset or timer-reset requests are ignored while confirmation or the confirmed action is pending.
+
 **StatusBar** ([`components/StatusBar/`](../src/components/StatusBar/)): one `h-8` strip,
 never wrapping; every badge is a real `<button>`.
 

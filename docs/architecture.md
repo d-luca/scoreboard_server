@@ -243,7 +243,6 @@ Built in [`menu.rs`](../src-tauri/src/menu.rs) and attached to `main` only with
 | **View**       | Zoom In / Zoom Out / Reset | `view:zoom-*`              | `Ctrl+Plus` / `Ctrl+-` / `Ctrl+0` |
 | **Presets**    | Manage Presets…            | `open:presets`             | `Ctrl+P`                          |
 |                | _one item per fixture_     | `preset:load:<id>`         | —                                 |
-|                | Timer 1/2/3 (MM:SS)        | `timer:loadout:<n>`        | — (on purpose)                    |
 | **Broadcast**  | Outputs & Sharing…         | `open:outputs`             | `Ctrl+O`                          |
 |                | Overlay Mode               | `tools:overlay`            | `F9` — `overlay` feature only     |
 |                | Recording…                 | `open:recording`           | `Ctrl+R` (release builds)         |
@@ -252,10 +251,11 @@ Built in [`menu.rs`](../src-tauri/src/menu.rs) and attached to `main` only with
 
 - Items for features that were not compiled in are omitted, not greyed out.
 - The fixture list shows at most 20 match presets, or a disabled "No presets saved".
-- The `Timer n` items have no accelerator: `Ctrl+1/2/3` stay webview hotkeys, whose
-  editable-field guard a native accelerator would bypass.
-- The menu is rebuilt by `spawn_menu_rebuilder` on `ServerEvent::Presets` or when the
-  loadout triple changes, debounced 500 ms, on the main thread.
+- Timer loadouts are buttons in the main timer controls, not menu items.
+  `Ctrl+1/2/3` stay webview hotkeys, whose editable-field guard a native accelerator
+  would bypass.
+- The menu is rebuilt by `spawn_menu_rebuilder` on `ServerEvent::Presets`,
+  debounced 500 ms, on the main thread.
 
 ## Glossary
 

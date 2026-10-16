@@ -83,15 +83,13 @@ Presets
   ─────────
   LIONS vs TIGERS        preset:load:<id>     (at most 20; or disabled "No presets saved")
   …
-  ─────────
-  Timer 1 (15:00)        timer:loadout:1
-  Timer 2 (45:00)        timer:loadout:2
-  Timer 3 (20:00)        timer:loadout:3
 ```
 
 - Only match presets appear; teams are never loaded individually.
 - `&` in names is escaped to `&&` in the menu label only.
-- Rebuilt on `presets:changed` or when a loadout changes, debounced 500 ms, on the main
+- Timer loadouts appear in the main timer controls, beside the adjustment and reset
+  buttons, with their configured durations and keyboard shortcuts.
+- Rebuilt on `presets:changed`, debounced 500 ms, on the main
   thread, with `main_window.set_menu` (see [pitfalls](../pitfalls.md)).
 
 ## Presets window
