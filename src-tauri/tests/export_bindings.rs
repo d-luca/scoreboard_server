@@ -12,6 +12,10 @@
 //! comctl32 v6. This file also keeps the "package has a test target"
 //! validation for the build.rs directive satisfied.
 
+use scoreboard_server_lib::layouts::{
+    LayoutCommandError, LayoutDefinition, LayoutLibrarySnapshot, LayoutMutationResult,
+    LayoutStorageDocument, SavedLayoutSelection,
+};
 use scoreboard_server_lib::net::LanAddress;
 use scoreboard_server_lib::presets::{
     MatchPreset, MatchPresetPatch, PresetLibrary, TeamPreset, TeamPresetPatch,
@@ -57,4 +61,10 @@ fn export_bindings() {
     GenerationProgress::export().expect("failed to export GenerationProgress");
     GenerationStarted::export().expect("failed to export GenerationStarted");
     RecordingMetadata::export().expect("failed to export RecordingMetadata");
+    LayoutDefinition::export_all().expect("failed to export LayoutDefinition");
+    LayoutStorageDocument::export_all().expect("failed to export LayoutStorageDocument");
+    SavedLayoutSelection::export_all().expect("failed to export SavedLayoutSelection");
+    LayoutLibrarySnapshot::export_all().expect("failed to export LayoutLibrarySnapshot");
+    LayoutMutationResult::export_all().expect("failed to export LayoutMutationResult");
+    LayoutCommandError::export_all().expect("failed to export LayoutCommandError");
 }

@@ -19,7 +19,7 @@ import * as G from "./scoreboardGeometry";
  * Anton + Poppins) or the first frames come out in a fallback font.
  *
  * CSS transform reference points: the board is `skewX(-15°)` about its
- * centre y=40, and text-bearing children counter-skew `+15°` about their own
+ * center y=40, and text-bearing children counter-skew `+15°` about their own
  * centres (also y=40), so the two skews compose to identity — text is drawn
  * upright at its naive position, while backgrounds/bars keep the board skew.
  */

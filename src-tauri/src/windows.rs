@@ -211,7 +211,7 @@ pub fn list_open(app: &AppHandle) -> Vec<AppWindow> {
     .collect()
 }
 
-/// True when the geometry's centre lands on any currently attached monitor.
+/// True when the geometry's center lands on any currently attached monitor.
 /// All values are physical pixels (both `outer_position`/`inner_size` and
 /// `Monitor::position`/`size` are physical), so no scale conversion is needed.
 fn is_visible(app: &AppHandle, geometry: WindowGeometry) -> bool {

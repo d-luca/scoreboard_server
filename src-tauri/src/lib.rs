@@ -1,4 +1,5 @@
 mod bindings;
+pub mod layouts;
 mod menu;
 // `pub` so the `export_bindings` integration test (tests/export_bindings.rs)
 // can reach the ts-rs export surface.

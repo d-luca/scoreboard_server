@@ -202,7 +202,7 @@ The first release includes:
 - Numeric property editing.
 - Undo/redo and keyboard nudging.
 - Zoom/pan and Fit.
-- Toggleable grid and edge/centre snapping.
+- Toggleable grid and edge/center snapping.
 - Hide and lock.
 
 Multi-selection, bulk alignment/distribution and element copy/paste are deferred.
@@ -310,7 +310,7 @@ For Row use width as the main axis; Column transposes the calculation:
    `max(0, M - F - totalGap) / q` when `q > 0`.
 3. Let `used` be the sum of resolved main sizes plus total gap. The initial
    main offset is `a * (M - used)`, where `a` is 0, 0.5 or 1 for
-   start/centre/end. This offset may be negative during overflow.
+  start/center/end. This offset may be negative during overflow.
 4. A cross-axis Fill occupies the full content cross length. A fixed cross size
    is unchanged. Cross offset is `aCross * (contentCross - childCross)`, again
    signed rather than clamped.
@@ -358,9 +358,9 @@ workspace without affecting logical output dimensions. Default preview is
 **Sample**. Start with Fit; preserve viewport only for the current window session.
 
 Grid spacing is 8 logical pixels, initially off. Snapping is initially on.
-Consider visible sibling/parent edges and centres, plus grid lines when the grid
+Consider visible sibling/parent edges and centers, plus grid lines when the grid
 is enabled; exclude the moving node/subtree and hidden nodes. Choose the nearest
-candidate within `6 / zoom` logical pixels on each axis; edge/centre wins a tie
+candidate within `6 / zoom` logical pixels on each axis; edge/center wins a tie
 with the grid, then tree order breaks remaining ties. Resize snaps only the
 active edges. Nudging uses the exact 1/10px increments without snapping.
 Show guides only in the editor.
@@ -375,7 +375,7 @@ appearance comparison. Grid/viewport/sample changes are not undo entries.
 All new nodes are visible and unlocked. Add to the selected root/container, or
 the selected leaf's parent, at the end of its children. Free insertion starts at
 `(0,0)`; flow uses insertion order. Borders/radius/padding/gap are zero,
-background is transparent, text is white with centre/centre alignment unless
+background is transparent, text is white with center/center alignment unless
 specified below. Containers default to Free, start/start flow alignment.
 
 | New element            | Fixed size         | Initial content/style                         |
@@ -410,7 +410,7 @@ New/Duplicate operations. All unspecified properties use the defaults above.
 
 **Starter:** the same root with these three Free containers in order. All have
 literal `#111827` background at alpha 0.9, no border/radius/padding. All text is
-opaque white and centre/centre aligned. Coordinates below the groups are local:
+opaque white and center/center aligned. Coordinates below the groups are local:
 
 | Element     | x   | y   | Width | Height | Content/style                        |
 | ----------- | --- | --- | ----- | ------ | ------------------------------------ |
@@ -438,9 +438,9 @@ inputs with long names, prefix `OVERTIME`, timer 3600 seconds and scores 12/105.
 
 | Fixture              | Definition and exact assertions                                                                                                                                                                                                                                                                                                                                                                             |
 | -------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Nested flow          | Root 400 x 200. Row at `(10,20)`, 300 x 120, border 2, padding top/bottom 6 and left/right 10, gap 8, main centre/cross end. Children A fixed 60 x 20, B Fill/Fill, C Fill/fixed 40. Content is `(22,28,276,104)`; A is `(22,112,60,20)`, B `(90,28,100,104)`, C `(198,92,100,40)`. B is a Column with padding 4, gap 4, cross centre: D fixed 20 x 20 is `(130,32,20,20)`; E Fill/Fill is `(94,56,92,72)`. |
+| Nested flow          | Root 400 x 200. Row at `(10,20)`, 300 x 120, border 2, padding top/bottom 6 and left/right 10, gap 8, main center/cross end. Children A fixed 60 x 20, B Fill/Fill, C Fill/fixed 40. Content is `(22,28,276,104)`; A is `(22,112,60,20)`, B `(90,28,100,104)`, C `(198,92,100,40)`. B is a Column with padding 4, gap 4, cross center: D fixed 20 x 20 is `(130,32,20,20)`; E Fill/Fill is `(94,56,92,72)`. |
 | Hidden flow          | Hide B in that fixture. B/D/E do not paint or consume gaps; C becomes `(90,92,208,40)` and A is unchanged. A hidden duplicate bound value still fails validation.                                                                                                                                                                                                                                           |
-| Overflow/alignment   | Root 200 x 80; Row at `(20,10)`, 100 x 40, gap 10, main centre/cross start, children fixed 80 x 20 and 60 x 20. Main free space is -50; child x positions are -5 and 85 globally. Long text extends through ancestor edges, with only the root clipping at x=0/200. End alignment instead yields -30 and 60.                                                                                                |
+| Overflow/alignment   | Root 200 x 80; Row at `(20,10)`, 100 x 40, gap 10, main center/cross start, children fixed 80 x 20 and 60 x 20. Main free space is -50; child x positions are -5 and 85 globally. Long text extends through ancestor edges, with only the root clipping at x=0/200. End alignment instead yields -30 and 60.                                                                                                |
 | Degenerate box       | Container `(10,10,20,16)`, border 4, padding 12 each side, Row with a Fill/Fill child. Content origin is `(26,26)`, size `(0,0)`; Fill resolves to zero with warnings. No NaN, implicit shrink or container clip. Conversion to Free is rejected atomically.                                                                                                                                                |
 | Full-frame           | Transparent 1920 x 1080 root with a Free 622 x 80 wrapper at `(100,900)` containing the starter groups/values, not a nested rendering root.                                                                                                                                                                                                                                                                 |
 | Portrait             | Transparent 1080 x 1920 root with the same wrapper at `(100,1700)`. Root clipping and export dimensions use portrait bounds.                                                                                                                                                                                                                                                                                |

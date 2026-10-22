@@ -1,18 +1,20 @@
 # Scoreboard Designer - proposed implementation plan
 
-> **Status:** P0 completed and approved on 2026-10-20; P1-P9 not started.
-> Application functionality remains planned, not implemented. This is not a
-> description of existing types, commands or events. Approved requirements are
+> **Status:** P0 approved on 2026-10-20; P1 completed on 2026-10-22;
+> P2-P9 not started. Rust definition contracts, validation and generated bindings
+> exist; application functionality, commands and events remain planned.
+> Approved requirements are
 > defined in the [feature contract](scoreboard-designer.md),
 > [editor design](scoreboard-designer-editor.md) and
 > [P0 technical contracts](scoreboard-designer-contracts.md).
 
 This plan defines reviewable implementation work packages, their actual
-prerequisites, concrete change locations and completion criteria. **Only P0 is
-complete.** This documentation-only work does not implement or start P1.
+prerequisites, concrete change locations and completion criteria. **P0 and P1 are
+complete.** P1 adds pure data contracts and validation without changing Classic,
+match state, persistence, rendering or application wiring.
 
 The detailed-design gate is closed by the approvals recorded below. Follow the
-approved contracts when P1 is requested; do not treat remaining delivery
+approved contracts for subsequent packages; do not treat remaining delivery
 recommendations as existing application behaviour.
 
 ## Roadmap and dependencies
@@ -20,7 +22,7 @@ recommendations as existing application behaviour.
 | Package | Deliverable                                                         | Prerequisites |
 | ------- | ------------------------------------------------------------------- | ------------- |
 | P0      | Approved detailed behaviour and technical contracts - complete      | None          |
-| P1      | Typed definition model, limits and validation                       | P0            |
+| P1      | Typed definition model, limits and validation - complete            | P0            |
 | P2      | Durable library operations and published snapshots                  | P1            |
 | P3      | Deterministic layout and binding engine                             | P1            |
 | P4      | Custom live/canvas renderers with representative parity proof       | P3            |
@@ -89,9 +91,9 @@ Follow the existing architecture:
 
 A definition needs stable identity, a display name, versioning and an element
 tree. Nodes need stable identity so selection, history and reordering do not
-depend on array indices. Exact future fields and variants are specified in the
+depend on array indices. Exact fields and variants are specified in the
 [P0 contracts](scoreboard-designer-contracts.md#definition-and-saved-state);
-generated binding declarations do not exist until P1.
+P1 implements them in Rust and generates the TypeScript binding declarations.
 
 Distinguish three kinds of versioning:
 
@@ -331,14 +333,15 @@ Completion evidence:
   storage recovery, font/border placement, native close/Quit coordination and
   byte-budget/test boundaries.
 
-P0 is documentation-only. No dependency, generated binding, application module
-or runtime behaviour changed. P1 is eligible to begin when requested, not started
-as part of this package. P4 parity and P9 platform/memory evidence remain future
+P0 was documentation-only. No dependency, generated binding, application module
+or runtime behaviour changed as part of P0. P1's later completion is recorded
+below. P4 parity and P9 platform/memory evidence remain future
 implementation gates, not missing P0 approvals.
 
 ### P1 - implement definition contracts and validation
 
 **Prerequisites:** P0.
+**Status:** completed on 2026-10-22.
 
 Tasks:
 
@@ -360,6 +363,27 @@ Tasks:
 **Exit gate:** a valid definition round-trips and an invalid one is rejected
 before storage, publication or allocation. Hidden instances still count toward
 unique-value constraints.
+
+Completion evidence:
+
+- [Rust contracts](../../../src-tauri/src/layouts.rs) cover the complete element
+  tree, styles, editor metadata, saved/frozen selections, independent revisions,
+  storage/snapshot shapes and structured diagnostics/errors.
+- [Pure validation](../../../src-tauri/src/layouts/validation.rs) checks strict
+  fields, UUID v4 ids, unique bindings (including hidden nodes), parent-specific
+  sizing, metadata order, supported choices, finite geometry and all approved
+  model/serialized-size limits. JSON decoders check input length and nesting
+  before recursive decoding; file-length checks and bounded disk reads remain P2.
+- Complete proposed storage documents and frozen published roots are validated
+  independently, including source references and JavaScript-safe revisions.
+- [Focused Rust tests](../../../src-tauri/tests/layouts.rs) cover round-trips,
+  invalid definitions, inclusive resource boundaries, frozen snapshot independence
+  and generated TypeScript wire shapes. `pnpm bindings` exports the new contracts
+  through the existing ts-rs integration test.
+
+No layout service, command/event registration, frontend runner or runtime
+activation is introduced in P1. Canonicalization during Save and durable writes
+remain P2; invalid input is never silently repaired by the decoders.
 
 ### P2 - implement the persistent library and publication service
 
@@ -493,7 +517,7 @@ Tasks:
   prevention and the approved geometry/sizing conversions.
 - Add one-history-entry gestures, coherent numeric/text commits, undo/redo and
   correct dirty-state comparison after Save, Undo and Redo.
-- Add keyboard nudging, zoom/pan/Fit, grid, edge/centre snapping and toggle
+- Add keyboard nudging, zoom/pan/Fit, grid, edge/center snapping and toggle
   controls. Preserve ordinary text editing and window-local shortcut scope.
 - Enforce effective ancestor hide/lock rules while keeping tree selection and
   unlocking possible. Confirm non-empty subtree deletion.
@@ -645,14 +669,14 @@ They describe future implementation, not currently available behaviour.
 | Box model                | Width/height include border and padding; layout uses the remaining content box                                                                      |
 | Fill axes                | Row/Column allow fixed or Fill on each axis; Free children use fixed dimensions; main-axis Fill is shared equally                                   |
 | Insufficient space       | Fixed children keep sizes; main-axis Fill can resolve to zero; show a warning; never hide, wrap or shrink automatically                             |
-| Alignment                | Start/centre/end use 0/0.5/1 times signed remaining space, including negative overflow offsets                                                      |
+| Alignment                | Start/center/end use 0/0.5/1 times signed remaining space, including negative overflow offsets                                                      |
 | Reparenting into Free    | Preserve computed global bounds by converting into the new parent's coordinates                                                                     |
 | Reparenting into flow    | Keep computed pixel size initially and use the chosen insertion order; Fill can be selected afterward                                               |
 | Editable starter         | 622 x 80 transparent Free root; exact clock/home/away rectangles and all seven values are specified in the editor fixtures                          |
 | Score animation defaults | Both manually added values and starter scores start at None independently                                                                           |
 | Preview default          | Sample mode; Live remains read-only                                                                                                                 |
 | Keyboard                 | Ctrl+S Save, Ctrl+Z Undo, Ctrl+Shift+Z/Ctrl+Y Redo, arrows 1 px, Shift+arrows 10 px; text fields retain native editing                              |
-| Grid and snapping        | 8 logical-pixel grid initially off; snapping initially on, threshold 6 screen pixels converted through zoom; edge/centre wins grid ties             |
+| Grid and snapping        | 8 logical-pixel grid initially off; snapping initially on, threshold 6 screen pixels converted through zoom; edge/center wins grid ties             |
 | Saved editor state       | Save layer names/lock metadata; exclude selection, sample values and viewport from the published appearance                                         |
 | Video even dimensions    | Uniformly scale the custom layout and add transparent right/bottom padding to reach even dimensions; do not stretch; preserve Classic compatibility |
 

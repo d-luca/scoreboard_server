@@ -1,9 +1,9 @@
 # Scoreboard Designer - approved P0 technical contracts
 
-> **Status:** P0 approved on 2026-10-20; application implementation has not
-> started. Names and shapes below specify future Rust contracts, not available
-> commands or generated bindings. P1 must implement them in Rust and export them
-> through ts-rs; do not create hand-maintained TypeScript copies.
+> **Status:** P0 approved on 2026-10-20; P1 contracts and validation implemented
+> on 2026-10-22 with generated ts-rs bindings. Persistence, commands, events and
+> rendering below remain planned for subsequent packages. Rust remains the
+> authoritative type source; do not create hand-maintained TypeScript copies.
 
 The [feature contract](scoreboard-designer.md) defines product behaviour.
 The [editor design](scoreboard-designer-editor.md#approved-p0-editor-contract)
@@ -40,7 +40,7 @@ These tables specify field responsibilities, not duplicate Rust declarations.
 | `LayoutElement`            | Tagged union of `container`, `value`, `text`, `rectangle`, `separator`; common fields `id`, `hidden`, `frame`. Only a container has `children`.                                                                                                               |
 | `LayoutFrame`              | `x`, `y`, `width: LayoutSize`, `height: LayoutSize`. Free children require fixed sizes. Flow children require `x = y = 0`; placement comes from their parent.                                                                                                 |
 | `LayoutSize`               | `{kind: "fixed", pixels}` or `{kind: "fill"}`. No weights, percentages, auto/content sizing or per-child alignment override.                                                                                                                                  |
-| Container fields           | `box: LayoutBoxStyle`, `padding: LayoutInsets`, `mode: "free" \| "row" \| "column"`, `gap`, `mainAlign`, `crossAlign`, `children`. Alignments are `start`, `centre`, `end`. Gap/alignment remain stored but inactive in Free mode.                            |
+| Container fields           | `box: LayoutBoxStyle`, `padding: LayoutInsets`, `mode: "free" \| "row" \| "column"`, `gap`, `mainAlign`, `crossAlign`, `children`. Alignments are `start`, `center`, `end`. Gap/alignment remain stored but inactive in Free mode.                            |
 | Value fields               | `box`, `binding`, `textStyle`, `animation: "none" \| "rolling"`. Bindings are `timer`, `period-prefix`, `period-number`, `home-name`, `home-score`, `away-name`, `away-score`. Only the two score bindings permit `rolling`; others require `none`.           |
 | Static-text fields         | `box`, `text`, `textStyle`. Explicit LF line breaks are supported; no automatic wrapping. Normalize CRLF/CR to LF when committing an edit, not silently during load.                                                                                          |
 | Rectangle fields           | `box`. No children or text.                                                                                                                                                                                                                                   |
@@ -48,7 +48,7 @@ These tables specify field responsibilities, not duplicate Rust declarations.
 | `LayoutBoxStyle`           | `background`, `borderColor`, `borderWidth`, `radius`. Uniform solid border and uniform corner radius; no independent corner/edge styles.                                                                                                                      |
 | `LayoutInsets`             | Non-negative `top`, `right`, `bottom`, `left`. Only containers have padding.                                                                                                                                                                                  |
 | `LayoutColor`              | `{kind: "literal", hex: "#RRGGBB", alpha}` or `{kind: "team", team: "home" \| "away", alpha}`. Hex is case-insensitive on input and canonical uppercase on Save; alpha is `0..=1`. Team colours are resolved from the rendering inputs, not captured at Save. |
-| `LayoutTextStyle`          | `font: LayoutFont`, `fontSize`, `color`, `horizontalAlign`, `verticalAlign`. Both alignments use `start`, `centre`, `end`; fixed line height is `1.25 * fontSize`, not a configurable field.                                                                  |
+| `LayoutTextStyle`          | `font: LayoutFont`, `fontSize`, `color`, `horizontalAlign`, `verticalAlign`. Both alignments use `start`, `center`, `end`; fixed line height is `1.25 * fontSize`, not a configurable field.                                                                  |
 | `LayoutFont`               | `family: "anton" \| "poppins"`, `weight`. Anton permits 400 only; Poppins permits 400, 500, 600, 700, 800, 900. Upright bundled fonts only; never synthesize a missing weight/style.                                                                          |
 | `LayoutEditorMetadata`     | `layers: LayoutLayerMetadata[]`, exactly one entry per node, in depth-first tree order. Each has `nodeId`, `label`, `locked`. Root metadata has `locked: false`. No selection, sample data, grid/snap state or viewport.                                      |
 | `SavedLayout`              | `id`, `name`, `revision`, `definition`. Names are trimmed, non-empty and need not be unique. Node labels are trimmed and non-empty.                                                                                                                           |
@@ -314,7 +314,7 @@ font-load failure is visible and blocks the new render/job, not a fallback-font
 frame. Cache measurements by font/weight/size and text, not by live match state.
 
 Use the [editor box math](scoreboard-designer-editor.md#approved-p0-editor-contract)
-in both renderers. Border is an inside ring, not a centred Canvas stroke.
+in both renderers. Border is an inside ring, not a centered Canvas stroke.
 For a resolved box `(w,h)`, effective border is
 `min(borderWidth, w/2, h/2)` and effective outer radius is
 `min(radius, w/2, h/2)`. The inner radius is
@@ -323,13 +323,13 @@ then the border ring; neither shape clips descendants/text.
 
 Text uses the inner border box (no value/text padding). For line height `L`,
 font ascent/descent `A,D`, and `k` explicit lines, block height is `k*L`.
-Use `a = 0, 0.5, 1` for start/centre/end:
+Use `a = 0, 0.5, 1` for start/center/end:
 
 - First line-box top is `contentY + aY * (contentHeight - k*L)`.
 - Baseline for line `i` is
   `lineBoxTop + i*L + (L - A - D)/2 + A`.
 - Horizontal anchor is `contentX + aX*contentWidth`, with matching
-  left/centre/right text anchor. Use advance width for horizontal text extent,
+  left/center/right text anchor. Use advance width for horizontal text extent,
   not glyph ink bounds. Negative free space is not clamped.
 
 Measure `A,D` from the same reference string `Hg0123456789` for that font face
