@@ -1,23 +1,25 @@
 # Scoreboard Designer - proposed implementation plan
 
-> **Status:** planned, not implemented. This is an architecture and delivery
-> proposal, not a description of existing types, commands or events. Agreed
-> product behaviour is defined in the [feature contract](scoreboard-designer.md)
-> and [editor design](scoreboard-designer-editor.md).
+> **Status:** P0 completed and approved on 2026-10-20; P1-P9 not started.
+> Application functionality remains planned, not implemented. This is not a
+> description of existing types, commands or events. Approved requirements are
+> defined in the [feature contract](scoreboard-designer.md),
+> [editor design](scoreboard-designer-editor.md) and
+> [P0 technical contracts](scoreboard-designer-contracts.md).
 
 This plan defines reviewable implementation work packages, their actual
-prerequisites, concrete change locations and completion criteria. **Every work
-package is currently not started.** Writing this plan does not authorize
-application implementation.
+prerequisites, concrete change locations and completion criteria. **Only P0 is
+complete.** This documentation-only work does not implement or start P1.
 
-Implementation must not treat proposed details as approved requirements.
-Complete P0 and close its decision gate before beginning P1.
+The detailed-design gate is closed by the approvals recorded below. Follow the
+approved contracts when P1 is requested; do not treat remaining delivery
+recommendations as existing application behaviour.
 
 ## Roadmap and dependencies
 
 | Package | Deliverable                                                         | Prerequisites |
 | ------- | ------------------------------------------------------------------- | ------------- |
-| P0      | Approved detailed behaviour and technical contracts                 | None          |
+| P0      | Approved detailed behaviour and technical contracts - complete      | None          |
 | P1      | Typed definition model, limits and validation                       | P0            |
 | P2      | Durable library operations and published snapshots                  | P1            |
 | P3      | Deterministic layout and binding engine                             | P1            |
@@ -87,8 +89,9 @@ Follow the existing architecture:
 
 A definition needs stable identity, a display name, versioning and an element
 tree. Nodes need stable identity so selection, history and reordering do not
-depend on array indices. Exact types and field names remain to be designed; this
-document intentionally does not invent generated binding declarations.
+depend on array indices. Exact future fields and variants are specified in the
+[P0 contracts](scoreboard-designer-contracts.md#definition-and-saved-state);
+generated binding declarations do not exist until P1.
 
 Distinguish three kinds of versioning:
 
@@ -102,7 +105,7 @@ Presentation revisions must not reuse or mutate the match state's revision.
 
 ## Persistence and publication
 
-Recommended storage is a versioned `layouts.json` under `app_config_dir()`,
+Approved storage is a versioned `layouts.json` under `app_config_dir()`,
 holding the local custom library and the published selection/snapshot. A single
 document permits an atomic write of related layout state.
 
@@ -131,13 +134,15 @@ not simply acknowledge a scheduled debounced write.
 
 Reuse existing persistence practices: temporary file, flush/sync and atomic
 replacement. Preserve corrupt data for recovery and surface a useful warning.
-Exact recovery behaviour needs specification, especially for unsupported newer
-schemas; do not silently overwrite an incompatible library.
+The [approved recovery policy](scoreboard-designer-contracts.md#persistence-recovery-and-transaction-completion)
+blocks writes and preserves the original for corrupt/unreadable/newer-schema
+files, with temporary Classic output and explicit backed-up reset.
 
-Proposed desktop operations cover loading the library/published snapshot,
+Approved desktop operations cover loading the library/published snapshot,
 creating, saving, renaming, duplicating and deleting custom definitions, and
-applying a saved definition or Classic. Exact command/event names are not yet
-defined.
+applying a saved definition or Classic. Exact future command/event names are
+defined in the [operation contract](scoreboard-designer-contracts.md#desktop-operations-and-event-boundary);
+they are not registered application commands yet.
 
 Layout editing and publication are desktop features. LAN consumers need the
 published snapshot, not write access to the private library or editor drafts.
@@ -232,8 +237,9 @@ colours and prefix. Score updates are static in exported video initially.
 
 Replace fixed Classic frame-size assumptions with selected-layout dimensions.
 Continue handling the codec's even-dimension requirement, displaying the exact
-resulting video dimensions. Decide the padding/rounding policy explicitly rather
-than unintentionally stretching a custom design.
+resulting video dimensions. Custom layouts use uniform scaling and transparent
+right/bottom padding to the next even dimensions; Classic keeps its existing
+rounding. Never stretch a custom design to fill padding.
 
 The current render loop batches 30 raw RGBA frames. Approximate payloads before
 additional browser/IPC/Rust copies are:
@@ -286,6 +292,7 @@ into designer modules.
 ### P0 - close the detailed-design gate
 
 **Prerequisites:** none. **Application changes:** none.
+**Status:** completed and approved on 2026-10-20.
 
 Deliverables:
 
@@ -300,12 +307,34 @@ Deliverables:
   size. Explain any user-visible restriction before approving it.
 - Choose the smallest automated setup for the new pure TypeScript logic. The
   repository has Rust tests and smoke scripts but no frontend unit-test runner;
-  a small dev-only Vitest setup is the proposal, not an existing dependency.
+  dev-only Vitest is approved for introduction with the first P3 tests, not an
+  existing dependency.
 - Define representative fixtures for Blank, the editable starter, nested flow
   layouts, overflow, hidden children and full-frame/portrait output.
 
 **Exit gate:** product-affecting defaults are approved and technical contracts
 are recorded. No unresolved choice is hidden behind an implementation constant.
+
+Completion evidence:
+
+- User approved lifecycle/recovery, layout/editor defaults, Blank/starter with
+  None animations, resource limits, font/export policy and dev-only Vitest.
+- Follow-up approval closed zero-size conversion rejection, explicit static-text
+  line breaks, initial window/sidebar sizes and snapping rules.
+- [Feature contract](scoreboard-designer.md): Save-before-Apply, private drafts,
+  saved editor state, visible resource restrictions and non-destructive recovery.
+- [Editor contract](scoreboard-designer-editor.md#approved-p0-editor-contract):
+  box/alignment math, degenerate boxes, mode/reparent conversions, history and
+  keyboard behaviour, initial property values and exact fixtures.
+- [Technical contracts](scoreboard-designer-contracts.md): future Rust shapes,
+  commands/events, revision/conflict ordering, serialized durable transactions,
+  storage recovery, font/border placement, native close/Quit coordination and
+  byte-budget/test boundaries.
+
+P0 is documentation-only. No dependency, generated binding, application module
+or runtime behaviour changed. P1 is eligible to begin when requested, not started
+as part of this package. P4 parity and P9 platform/memory evidence remain future
+implementation gates, not missing P0 approvals.
 
 ### P1 - implement definition contracts and validation
 
@@ -358,8 +387,9 @@ Tasks:
 
 **Proposed operation responsibilities:** read library/published state; create
 on first Save; update with expected revision; delete with expected revision;
-Apply Classic or a saved id/revision. Duplication can reuse the create path.
-Finalize exact command names in P0 rather than maintaining speculative APIs here.
+Apply Classic or a saved id/revision. Duplication reuses the create path.
+Use the exact names and response shapes in the
+[approved operation contract](scoreboard-designer-contracts.md#desktop-operations-and-event-boundary).
 
 **Primary files:** `layouts.rs`, `state.rs`, `lib.rs`, `examples/serve.rs`,
 relevant constructor call sites and binding exports.
@@ -492,9 +522,9 @@ Tasks:
   editor-only changes from the appearance comparison.
 - Deliver current publication on cold load, socket connect, reconnect and lag
   recovery. Subscribe/read in an order that cannot miss a concurrent Apply.
-- Handle a backend restart explicitly: either scope ordering by a server
-  session id or reset the client's layout revision baseline on reconnect.
-  A previous process's higher revision must not suppress the new snapshot.
+- Scope publication ordering by the approved runtime session id plus revision.
+  A new process establishes a new session/baseline; a previous process's higher
+  revision must not suppress the new snapshot.
 - Select Classic/custom rendering in `/scoreboard` and replace all relevant
   hardcoded page/root dimensions without introducing Tauri imports.
 - Update Outputs iframe dimensions, scaled wrapper bounds, published-layout
@@ -528,7 +558,7 @@ Tasks:
 - Replace Classic-only dimension calculations with the approved scale and
   even-dimension policy. Validate the final padded/scaled landscape or portrait
   frame before allocating or starting ffmpeg.
-- Use a proposed raw-payload ceiling of 32 MiB with a maximum of 30 frames:
+- Use the approved raw-payload ceiling of 32 MiB with a maximum of 30 frames:
   batch count is the smaller of 30 and the number of whole frames fitting the
   budget. A valid 4K frame fits once. The budget is not a claim about total
   process memory, which also includes copies and renderer/encoder buffers.
@@ -587,8 +617,9 @@ Use the smallest checks covering each package while implementing it:
 
 Use existing commands (`pnpm bindings`, `pnpm lint`, `pnpm vite:build`,
 `pnpm rust:clippy`, `pnpm rust:test`, and final `pnpm check`) rather than adding
-another build pipeline. Any new frontend test command is introduced only with
-the selected test runner and its first focused cases, not in this planning task.
+another build pipeline. The approved dev-only Vitest runner and `test:unit` command are introduced in P3
+with the first pure-logic cases, and included in `pnpm check` then. They are not
+dependencies or commands in this documentation-only P0.
 
 ## Behavioural completion criteria
 
@@ -603,43 +634,45 @@ recorded-data bindings in video.
 
 ## Decision register and stop conditions
 
-The main feature scope is agreed. The following defaults are **proposed, not
-approved**, and must be resolved in P0. Record the approved choice in the
-relevant feature/editor section rather than leaving conflicting defaults here.
+The following defaults were **approved on 2026-10-20**. Authoritative details are
+recorded in the feature/editor sections and technical contracts linked below.
+They describe future implementation, not currently available behaviour.
 
-| Topic                    | Proposed default or required decision                                                                                                               |
+| Topic                    | Approved decision                                                                                                                                   |
 | ------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Applying a dirty draft   | Disable Apply until Save succeeds; no implicit Save-and-Apply                                                                                       |
 | New and duplicate        | Open a private draft; create the persistent entry on first Save                                                                                     |
 | Box model                | Width/height include border and padding; layout uses the remaining content box                                                                      |
 | Fill axes                | Row/Column allow fixed or Fill on each axis; Free children use fixed dimensions; main-axis Fill is shared equally                                   |
 | Insufficient space       | Fixed children keep sizes; main-axis Fill can resolve to zero; show a warning; never hide, wrap or shrink automatically                             |
-| Alignment                | Start/centre/end; define exact overflow offsets before implementation                                                                               |
+| Alignment                | Start/centre/end use 0/0.5/1 times signed remaining space, including negative overflow offsets                                                      |
 | Reparenting into Free    | Preserve computed global bounds by converting into the new parent's coordinates                                                                     |
 | Reparenting into flow    | Keep computed pixel size initially and use the chosen insertion order; Fill can be selected afterward                                               |
-| Editable starter         | 622 x 80 transparent root, rectangular groups, all standard values; approve the exact fixture before implementation                                 |
-| Score animation defaults | Manually added score values start at None; the starter's initial selection needs approval                                                           |
+| Editable starter         | 622 x 80 transparent Free root; exact clock/home/away rectangles and all seven values are specified in the editor fixtures                          |
+| Score animation defaults | Both manually added values and starter scores start at None independently                                                                           |
 | Preview default          | Sample mode; Live remains read-only                                                                                                                 |
 | Keyboard                 | Ctrl+S Save, Ctrl+Z Undo, Ctrl+Shift+Z/Ctrl+Y Redo, arrows 1 px, Shift+arrows 10 px; text fields retain native editing                              |
-| Grid and snapping        | Start with an 8 logical-pixel grid and a 6 screen-pixel snap threshold converted through zoom; both toggleable                                      |
+| Grid and snapping        | 8 logical-pixel grid initially off; snapping initially on, threshold 6 screen pixels converted through zoom; edge/centre wins grid ties             |
 | Saved editor state       | Save layer names/lock metadata; exclude selection, sample values and viewport from the published appearance                                         |
 | Video even dimensions    | Uniformly scale the custom layout and add transparent right/bottom padding to reach even dimensions; do not stretch; preserve Classic compatibility |
 
-Engineering decisions to close in the same gate:
+Engineering decisions closed by the
+[P0 technical contracts](scoreboard-designer-contracts.md):
 
-- Exact contracts, commands/events, saved-revision conflict handling and
-  publication/session ordering.
-- Serialized atomic persistence, cancellation-safe transaction completion and
-  non-destructive corrupt/newer-schema recovery.
-- Concrete node/depth/text/geometry/file limits and the complete fill/alignment
-  math, including degenerate content boxes.
-- Font metrics and border placement across supported webviews and Canvas2D.
-- Frontend test setup and byte-budget enforcement boundaries.
-- Native close/Quit coordination with draft prompts and existing recording
-  flush/exit behaviour.
+- Exact future Rust fields, command/event names and structured revision conflicts.
+- Independent storage/publication ordering plus a process-lifetime session id.
+- Serialized atomic persistence, requester-cancellation safety and blocked,
+  non-destructive recovery with an explicit backup-and-reset operation.
+- Inclusive node/depth/text/geometry/file limits and pre-allocation validation.
+- Shared inside-border and font-baseline math, with measurable P4 parity criteria.
+- Vitest in P3 and exact frontend/backend raw-frame byte-budget enforcement.
+- One native close/Quit coordinator before window destruction/recording flush.
 
-**Stop before P1** if the behavioural/default approvals are missing. **Stop
-after P4** if the shared render model cannot meet the agreed overflow and visual
-requirements. **Do not release after P7 alone:** custom layouts also require P8.
-If any further user-visible ambiguity emerges, clarify it before implementing
-that behaviour rather than silently expanding scope.
+Zero-size/out-of-bounds conversions are rejected atomically rather than clamped.
+Explicit static-label line breaks are supported without automatic wrapping.
+The editor specifies the approved initial window/sidebar geometry and defaults.
+
+**P0's approval gate is closed.** If a new user-visible ambiguity emerges during
+implementation, clarify it before implementing that behaviour. **Stop after P4**
+if the shared render model cannot meet the agreed overflow/parity requirements.
+**Do not release after P7 alone:** custom layouts also require P8.

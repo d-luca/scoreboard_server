@@ -3,14 +3,15 @@
 > **Status:** planning only. No designer, layout-library commands, custom-layout
 > renderer or publishing protocol described here has been implemented.
 >
-> The product decisions below were agreed during feature planning. Technical
-> recommendations are identified separately; they are not existing APIs or
-> permission to begin implementation.
+> The product decisions below, including the P0 defaults approved on 2026-10-20,
+> define the planned feature. P0 is complete; no application implementation is
+> claimed. Future technical contracts are recorded separately.
 
 This document defines the feature's scope, saved-definition lifecycle and external
 behaviour. Companion documents cover:
 
 - [Editor UI and interactions](scoreboard-designer-editor.md).
+- [Approved P0 technical contracts](scoreboard-designer-contracts.md).
 - [Proposed architecture and implementation plan](scoreboard-designer-implementation.md).
 
 ## Goal and boundary
@@ -109,6 +110,7 @@ the initial custom-designer capabilities.
 Custom layouts use their own per-score animation selections. The existing
 global score-animation setting continues to control Classic and individual
 `/value/*` score outputs, not custom layouts. UI wording must explain that scope.
+New score elements and both starter scores default to **None**.
 
 New custom layouts offer **Blank** and a **basic editable scoreboard starter**.
 The starter uses supported rectangular styling and the standard bound values;
@@ -124,6 +126,8 @@ the supported bounds.
 The first release includes output up to **3840 x 2160**, or the portrait
 equivalent **2160 x 3840**. Export limits also apply after scaling. Unsupported
 sizes must produce an explicit error rather than silently reducing resolution.
+Custom root dimensions are positive integer pixels. A square larger than
+2160 x 2160 is therefore not supported, even if neither axis exceeds 3840.
 
 The `/scoreboard` URL remains stable when layouts change. Applying a definition
 updates the page contents, not its address.
@@ -153,6 +157,10 @@ distinguish unsaved work from saved changes that have not been applied.
 Apply publishes a saved snapshot. Confirm every Apply that changes the published
 appearance, including changes that do not alter dimensions. Cancelling leaves
 the output unchanged.
+Apply is disabled while the draft is dirty; Save must complete first. There is
+no implicit Save-and-Apply action. Recheck the selected saved revision and current
+publication after confirmation; a conflict requires a fresh review rather than
+silently applying a different revision.
 
 Applying must not pause, reset or otherwise mutate the timer, scores or period.
 It remains possible during a running match or recording. Connected outputs must
@@ -170,6 +178,9 @@ between installations is deferred.
 
 A published source layout cannot be deleted until another layout is applied.
 Classic remains protected independently of whether it is published.
+New and Duplicate open private drafts; the library entry is created on first
+successful Save. Rename operates on a saved entry after guarding dirty work.
+Layer names and locks are saved; selection, sample data and viewport are not.
 
 Use explicit Save and **Save / Discard / Cancel** prompts when switching layouts
 or closing a dirty designer. Unsaved crash recovery is not included initially.
@@ -178,6 +189,33 @@ handling only an in-window navigation button would be incomplete.
 
 Errors must be visible. A failed Save or Apply must not report success, discard
 the draft or unexpectedly replace the published appearance.
+
+If layout storage is unreadable, corrupt, oversized or from an unsupported
+schema, preserve the original file and show an actionable warning. Use temporary
+Classic output and block layout writes until explicit recovery. **Back up and
+reset layout library** requires confirmation and a successful backup before
+replacement; cancelling leaves the original untouched. Do not silently overwrite
+a newer schema or report an empty library as a successful load. See the
+[recovery contract](scoreboard-designer-contracts.md#persistence-recovery-and-transaction-completion).
+
+### Approved first-release resource restrictions
+
+These constraints are visible validation rules, not silent truncation:
+
+- At most 100 saved custom layouts, 256 nodes per definition (including the
+  root), and tree depth 16 (including the root). Hidden nodes count.
+- Static labels contain at most 2,048 Unicode characters; layout/layer names
+  contain 1..128 characters after trimming.
+- Child positions range from -16,384 to 16,384 logical pixels; fixed child
+  dimensions from 1 to 8,192. Fill may resolve to zero with a warning.
+- Font sizes are 1..512 pixels; padding, gap and radius 0..4,096; border width
+  0..256. All geometry must be finite.
+- A definition is at most 1 MiB serialized; the entire layout file, including
+  the published copy, is at most 16 MiB.
+
+These limits constrain designs/libraries, not match data or control availability.
+The [validation contract](scoreboard-designer-contracts.md#validation-limits-and-diagnostics)
+defines exact counting, diagnostics and boundary checks.
 
 ## Recording and video behaviour
 
@@ -195,6 +233,12 @@ The same recording can be exported again with a different layout.
 Video initially matches layout and values with **static score changes**. It does
 not reproduce live rolling animations or attempt to reconstruct the appearance
 that was on air during the original match.
+
+Custom export scales uniformly and adds transparent right/bottom padding to
+reach even output dimensions; it never stretches the design. Show the exact
+resulting dimensions and reject oversized final frames. Classic retains its
+existing dimension rounding. Raw frame batches are limited to 32 MiB and
+30 frames, with one awaited batch in flight; a valid 4K frame fits once.
 
 ## Deferred capabilities
 
