@@ -1,8 +1,10 @@
 # Scoreboard Designer - proposed implementation plan
 
 > **Status:** P0 approved on 2026-10-20; P1 completed on 2026-10-22;
-> P2-P9 not started. Rust definition contracts, validation and generated bindings
-> exist; application functionality, commands and events remain planned.
+> P2 implemented and Linux-verified on 2026-10-23; Windows file-replacement
+> verification remains pending. P3-P9 not started. Rust contracts, validation,
+> persistent library commands and backend publication events exist; designer UI,
+> rendering and public wire synchronization remain planned.
 > Approved requirements are
 > defined in the [feature contract](scoreboard-designer.md),
 > [editor design](scoreboard-designer-editor.md) and
@@ -10,8 +12,9 @@
 
 This plan defines reviewable implementation work packages, their actual
 prerequisites, concrete change locations and completion criteria. **P0 and P1 are
-complete.** P1 adds pure data contracts and validation without changing Classic,
-match state, persistence, rendering or application wiring.
+complete; P2's backend is implemented.** P1 adds pure data contracts and validation.
+P2 adds durable library/publication storage and desktop commands without changing
+Classic rendering or match state.
 
 The detailed-design gate is closed by the approvals recorded below. Follow the
 approved contracts for subsequent packages; do not treat remaining delivery
@@ -19,18 +22,18 @@ recommendations as existing application behaviour.
 
 ## Roadmap and dependencies
 
-| Package | Deliverable                                                         | Prerequisites |
-| ------- | ------------------------------------------------------------------- | ------------- |
-| P0      | Approved detailed behaviour and technical contracts - complete      | None          |
-| P1      | Typed definition model, limits and validation - complete            | P0            |
-| P2      | Durable library operations and published snapshots                  | P1            |
-| P3      | Deterministic layout and binding engine                             | P1            |
-| P4      | Custom live/canvas renderers with representative parity proof       | P3            |
-| P5      | Designer window, library, draft editing and inspector               | P2, P4        |
-| P6      | Direct manipulation, history and guarded lifecycle                  | P5            |
-| P7      | Live publication, reconnect synchronization and Outputs integration | P2, P4, P5    |
-| P8      | Frozen-layout video export with bounded memory                      | P2, P4        |
-| P9      | Integrated completion and release readiness                         | P6, P7, P8    |
+| Package | Deliverable                                                                                    | Prerequisites |
+| ------- | ---------------------------------------------------------------------------------------------- | ------------- |
+| P0      | Approved detailed behaviour and technical contracts - complete                                 | None          |
+| P1      | Typed definition model, limits and validation - complete                                       | P0            |
+| P2      | Durable library operations and published snapshots - implemented; Windows verification pending | P1            |
+| P3      | Deterministic layout and binding engine                                                        | P1            |
+| P4      | Custom live/canvas renderers with representative parity proof                                  | P3            |
+| P5      | Designer window, library, draft editing and inspector                                          | P2, P4        |
+| P6      | Direct manipulation, history and guarded lifecycle                                             | P5            |
+| P7      | Live publication, reconnect synchronization and Outputs integration                            | P2, P4, P5    |
+| P8      | Frozen-layout video export with bounded memory                                                 | P2, P4        |
+| P9      | Integrated completion and release readiness                                                    | P6, P7, P8    |
 
 ```text
 P0 -> P1 -> P2 --------------------+-------------------+
@@ -142,9 +145,9 @@ files, with temporary Classic output and explicit backed-up reset.
 
 Approved desktop operations cover loading the library/published snapshot,
 creating, saving, renaming, duplicating and deleting custom definitions, and
-applying a saved definition or Classic. Exact future command/event names are
+applying a saved definition or Classic. Implemented command/event names are
 defined in the [operation contract](scoreboard-designer-contracts.md#desktop-operations-and-event-boundary);
-they are not registered application commands yet.
+P2 registers the desktop commands. Public wire synchronization remains P7.
 
 Layout editing and publication are desktop features. LAN consumers need the
 published snapshot, not write access to the private library or editor drafts.
@@ -388,6 +391,8 @@ remain P2; invalid input is never silently repaired by the decoders.
 ### P2 - implement the persistent library and publication service
 
 **Prerequisites:** P1.
+**Status:** implemented and Linux-verified on 2026-10-23; Windows atomic
+replacement verification pending.
 
 Tasks:
 
@@ -421,6 +426,38 @@ relevant constructor call sites and binding exports.
 **Exit gate:** save revision 2 after publishing revision 1, restart, and still
 read published revision 1. Failed writes leave the previous authoritative state
 and appearance intact.
+
+Implementation evidence:
+
+- [Layout service](../../../src-tauri/src/layouts/service.rs) owns a serialized
+  worker queue. Accepted transactions survive requester cancellation; normal
+  application exit stops admission and drains the queue. Mutations validate,
+  flush/sync and atomically replace storage before installing memory and emitting
+  events. Normalized no-ops do not increment revisions or write.
+- [Storage](../../../src-tauri/src/layouts/storage.rs) bounds file reads, restores
+  the exact frozen root and preserves corrupt/unreadable/unsupported/oversized
+  originals in blocked mode. Confirmed recovery checks file identity before and
+  after an exclusive, synced backup, then installs an empty document with advanced
+  runtime revisions.
+- [Desktop wiring](../../../src-tauri/src/lib.rs) registers all seven approved
+  commands. [AppState](../../../src-tauri/src/state.rs) owns the service and
+  publishes desktop library/status events separately from the public frozen
+  publication event. Only the latter enters the server event channel.
+- Duplicate preparation returns an unpublished draft with fresh node/metadata ids
+  and a bounded copy name; only explicit create persists it. The editor-facing
+  duplicate interaction remains P5.
+- [Service tests](../../../src-tauri/src/layouts/service_tests.rs) cover exact
+  frozen restoration after newer saves/renames, independent revision conflicts,
+  protected deletion, canonicalization/no-ops, concurrent writes, requester
+  cancellation, shutdown draining, file limits, recovery conflicts and injected
+  write/sync/replacement/backup failures. AppState tests verify that library
+  changes do not enter the public channel and publication leaves match state
+  and settings unchanged.
+
+Linux tests exercise replacing an existing file and preserving it on failure.
+The same replacement path still needs execution on Windows. No designer window,
+custom renderer, HTTP/WS layout frame or frontend transport is enabled by P2;
+those remain their designated later packages.
 
 ### P3 - implement the pure layout and binding engine
 

@@ -14,6 +14,7 @@ use tauri::{AppHandle, Emitter, Manager};
 use tokio::sync::{broadcast, Mutex, RwLock};
 use ts_rs::TS;
 
+use crate::layouts::{LayoutService, LayoutServiceEvent, PublishedLayoutSnapshot};
 use crate::net::{self, LanAddress};
 use crate::presets::{
     self, MatchPreset, MatchPresetPatch, PresetLibrary, TeamPreset, TeamPresetPatch,
@@ -65,6 +66,8 @@ pub enum ServerEvent {
     /// The preset library changed (`presets:changed`). Also the
     /// single trigger for rebuilding the native `Presets` menu.
     Presets(PresetLibrary),
+    /// Full public frozen selection; never contains the private library or storage status.
+    PublishedLayout(PublishedLayoutSnapshot),
 }
 
 /// Geometry of one window, persisted in `window-geometry.json` under the
@@ -335,6 +338,7 @@ pub struct AppState {
     /// Team & match preset library. Mutations go through the
     /// `*_preset_*` methods; loading one goes through [`AppState::preset_load`].
     pub presets: RwLock<PresetLibrary>,
+    pub layouts: LayoutService,
     pub timer: Mutex<TimerEngine>,
     pub events: broadcast::Sender<ServerEvent>,
     /// Persisted window geometry + zoom levels.
@@ -389,27 +393,55 @@ impl AppState {
             Settings::default(),
             AppPrefs::default(),
             PresetLibrary::empty(),
+            Self::test_layouts(),
         )
     }
 
     /// Test helper when a specific settings value is needed.
     #[cfg(test)]
     pub fn with_settings(settings: Settings, prefs: AppPrefs) -> Shared {
-        Self::build(settings, prefs, PresetLibrary::empty())
+        Self::build(
+            settings,
+            prefs,
+            PresetLibrary::empty(),
+            Self::test_layouts(),
+        )
     }
 
     /// Test helper when a specific preset library is needed.
     #[cfg(test)]
     pub fn with_presets(presets: PresetLibrary) -> Shared {
-        Self::build(Settings::default(), AppPrefs::default(), presets)
+        Self::build(
+            Settings::default(),
+            AppPrefs::default(),
+            presets,
+            Self::test_layouts(),
+        )
+    }
+
+    #[cfg(test)]
+    fn test_layouts() -> LayoutService {
+        LayoutService::load_from(
+            std::env::temp_dir().join(format!("sb-layouts-test-{}.json", uuid::Uuid::new_v4())),
+        )
     }
 
     /// Production constructor (called from `setup` in lib.rs).
-    pub fn with_prefs(prefs: AppPrefs, settings: Settings, presets: PresetLibrary) -> Shared {
-        Self::build(settings, prefs, presets)
+    pub fn with_prefs(
+        prefs: AppPrefs,
+        settings: Settings,
+        presets: PresetLibrary,
+        layouts: LayoutService,
+    ) -> Shared {
+        Self::build(settings, prefs, presets, layouts)
     }
 
-    fn build(settings: Settings, prefs: AppPrefs, presets: PresetLibrary) -> Shared {
+    fn build(
+        settings: Settings,
+        prefs: AppPrefs,
+        presets: PresetLibrary,
+        layouts: LayoutService,
+    ) -> Shared {
         let (events, _rx) = broadcast::channel(EVENT_CHANNEL_CAPACITY);
         // Pinned tokens survive restarts; otherwise a fresh
         // 128-bit token is generated every launch.
@@ -423,10 +455,11 @@ impl AppState {
         // hardcoded default would make the UI say "count up" while the
         // engine counts down.
         let timer_direction = settings.timer_direction;
-        Arc::new(AppState {
+        let shared = Arc::new(AppState {
             scoreboard: RwLock::new(settings::seed_scoreboard(&settings)),
             settings: RwLock::new(settings),
             presets: RwLock::new(presets),
+            layouts,
             timer: Mutex::new(TimerEngine::with_direction(timer_direction)),
             events,
             prefs: RwLock::new(prefs),
@@ -447,11 +480,46 @@ impl AppState {
             settings_save_serial: AtomicU64::new(0),
             presets_save_serial: AtomicU64::new(0),
             app: OnceLock::new(),
-        })
+        });
+        let weak = Arc::downgrade(&shared);
+        shared.layouts.set_notifier(move |event| {
+            if let Some(shared) = weak.upgrade() {
+                shared.publish_layout_event(event);
+            }
+        });
+        shared
     }
 
     pub fn attach_app(&self, app: AppHandle) {
         let _ = self.app.set(app);
+        let status = self.layouts.snapshot().storage_status;
+        if status.state == crate::layouts::LayoutStorageState::Blocked {
+            self.publish_layout_event(LayoutServiceEvent::StorageWarning(status));
+        }
+    }
+
+    fn publish_layout_event(&self, event: LayoutServiceEvent) {
+        if let LayoutServiceEvent::Published(snapshot) = event {
+            self.publish(ServerEvent::PublishedLayout(snapshot));
+            return;
+        }
+        if let Some(app) = self.app.get() {
+            let result = match event {
+                LayoutServiceEvent::LibraryChanged(change) => {
+                    app.emit("layouts:library-changed", change)
+                }
+                LayoutServiceEvent::StorageWarning(status) => {
+                    app.emit("layouts:storage-warning", status)
+                }
+                LayoutServiceEvent::Published(_) => unreachable!(),
+            };
+            if let Err(error) = result {
+                tracing::warn!(
+                    ?error,
+                    "cannot emit layout notification; consumers must reload"
+                );
+            }
+        }
     }
 
     pub async fn current(&self) -> ScoreboardState {
@@ -1171,6 +1239,14 @@ impl AppState {
                 }
                 ServerEvent::Presets(library) => {
                     let _ = app.emit("presets:changed", library);
+                }
+                ServerEvent::PublishedLayout(snapshot) => {
+                    if let Err(error) = app.emit("layouts:published", snapshot) {
+                        tracing::warn!(
+                            ?error,
+                            "cannot emit committed layout publication; consumers must reload"
+                        );
+                    }
                 }
                 ServerEvent::Window(which, open) => {
                     let event = if open {

@@ -16,23 +16,39 @@ CI (`.github/workflows/build.yml`) additionally fails when:
 
 ### Rust test coverage
 
-| Area                                                | Location                                                    |
-| --------------------------------------------------- | ----------------------------------------------------------- |
-| Validation, clamping, patches, reset                | `src/state.rs`                                              |
-| Timer engine (both directions, finish, set, adjust) | `src/timer.rs`                                              |
-| Presets CRUD, apply, file integrity                 | `src/presets.rs`                                            |
-| Recording timeline and files                        | `src/recording.rs`                                          |
-| Video job state                                     | `src/video.rs`                                              |
-| Settings load/save                                  | `src/settings.rs`                                           |
-| Window geometry                                     | `src/windows.rs`                                            |
-| LAN address detection                               | `src/net.rs`                                                |
-| HTTP routes, `/value`, CORS, auth                   | `src/server/mod.rs`, `routes.rs`, `auth.rs`                 |
-| WS auth, revocation, rate limit                     | `src/server/ws.rs`                                          |
-| Binding export                                      | `tests/export_bindings.rs`                                  |
-| Video generation end to end                         | `tests/video_generation.rs` (skips when no ffmpeg is found) |
+| Area                                                          | Location                                                    |
+| ------------------------------------------------------------- | ----------------------------------------------------------- |
+| Validation, clamping, patches, reset                          | `src/state.rs`                                              |
+| Timer engine (both directions, finish, set, adjust)           | `src/timer.rs`                                              |
+| Presets CRUD, apply, file integrity                           | `src/presets.rs`                                            |
+| Layout definition contracts and limits                        | `tests/layouts.rs`                                          |
+| Layout persistence, publication, recovery and queue lifecycle | `src/layouts/service_tests.rs`, `src/layouts/storage.rs`    |
+| Recording timeline and files                                  | `src/recording.rs`                                          |
+| Video job state                                               | `src/video.rs`                                              |
+| Settings load/save                                            | `src/settings.rs`                                           |
+| Window geometry                                               | `src/windows.rs`                                            |
+| LAN address detection                                         | `src/net.rs`                                                |
+| HTTP routes, `/value`, CORS, auth                             | `src/server/mod.rs`, `routes.rs`, `auth.rs`                 |
+| WS auth, revocation, rate limit                               | `src/server/ws.rs`                                          |
+| Binding export                                                | `tests/export_bindings.rs`                                  |
+| Video generation end to end                                   | `tests/video_generation.rs` (skips when no ffmpeg is found) |
 
-The two integration tests live in `tests/` so that the Windows manifest from `build.rs` is
+The integration tests live in `tests/` so that the Windows manifest from `build.rs` is
 linked in; see [pitfalls.md](pitfalls.md#platform).
+
+Focused layout checks:
+
+```bash
+cargo test --manifest-path src-tauri/Cargo.toml --lib layouts
+cargo test --manifest-path src-tauri/Cargo.toml --test layouts
+```
+
+P2 tests inject write, sync, replacement and backup failures, cancel a requester
+after disk replacement, drain queued work at shutdown, and verify that publishing
+revision 1 survives saving revision 2 and restarting. They also cover blocked
+storage/recovery identity checks, bounded file reads and separation from match
+state/public library exposure. Linux replacement of an existing file is covered;
+Windows execution of the replacement/failure cases remains a platform check.
 
 ### Smoke scripts
 
@@ -48,6 +64,10 @@ node scripts/ws-timer-smoke.mjs "<control URL>"  # 3 s countdown, ticks, timer-f
 The scripts accept the control URL or the bare token (also via `SB_TOKEN`); the port is
 taken from the URL, else `SB_PORT`, else 3001. Both exit non-zero on failure. The token
 changes on every `serve` start.
+
+The standalone server initializes layout persistence from `SB_LAYOUTS_PATH`, or
+`scoreboard-server-smoke/layouts.json` under the system temporary directory by
+default. It does not read the desktop app's private layout library implicitly.
 
 ## Definition of done
 

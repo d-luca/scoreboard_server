@@ -16,6 +16,10 @@ pub mod windows;
 pub use settings::{Settings, SettingsPatch};
 pub use state::{AppPrefs, AppState, Shared};
 
+use layouts::{
+    LayoutCommandError, LayoutDefinition, LayoutLibrarySnapshot, LayoutMutationResult,
+    SavedLayoutSelection,
+};
 use presets::{MatchPreset, MatchPresetPatch, PresetLibrary, TeamPreset, TeamPresetPatch};
 use recording::{RecentRecording, RecordingStatus, RecordingStopped, Snapshot};
 use settings::SettingsPatch as SettingsPatchInput;
@@ -147,6 +151,75 @@ async fn settings_set(
 #[tauri::command]
 async fn presets_get(state: tauri::State<'_, Shared>) -> Result<PresetLibrary, String> {
     Ok(state.presets_snapshot().await)
+}
+
+#[tauri::command]
+async fn layouts_get(
+    state: tauri::State<'_, Shared>,
+) -> Result<LayoutLibrarySnapshot, LayoutCommandError> {
+    Ok(state.layouts.snapshot())
+}
+
+#[tauri::command]
+async fn layouts_create(
+    name: String,
+    definition: LayoutDefinition,
+    state: tauri::State<'_, Shared>,
+) -> Result<LayoutMutationResult, LayoutCommandError> {
+    state.layouts.create(name, definition).await
+}
+
+#[tauri::command]
+async fn layouts_save(
+    id: String,
+    expected_revision: u64,
+    name: String,
+    definition: LayoutDefinition,
+    state: tauri::State<'_, Shared>,
+) -> Result<LayoutMutationResult, LayoutCommandError> {
+    state
+        .layouts
+        .save(id, expected_revision, name, definition)
+        .await
+}
+
+#[tauri::command]
+async fn layouts_rename(
+    id: String,
+    expected_revision: u64,
+    name: String,
+    state: tauri::State<'_, Shared>,
+) -> Result<LayoutMutationResult, LayoutCommandError> {
+    state.layouts.rename(id, expected_revision, name).await
+}
+
+#[tauri::command]
+async fn layouts_delete(
+    id: String,
+    expected_revision: u64,
+    state: tauri::State<'_, Shared>,
+) -> Result<LayoutMutationResult, LayoutCommandError> {
+    state.layouts.delete(id, expected_revision).await
+}
+
+#[tauri::command]
+async fn layouts_apply(
+    selection: SavedLayoutSelection,
+    expected_published_revision: u64,
+    state: tauri::State<'_, Shared>,
+) -> Result<LayoutMutationResult, LayoutCommandError> {
+    state
+        .layouts
+        .apply(selection, expected_published_revision)
+        .await
+}
+
+#[tauri::command]
+async fn layouts_recover(
+    expected_recovery_token: String,
+    state: tauri::State<'_, Shared>,
+) -> Result<LayoutMutationResult, LayoutCommandError> {
+    state.layouts.recover(expected_recovery_token).await
 }
 
 #[tauri::command]
@@ -581,6 +654,7 @@ pub fn run() {
             let settings = settings::load(app.handle());
             let prefs = AppPrefs::load(app.handle());
             let presets = presets::load(app.handle());
+            let layouts = layouts::LayoutService::load(app.handle());
             let server_port = settings.server_port;
 
             // Re-grant the asset scope for a persisted custom buzzer track
@@ -598,7 +672,7 @@ pub fn run() {
             let show_firewall_notice =
                 cfg!(target_os = "windows") && !settings.firewall_notice_shown;
 
-            let shared = AppState::with_prefs(prefs, settings, presets);
+            let shared = AppState::with_prefs(prefs, settings, presets, layouts);
             shared.attach_app(app.handle().clone());
             app.manage(shared);
 
@@ -677,6 +751,13 @@ pub fn run() {
             settings_get,
             settings_set,
             presets_get,
+            layouts_get,
+            layouts_create,
+            layouts_save,
+            layouts_rename,
+            layouts_delete,
+            layouts_apply,
+            layouts_recover,
             team_preset_create,
             team_preset_update,
             team_preset_delete,
@@ -712,6 +793,7 @@ pub fn run() {
         // and a final flush before the process goes away, so a quit mid-match
         // loses at most the last second.
         if let tauri::RunEvent::ExitRequested { .. } = event {
+            handle.state::<Shared>().layouts.shutdown();
             recording::flush_on_exit(handle.state::<Shared>().inner());
         }
     });

@@ -13,8 +13,8 @@
 //! validation for the build.rs directive satisfied.
 
 use scoreboard_server_lib::layouts::{
-    LayoutCommandError, LayoutDefinition, LayoutLibrarySnapshot, LayoutMutationResult,
-    LayoutStorageDocument, SavedLayoutSelection,
+    LayoutCommandError, LayoutDefinition, LayoutLibraryChanged, LayoutLibrarySnapshot,
+    LayoutMutationResult, LayoutStorageDocument, SavedLayoutSelection,
 };
 use scoreboard_server_lib::net::LanAddress;
 use scoreboard_server_lib::presets::{
@@ -62,6 +62,7 @@ fn export_bindings() {
     GenerationStarted::export().expect("failed to export GenerationStarted");
     RecordingMetadata::export().expect("failed to export RecordingMetadata");
     LayoutDefinition::export_all().expect("failed to export LayoutDefinition");
+    LayoutLibraryChanged::export().expect("failed to export LayoutLibraryChanged");
     LayoutStorageDocument::export_all().expect("failed to export LayoutStorageDocument");
     SavedLayoutSelection::export_all().expect("failed to export SavedLayoutSelection");
     LayoutLibrarySnapshot::export_all().expect("failed to export LayoutLibrarySnapshot");

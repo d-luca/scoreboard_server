@@ -173,7 +173,8 @@ async fn client_loop(
                             }
                         }
                     }
-                    Ok(ServerEvent::Window(..) | ServerEvent::Presets(_)) => {}
+                    // Layout wire synchronization is wired with the custom renderer in P7.
+                    Ok(ServerEvent::Window(..) | ServerEvent::Presets(_) | ServerEvent::PublishedLayout(_)) => {}
                     // A lagging client missed frames: resync with a fresh
                     // full state instead of replaying the backlog.
                     Err(RecvError::Lagged(skipped)) => {

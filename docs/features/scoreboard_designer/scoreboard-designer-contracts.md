@@ -1,8 +1,10 @@
 # Scoreboard Designer - approved P0 technical contracts
 
 > **Status:** P0 approved on 2026-10-20; P1 contracts and validation implemented
-> on 2026-10-22 with generated ts-rs bindings. Persistence, commands, events and
-> rendering below remain planned for subsequent packages. Rust remains the
+> on 2026-10-22 with generated ts-rs bindings. P2 persistence, desktop commands
+> and backend publication events implemented on 2026-10-23 (Linux verified;
+> Windows replacement verification pending). Editor, rendering and public wire
+> synchronization remain planned for subsequent packages. Rust remains the
 > authoritative type source; do not create hand-maintained TypeScript copies.
 
 The [feature contract](scoreboard-designer.md) defines product behaviour.
@@ -33,7 +35,7 @@ dependencies. All three remain subject to the P4 renderer-parity stop gate.
 
 These tables specify field responsibilities, not duplicate Rust declarations.
 
-| Future Rust contract       | Required JSON fields and rules                                                                                                                                                                                                                                |
+| Rust contract              | Required JSON fields and rules                                                                                                                                                                                                                                |
 | -------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `LayoutDefinition`         | `root: LayoutRoot`, `editor: LayoutEditorMetadata`                                                                                                                                                                                                            |
 | `LayoutRoot`               | `kind: "root"`, `id`, integer `width`, integer `height`, `background: LayoutColor`, `children: LayoutElement[]`. Origin is `(0,0)`; direct children use Free placement. No root border, padding, hiding or nesting.                                           |
@@ -137,7 +139,7 @@ not automatic retries that overwrite another revision.
 
 ## Desktop operations and event boundary
 
-All future Tauri commands below return `Result<..., LayoutCommandError>`.
+The P2 Tauri commands below return `Result<..., LayoutCommandError>`.
 Only `layouts_get` returns `LayoutLibrarySnapshot`; the mutations return
 `LayoutMutationResult`. No library mutation is added to `Action`, HTTP or WS.
 
@@ -157,13 +159,14 @@ is identical is a no-op and returns the current revision. Rename to the same
 name is likewise a no-op. Reject stale revisions even for a would-be no-op.
 Deleting an absent id is `not-found`, not success.
 
-Desktop events:
+Desktop events (implemented in P2; public wire forwarding remains P7):
 
 - `layouts:library-changed`: `{sessionId, storageRevision}` after any committed
   layout-storage change, including Apply/recovery. Receivers subscribe before
   `layouts_get`; use storage ordering to reject stale read results.
 - `layouts:published`: the full `PublishedLayoutSnapshot`, only after a committed
-  publication change. Also forward this through the public server event channel.
+  publication change. Also forwarded through the public server event channel;
+  P7 will serialize it to WebSocket clients.
 - `layouts:storage-warning`: the current `LayoutStorageStatus`, desktop-only;
   `layouts_get` also carries it so a late-opening designer cannot miss a warning.
 

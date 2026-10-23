@@ -527,7 +527,7 @@ pub fn validate_storage_document(
     validation.finish()
 }
 
-fn decode<T: DeserializeOwned>(bytes: &[u8]) -> Result<T, LayoutCommandError> {
+pub(super) fn decode<T: DeserializeOwned>(bytes: &[u8]) -> Result<T, LayoutCommandError> {
     let mut validation = Validation::default();
     if bytes.len() > MAX_LAYOUT_STORAGE_BYTES {
         validation.error(

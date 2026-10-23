@@ -20,6 +20,9 @@ fn shared() -> Shared {
         AppPrefs::default(),
         Settings::default(),
         PresetLibrary::empty(),
+        scoreboard_server_lib::layouts::LayoutService::load_from(
+            std::env::temp_dir().join(format!("sb-video-layouts-{}.json", uuid::Uuid::new_v4())),
+        ),
     )
 }
 
@@ -277,10 +280,7 @@ async fn cancel_kills_ffmpeg_and_removes_partial_output() {
     let progress = video::progress(&shared);
     assert_eq!(progress.step, GenerationStep::Error, "{progress:?}");
     assert_eq!(progress.error.as_deref(), Some("Generation cancelled"));
-    assert!(
-        !output.exists(),
-        "partial output must be deleted on cancel"
-    );
+    assert!(!output.exists(), "partial output must be deleted on cancel");
 
     std::fs::remove_dir_all(&dir).ok();
 }

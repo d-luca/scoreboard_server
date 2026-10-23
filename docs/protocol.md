@@ -151,19 +151,22 @@ could change the score mid-broadcast. Implementation:
 
 ## Tauri commands
 
-All return `Result<T, String>`; the frontend `invoke` rejects with the message. Registered
-in [lib.rs](../src-tauri/src/lib.rs).
+Commands return `Result<T, String>` unless noted; the frontend `invoke` rejects with
+the message. Layout commands instead reject with a structured
+[`LayoutCommandError`](../src/bindings/LayoutCommandError.ts). Registered in
+[lib.rs](../src-tauri/src/lib.rs).
 
-| Group     | Commands                                                                                                                                                                                                                      |
-| --------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Core      | `sb_get_state`, `sb_dispatch(action)` — the only scoreboard mutation command                                                                                                                                                  |
-| Windows   | `window_open(which)`, `window_close(which)`, `window_list`, `startup_ready`                                                                                                                                                   |
-| Server    | `server_get_info` → `ServerInfo`, `server_get_status` → `ServerStatus`, `server_regenerate_token`                                                                                                                             |
-| Settings  | `settings_get`, `settings_set(patch: SettingsPatch)`                                                                                                                                                                          |
-| Presets   | `presets_get`, `team_preset_create/update/delete`, `match_preset_create/update/delete`, `preset_load` — see [features/presets.md](features/presets.md)                                                                        |
-| Buzzer    | `buzzer_get_track`, `buzzer_select_track` (file dialog), `buzzer_clear_track`                                                                                                                                                 |
-| Recording | `recording_start`, `recording_stop`, `recording_status`, `recording_get_output_dir`, `recording_select_output_dir`, `recording_list_recent`                                                                                   |
-| Video     | `video_load_recording`, `video_select_recording`, `video_select_output`, `video_generate`, `video_frames`, `video_push_frames`, `video_cancel`, `video_progress`, `video_open_with_recording`, `video_take_pending_recording` |
+| Group     | Commands                                                                                                                                                                                                                                                             |
+| --------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Core      | `sb_get_state`, `sb_dispatch(action)` — the only scoreboard mutation command                                                                                                                                                                                         |
+| Windows   | `window_open(which)`, `window_close(which)`, `window_list`, `startup_ready`                                                                                                                                                                                          |
+| Server    | `server_get_info` → `ServerInfo`, `server_get_status` → `ServerStatus`, `server_regenerate_token`                                                                                                                                                                    |
+| Settings  | `settings_get`, `settings_set(patch: SettingsPatch)`                                                                                                                                                                                                                 |
+| Presets   | `presets_get`, `team_preset_create/update/delete`, `match_preset_create/update/delete`, `preset_load` — see [features/presets.md](features/presets.md)                                                                                                               |
+| Layouts   | `layouts_get`, `layouts_create`, `layouts_save`, `layouts_rename`, `layouts_delete`, `layouts_apply`, `layouts_recover` — desktop-only; see [layout operations](features/scoreboard_designer/scoreboard-designer-contracts.md#desktop-operations-and-event-boundary) |
+| Buzzer    | `buzzer_get_track`, `buzzer_select_track` (file dialog), `buzzer_clear_track`                                                                                                                                                                                        |
+| Recording | `recording_start`, `recording_stop`, `recording_status`, `recording_get_output_dir`, `recording_select_output_dir`, `recording_list_recent`                                                                                                                          |
+| Video     | `video_load_recording`, `video_select_recording`, `video_select_output`, `video_generate`, `video_frames`, `video_push_frames`, `video_cancel`, `video_progress`, `video_open_with_recording`, `video_take_pending_recording`                                        |
 
 Recording and video commands are covered in
 [features/recording-video.md](features/recording-video.md).
@@ -178,22 +181,32 @@ asset protocol, whose scope is extended at runtime to the selected file.
 
 ## Tauri events
 
-| Event                             | Payload              | Target            |
-| --------------------------------- | -------------------- | ----------------- |
-| `state:changed`                   | `ScoreboardState`    | all windows       |
-| `timer:finished`                  | —                    | all windows       |
-| `buzzer:play`                     | —                    | `main` only       |
-| `server:info`                     | `ServerInfo`         | all windows       |
-| `server:status`                   | `ServerStatus`       | all windows       |
-| `settings:changed`                | `Settings`           | all windows       |
-| `presets:changed`                 | `PresetLibrary`      | all windows       |
-| `window:opened` / `window:closed` | `AppWindow`          | all windows       |
-| `recording:status`                | `RecordingStatus`    | all windows       |
-| `video:progress`                  | `GenerationProgress` | `video-generator` |
+| Event                             | Payload                   | Target            |
+| --------------------------------- | ------------------------- | ----------------- |
+| `state:changed`                   | `ScoreboardState`         | all windows       |
+| `timer:finished`                  | —                         | all windows       |
+| `buzzer:play`                     | —                         | `main` only       |
+| `server:info`                     | `ServerInfo`              | all windows       |
+| `server:status`                   | `ServerStatus`            | all windows       |
+| `settings:changed`                | `Settings`                | all windows       |
+| `presets:changed`                 | `PresetLibrary`           | all windows       |
+| `layouts:library-changed`         | `LayoutLibraryChanged`    | desktop only      |
+| `layouts:published`               | `PublishedLayoutSnapshot` | all windows       |
+| `layouts:storage-warning`         | `LayoutStorageStatus`     | desktop only      |
+| `window:opened` / `window:closed` | `AppWindow`               | all windows       |
+| `recording:status`                | `RecordingStatus`         | all windows       |
+| `video:progress`                  | `GenerationProgress`      | `video-generator` |
 
 The main window decides buzzer playback: `buzzer:play` always plays; `timer:finished`
 plays only when `buzzerAutoPlay` is on
 ([useBuzzerPlayback.ts](../src/lib/hooks/useBuzzerPlayback.ts)).
+
+Layout consumers subscribe before `layouts_get`. Library notifications contain
+only session/storage ordering metadata, not definitions; the coherent read
+includes entries, frozen publication and storage status. Mutations complete only
+after durable replacement and memory installation. Publication events contain no
+editor metadata, library contents or recovery paths. They also enter the internal
+server event channel, but HTTP/WS layout frames and frontend consumers remain P7.
 
 ## Settings
 

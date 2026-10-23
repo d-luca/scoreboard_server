@@ -1,11 +1,12 @@
-# Scoreboard Designer - planned, not implemented
+# Scoreboard Designer - feature contract
 
-> **Status:** planning only. No designer, layout-library commands, custom-layout
-> renderer or publishing protocol described here has been implemented.
+> **Status:** backend only. P1 definition contracts/validation and P2 persistent
+> library commands/backend publication events are implemented. No designer window,
+> custom-layout renderer or public publishing protocol is available yet.
 >
 > The product decisions below, including the P0 defaults approved on 2026-10-20,
-> define the planned feature. P0 is complete; no application implementation is
-> claimed. Future technical contracts are recorded separately.
+> define the complete planned feature, not currently available end-user behaviour.
+> Package status and remaining verification are recorded in the implementation plan.
 
 This document defines the feature's scope, saved-definition lifecycle and external
 behaviour. Companion documents cover:

@@ -1,7 +1,11 @@
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
+mod service;
+mod storage;
 mod validation;
+
+pub use service::{duplicate_layout_draft, LayoutService, LayoutServiceEvent};
 
 pub use validation::{
     checked_next_revision, decode_definition, decode_storage_document, validate_definition,
@@ -375,6 +379,15 @@ pub struct LayoutLibrarySnapshot {
     pub entries: Vec<SavedLayout>,
     pub published: PublishedLayoutSnapshot,
     pub storage_status: LayoutStorageStatus,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+#[ts(export_to = "../../src/bindings/")]
+pub struct LayoutLibraryChanged {
+    pub session_id: String,
+    #[ts(type = "number")]
+    pub storage_revision: u64,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]

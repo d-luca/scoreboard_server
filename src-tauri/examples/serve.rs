@@ -2,6 +2,7 @@
 //! axum stack on the default port so the REST/WS/pages can be exercised
 //! with curl and a browser without launching the Tauri shell.
 
+use scoreboard_server_lib::layouts::LayoutService;
 use scoreboard_server_lib::presets::PresetLibrary;
 use scoreboard_server_lib::{AppPrefs, AppState, Settings};
 
@@ -18,6 +19,15 @@ async fn main() {
         AppPrefs::default(),
         Settings::default(),
         PresetLibrary::empty(),
+        LayoutService::load_from(
+            std::env::var_os("SB_LAYOUTS_PATH")
+                .map(std::path::PathBuf::from)
+                .unwrap_or_else(|| {
+                    std::env::temp_dir()
+                        .join("scoreboard-server-smoke")
+                        .join("layouts.json")
+                }),
+        ),
     );
     let (port, _handle) = scoreboard_server_lib::start_server(
         shared.clone(),

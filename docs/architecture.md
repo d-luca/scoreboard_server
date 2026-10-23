@@ -176,13 +176,14 @@ The full event list is in [protocol.md](protocol.md#tauri-events).
 
 All files live in `app_config_dir()`:
 
-| File                   | Contents                                              | Source                                      |
-| ---------------------- | ----------------------------------------------------- | ------------------------------------------- |
-| `settings.json`        | [`Settings`](../src/bindings/Settings.ts)             | [settings.rs](../src-tauri/src/settings.rs) |
-| `presets.json`         | [`PresetLibrary`](../src/bindings/PresetLibrary.ts)   | [presets.rs](../src-tauri/src/presets.rs)   |
-| `window-geometry.json` | Per-label window geometry (incl. scale factor) + zoom | [state.rs](../src-tauri/src/state.rs)       |
+| File                   | Contents                                                            | Source                                                    |
+| ---------------------- | ------------------------------------------------------------------- | --------------------------------------------------------- |
+| `settings.json`        | [`Settings`](../src/bindings/Settings.ts)                           | [settings.rs](../src-tauri/src/settings.rs)               |
+| `presets.json`         | [`PresetLibrary`](../src/bindings/PresetLibrary.ts)                 | [presets.rs](../src-tauri/src/presets.rs)                 |
+| `layouts.json`         | [`LayoutStorageDocument`](../src/bindings/LayoutStorageDocument.ts) | [layouts/storage.rs](../src-tauri/src/layouts/storage.rs) |
+| `window-geometry.json` | Per-label window geometry (incl. scale factor) + zoom               | [state.rs](../src-tauri/src/state.rs)                     |
 
-Common rules:
+Settings/preset/window persistence rules:
 
 - **Load never fails.** A missing file gives defaults; a corrupt `settings.json` /
   `presets.json` is renamed to `<name>.corrupt-<unix_ts>.json` and defaults are used.
@@ -193,6 +194,22 @@ Common rules:
 
 Team identity, prefix, loadouts, timer direction and score animation are persisted in
 `Settings`; scores, half and the timer value are not.
+
+Layout storage deliberately differs: it is strict/versioned, never silently
+repaired, and explicit Save/Apply operations are not debounced.
+[LayoutService](../src-tauri/src/layouts/service.rs) serializes accepted operations
+on an owned worker, validates the complete next document, writes/flushes/syncs and
+atomically replaces the file, then commits memory and emits notifications without
+holding a state lock. Closing the requester does not cancel accepted work; exit
+drains it. Saved revisions and frozen publication revisions are independent of
+match revisions. Corrupt, unreadable, oversized or unsupported files remain in
+place with a blocked status and temporary Classic selection until explicit
+backed-up recovery. See the
+[layout recovery contract](features/scoreboard_designer/scoreboard-designer-contracts.md#persistence-recovery-and-transaction-completion).
+
+Library/status notifications are desktop-only; only the frozen publication enters
+the server event channel. P2 does not enable custom rendering or HTTP/WS layout
+synchronization; those integrations remain later packages.
 
 ## Windows
 
