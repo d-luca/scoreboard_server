@@ -4,8 +4,10 @@
 > on 2026-10-22 with generated ts-rs bindings. P2 persistence, desktop commands
 > and backend publication events implemented on 2026-10-23 (Linux verified;
 > Windows replacement verification pending). P3's pure layout/binding engine is
-> implemented on 2026-10-23. Editor, rendering and public wire synchronization
-> remain planned for subsequent packages. Rust remains the authoritative type
+> implemented on 2026-10-23. P4's isolated renderers are implemented with Linux
+> Chromium parity evidence; native-webview checks remain pending. Editor,
+> runtime activation and public wire synchronization remain planned.
+> Rust remains the authoritative type
 > source; do not create hand-maintained TypeScript copies.
 
 The [feature contract](scoreboard-designer.md) defines product behaviour.

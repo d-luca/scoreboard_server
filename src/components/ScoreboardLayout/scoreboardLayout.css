@@ -1,0 +1,8 @@
+@keyframes scoreboard-layout-roll {
+	from {
+		transform: translateY(var(--roll-from));
+	}
+	to {
+		transform: translateY(var(--roll-to));
+	}
+}

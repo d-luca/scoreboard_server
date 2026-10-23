@@ -70,7 +70,75 @@ pnpm exec tsc --project tsconfig.node.json --noEmit
 
 The separate [Vitest configuration](../vitest.config.ts) avoids loading the app's
 Vite/Tauri plugins and is included in the Node TypeScript project. Actual
-live/canvas drawing, font/text measurements and pixel parity remain P4 checks.
+live/canvas drawing, font/text measurements and pixel parity use the P4 checks
+below rather than Node-only geometry tests.
+
+### Custom layout renderer proof (P4)
+
+The isolated [proof page](../scripts/layout-parity.html) uses the actual
+[React renderer](../src/components/ScoreboardLayout/ScoreboardLayout.tsx) and
+[Canvas2D renderer](../src/lib/layouts/renderLayoutToCanvas.ts) with the same
+resolved/bound frame. It has no Tauri, match-state or editor dependencies and is
+not a production Vite entry. Classic remains the production default.
+
+```bash
+pnpm test:unit src/lib/layouts
+pnpm vite:dev
+# Open http://localhost:1420/scripts/layout-parity.html
+```
+
+The [renderer fixtures](../src/lib/layouts/renderFixtures.ts) cover Blank,
+starter, nested/hidden flow, overflow, degenerate content, full-frame/portrait,
+every supported font weight, repeated spaces, empty/trailing static lines,
+all nine alignment combinations, team-bound background/border/text colours,
+alpha 0/0.5/1, both separator orientations, root-edge clipping and independent
+score animations. Toggle sample/alternate values to include long names,
+`OVERTIME`, `60:00` and scores 12/105.
+
+Using a Playwright `page` supplied by browser automation, at DPR 1 / 100% zoom:
+
+```js
+const { checkLayoutParity } = await import("./scripts/layout-parity-check.mjs");
+await page.goto("http://localhost:1420/scripts/layout-parity.html");
+const report = await checkLayoutParity(page);
+```
+
+The helper captures the **actual live DOM** and canvas independently with
+transparent backgrounds; it does not use Canvas2D to simulate the live renderer.
+It returns all 24 fixture/input results and throws if dimensions differ or any
+pixel lies outside the [one-pixel common-edge criterion](../src/lib/layouts/pixelParity.ts).
+Comparison uses premultiplied RGBA (one channel unit for quantization); visible
+differences must be within one device pixel of a transition in **both** images.
+Interior colour/alpha differences and two-pixel shifts fail its
+[focused tests](../src/lib/layouts/pixelParity.test.ts). Shared numerical
+geometry/path/baseline tests remain mandatory: the raster tolerance is not
+permission to move boxes or change bindings.
+
+Also exercise:
+
+- **Styles:** repeatedly increment home during a roll, then decrement.
+  Home Rolling must retarget from the previous target; away None updates
+  immediately without a transition. Ordinary oversized text stays visible.
+- **Rolling-both:** update each score separately and together. Independent
+  transition masks disappear when settled; only one root clip remains.
+  Canvas updates immediately to the new static score during a live transition.
+- Reload with `prefers-reduced-motion: reduce`: both Classic and custom scores
+  remain static. Classic keeps its original markup/CSS when motion is enabled.
+- Block a required font request (for example `Poppins-Black.ttf`) and reload:
+  initialization shows an error and exposes no custom scene. Unblock/reload
+  to recover; a fallback font is not an acceptable first frame.
+
+Evidence on 2026-10-23: Linux Chromium 150 / Electron 43, HTTP proof page,
+DPR 1, all 24 screenshot comparisons passed. Eighteen were pixel-identical;
+degenerate, style and alignment fixtures had only permitted glyph-edge
+rasterization differences. Rapid/directional/independent Rolling, reduced
+motion, immediate static canvas changes and blocked font initialization also
+passed.
+
+**Outstanding platform gate:** repeat these checks in Windows WebView2 and
+Linux WebKitGTK, and record engine versions/display scale. Chromium evidence
+does not prove native-webview parity. P4 is implemented but that exit gate
+must close before proceeding with P5.
 
 ### Smoke scripts
 

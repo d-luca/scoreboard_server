@@ -89,6 +89,46 @@ preferred, the score is a static readout.
 The canvas renderer for video ([`renderScoreboardToCanvas.ts`](../src/lib/renderScoreboardToCanvas.ts))
 re-implements this spec; change both together.
 
+## Custom layout renderers
+
+P4 adds isolated, Tauri-free renderer APIs; it does **not** change the live
+scoreboard, Outputs or video renderer selection. P7/P8 own that activation.
+
+Resolve a validated definition once with
+[`resolveLayout`](../src/lib/layouts/resolveLayout.ts), then await
+[`loadLayoutFonts`](../src/lib/layouts/fonts.ts) before showing a new scene.
+Font failures must be surfaced by the caller and block that scene/job, not
+substitute a fallback-font frame.
+
+For each input change, call
+[`createLayoutFrame`](../src/lib/layouts/renderFrame.ts) with the retained scene
+and live/sample/recorded rendering inputs. Geometry objects are reused; strings,
+colours and cached text measurements are rebound. The frame includes
+informational text-overflow diagnostics with source JSON Pointers.
+
+Pass the same frame to:
+
+- [`ScoreboardLayout`](../src/components/ScoreboardLayout/ScoreboardLayout.tsx):
+  an HTML output root with SVG path/text primitives using the shared positions,
+  inside-border rings and alphabetic baselines. No flex layout, selection or
+  editor viewport state is involved.
+- [`renderLayoutToCanvas`](../src/lib/layouts/renderLayoutToCanvas.ts):
+  draws into a caller-owned, unclipped Canvas2D context at an explicit uniform
+  scale (default 1). The canvas must already contain the scaled root. Extra
+  right/bottom pixels are cleared to transparent, not used to stretch the scene.
+  Final allocation limits, padding and export integration remain P8.
+
+Only the output root clips. Rounded backgrounds do not mask overflowing text or
+descendants. Custom score None/Rolling choices are independent; an active roll
+has its own vertical transition mask, removed when settled. Canvas scores stay
+static. Classic and custom Rolling share
+[`useRollingScore`](../src/components/Scoreboard/useRollingScore.ts), not layout
+geometry or styling.
+
+The [P4 proof page and parity checks](testing.md#custom-layout-renderer-proof-p4)
+cover all bundled faces, explicit line breaks/spaces, alignment, alpha, overflow
+and portrait/full-frame output. Native-webview verification remains outstanding.
+
 ## Main window
 
 `App.tsx`: `ScoreboardControl` fills the window and `StatusBar` sits at the bottom. No

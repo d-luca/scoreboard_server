@@ -2,10 +2,12 @@
 
 > **Status:** P0 approved on 2026-10-20; P1 completed on 2026-10-22;
 > P2 implemented and Linux-verified on 2026-10-23; Windows file-replacement
-> verification remains pending. P3 completed on 2026-10-23; P4-P9 not started.
+> verification remains pending. P3 completed on 2026-10-23. P4 renderers are
+> implemented and Linux Chromium-verified; native-webview parity remains pending.
+> P5-P9 not started.
 > Rust contracts, validation, persistent library commands, backend publication
-> events and the pure layout/binding engine exist; designer UI, rendering and
-> public wire synchronization remain planned.
+> events, the pure layout/binding engine and isolated live/canvas renderers exist;
+> designer UI, runtime activation and public wire synchronization remain planned.
 > Approved requirements are
 > defined in the [feature contract](scoreboard-designer.md),
 > [editor design](scoreboard-designer-editor.md) and
@@ -13,10 +15,12 @@
 
 This plan defines reviewable implementation work packages, their actual
 prerequisites, concrete change locations and completion criteria. **P0 and P1 are
-complete; P2's backend and P3's pure engine are implemented.** P1 adds pure data
+complete; P2's backend, P3's pure engine and P4's renderers are implemented.** P1 adds pure data
 contracts and validation. P2 adds durable library/publication storage and desktop
 commands. P3 resolves geometry and dynamic bindings without changing Classic
 rendering or match state.
+P4 adds presentation-only rendering APIs and a development proof page; it does
+not activate custom layouts in live output or video.
 
 The detailed-design gate is closed by the approvals recorded below. Follow the
 approved contracts for subsequent packages; do not treat remaining delivery
@@ -30,7 +34,7 @@ recommendations as existing application behaviour.
 | P1      | Typed definition model, limits and validation - complete                                       | P0            |
 | P2      | Durable library operations and published snapshots - implemented; Windows verification pending | P1            |
 | P3      | Deterministic layout and binding engine - complete                                             | P1            |
-| P4      | Custom live/canvas renderers with representative parity proof                                  | P3            |
+| P4      | Custom live/canvas renderers - implemented; native-webview parity pending                       | P3            |
 | P5      | Designer window, library, draft editing and inspector                                          | P2, P4        |
 | P6      | Direct manipulation, history and guarded lifecycle                                             | P5            |
 | P7      | Live publication, reconnect synchronization and Outputs integration                            | P2, P4, P5    |
@@ -525,6 +529,8 @@ replacement verification remains outstanding independently of this package.
 ### P4 - implement both renderers and prove the scene model
 
 **Prerequisites:** P3.
+**Status:** implemented and Linux Chromium-verified on 2026-10-23.
+The Windows WebView2/Linux WebKitGTK exit-gate checks remain pending.
 
 Tasks:
 
@@ -551,6 +557,52 @@ text agree in both paths. Classic still follows its original paths.
 the proposed renderer split, resolve that architecture before building the
 interactive workspace. Do not compensate with unrelated renderer-specific
 layout constants.
+
+Implementation evidence:
+
+- [Font loading](../../../src/lib/layouts/fonts.ts) explicitly loads each visible
+  bundled face under a custom-renderer alias. Loading is deduplicated; failures
+  reject visibly rather than exposing fallback-font frames. Frame measurement
+  is blocked until its exact face is loaded.
+- [Shared text placement](../../../src/lib/layouts/text.ts) caches measurements
+  by font/weight/size/string with a bounded cache. Both paths use the reference
+  ascent/descent, 1.25 line height, signed block alignment and advance-width
+  anchors. Static empty/trailing lines and repeated spaces are preserved;
+  bound values stay single-line. Overflow becomes informational diagnostics,
+  not truncation, wrapping or geometry changes.
+- [Frame binding](../../../src/lib/layouts/renderFrame.ts) retains P3 geometry,
+  binds current live/sample/recorded inputs and supplies the same text placement
+  and colours to both renderers.
+- [React renderer](../../../src/components/ScoreboardLayout/ScoreboardLayout.tsx)
+  uses an HTML root containing positioned SVG path/text primitives. This avoids
+  CSS baseline offsets and browser flex calculations. Its
+  [shared paths](../../../src/lib/layouts/paths.ts) also drive
+  [Canvas2D](../../../src/lib/layouts/renderLayoutToCanvas.ts): outer rounded
+  backgrounds, even-odd inside border rings and solid separators. Only the root
+  clips ordinary output; editor selection/guides are not renderer inputs.
+- The extracted [Rolling timing hook](../../../src/components/Scoreboard/useRollingScore.ts)
+  preserves Classic's markup/CSS and supports independent custom score choices.
+  Only active transitions add a vertical mask; resting text remains unmasked.
+  Canvas scores are always static. Uniform canvas scale leaves extra
+  right/bottom allocation transparent, without stretching or reallocating it.
+- [Renderer unit tests](../../../src/lib/layouts/rendering.test.tsx),
+  [text tests](../../../src/lib/layouts/text.test.ts) and the
+  [pixel criterion tests](../../../src/lib/layouts/pixelParity.test.ts) accompany
+  the existing P3 cases. The pixel checker rejects two-pixel displacement and
+  interior colour/alpha changes; shared numerical geometry remains mandatory.
+- The [development proof page](../../../scripts/layout-parity.html) and
+  [browser check](../../../scripts/layout-parity-check.mjs) exercise 12 fixtures
+  with sample and alternate inputs. Actual live/canvas screenshots on Linux
+  Chromium 150 / Electron 43 at DPR 1 passed all 24 comparisons: 18 were
+  pixel-identical, and six differed only within one-pixel glyph-edge bands.
+  Rapid retargeting, increase/decrease, mixed/both Rolling choices, reduced
+  motion, immediate static canvas scores and blocked font initialization were
+  also exercised. See [reproduction and platform checks](../../testing.md#custom-layout-renderer-proof-p4).
+
+This is not a claim of native-webview conformance. Windows WebView2 and Linux
+WebKitGTK still need the same fixture/animation/font checks before P5's parity
+gate closes. Classic, runtime publication and the existing export route remain
+unchanged; production activation is still P7/P8.
 
 ### P5 - implement the designer shell, library and numeric editing
 

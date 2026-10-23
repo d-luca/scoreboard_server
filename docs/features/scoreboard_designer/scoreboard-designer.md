@@ -1,9 +1,11 @@
 # Scoreboard Designer - feature contract
 
-> **Status:** backend and pure engine only. P1 definition contracts/validation,
+> **Status:** backend, pure engine and isolated renderers implemented. P1 definition contracts/validation,
 > P2 persistent library commands/backend publication events and P3's pure
-> layout/binding engine are implemented. No designer window, custom-layout
-> renderer or public publishing protocol is available yet.
+> layout/binding engine exist. P4's custom live/canvas renderers have Linux
+> Chromium parity evidence; native-webview verification remains pending.
+> No designer window, runtime custom-layout activation or public publishing
+> protocol is available yet.
 >
 > The product decisions below, including the P0 defaults approved on 2026-10-20,
 > define the complete planned feature, not currently available end-user behaviour.
