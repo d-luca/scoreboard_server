@@ -2,11 +2,12 @@
 
 ## Automated
 
-| Command          | What it runs                                                                                              |
-| ---------------- | --------------------------------------------------------------------------------------------------------- |
-| `pnpm check`     | ESLint, `tsc --noEmit` + Vite build, clippy with `-D warnings`, `cargo test`. Run it before every commit. |
-| `pnpm rust:test` | Rust unit and integration tests only.                                                                     |
-| `pnpm bindings`  | Regenerates `src/bindings/` via the ignored `export_bindings` test, then formats them.                    |
+| Command          | What it runs                                                                                                      |
+| ---------------- | ----------------------------------------------------------------------------------------------------------------- |
+| `pnpm check`     | ESLint, Vitest, `tsc --noEmit` + Vite build, clippy with `-D warnings`, `cargo test`. Run it before every commit. |
+| `pnpm test:unit` | Pure TypeScript tests in Node (Vitest); no browser or Tauri runtime.                                              |
+| `pnpm rust:test` | Rust unit and integration tests only.                                                                             |
+| `pnpm bindings`  | Regenerates `src/bindings/` via the ignored `export_bindings` test, then formats them.                            |
 
 CI (`.github/workflows/build.yml`) additionally fails when:
 
@@ -49,6 +50,27 @@ revision 1 survives saving revision 2 and restarting. They also cover blocked
 storage/recovery identity checks, bounded file reads and separation from match
 state/public library exposure. Linux replacement of an existing file is covered;
 Windows execution of the replacement/failure cases remains a platform check.
+
+### Pure TypeScript layout coverage
+
+The [layout resolver](../src/lib/layouts/resolveLayout.test.ts) and
+[binding adapter](../src/lib/layouts/bindings.test.ts) tests share the approved
+[fixtures](../src/lib/layouts/testFixtures.ts). They cover exact starter/nested
+geometry, Row/Column alignment, equal fractional Fill, visibility/gaps, overflow
+diagnostics, degenerate boxes, root-only clipping instructions, paint order,
+full-frame/portrait dimensions, independent value/colour bindings and
+live/sample/recorded equivalence. Timer cases retain the existing `MM:SS`
+semantics through and beyond 3600 seconds. Dynamic rebinding preserves geometry
+object identity; no DOM, font loading or IPC is involved.
+
+```bash
+pnpm test:unit src/lib/layouts/resolveLayout.test.ts src/lib/layouts/bindings.test.ts
+pnpm exec tsc --project tsconfig.node.json --noEmit
+```
+
+The separate [Vitest configuration](../vitest.config.ts) avoids loading the app's
+Vite/Tauri plugins and is included in the Node TypeScript project. Actual
+live/canvas drawing, font/text measurements and pixel parity remain P4 checks.
 
 ### Smoke scripts
 

@@ -3,9 +3,10 @@
 > **Status:** P0 approved on 2026-10-20; P1 contracts and validation implemented
 > on 2026-10-22 with generated ts-rs bindings. P2 persistence, desktop commands
 > and backend publication events implemented on 2026-10-23 (Linux verified;
-> Windows replacement verification pending). Editor, rendering and public wire
-> synchronization remain planned for subsequent packages. Rust remains the
-> authoritative type source; do not create hand-maintained TypeScript copies.
+> Windows replacement verification pending). P3's pure layout/binding engine is
+> implemented on 2026-10-23. Editor, rendering and public wire synchronization
+> remain planned for subsequent packages. Rust remains the authoritative type
+> source; do not create hand-maintained TypeScript copies.
 
 The [feature contract](scoreboard-designer.md) defines product behaviour.
 The [editor design](scoreboard-designer-editor.md#approved-p0-editor-contract)
@@ -300,8 +301,8 @@ object, not a new persistence/IPC contract or a second match model.
 | `homeColor` / `awayColor` | `teamHomeColor` / `teamAwayColor` | `hc` / `ac`               |
 
 Sample data uses these same fields, locally only. Bind period prefix/number
-separately; reuse existing timer formatting for `timerSeconds`, including the
-existing hours threshold. Do not derive timer values from recording timestamp
+separately; reuse existing continuous `MM:SS` timer formatting for `timerSeconds`
+(`3600` seconds is `60:00`, not an hours format). Do not derive timer values from recording timestamp
 `t`, wall-clock time or current live direction. Preserve recorded identity on
 every frame, including changes during a recording.
 
@@ -432,12 +433,12 @@ window close on Windows and Linux, including Save failure and duplicate requests
 
 ## Automated setup and acceptance evidence
 
-P0 changes documentation only: no dependency, runner, binding or placeholder
-application module is added now. P3 adds dev-only Vitest with its first pure
-resolver tests, a `test:unit` script using `vitest run`, and inclusion in `pnpm
-check`. Use the Node environment, no DOM emulation/browser test dependency.
-Keep the config separate from the app's Vite/Tauri plugins; cover it in the
-existing Node TypeScript configuration when introduced.
+P0 changed documentation only: no dependency, runner, binding or placeholder
+application module was added then. P3 introduced dev-only Vitest with its first
+pure resolver tests, a `test:unit` script using `vitest run`, and inclusion in
+`pnpm check`. Tests use the Node environment, with no DOM emulation/browser test
+dependency. The config is separate from the app's Vite/Tauri plugins and covered
+by the existing Node TypeScript configuration.
 
 Use the [approved fixtures](scoreboard-designer-editor.md#approved-fixtures)
 for table-driven numerical geometry/binding tests and P4 live/canvas parity.

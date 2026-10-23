@@ -17,8 +17,9 @@
 		"rust:fmt": "cargo fmt --manifest-path src-tauri/Cargo.toml",
 		"rust:clippy": "cargo clippy --manifest-path src-tauri/Cargo.toml -- -D warnings",
 		"rust:test": "cargo test --manifest-path src-tauri/Cargo.toml",
+		"test:unit": "vitest run",
 		"version:app": "node scripts/update-version.mjs",
-		"check": "pnpm lint && pnpm vite:build && pnpm rust:clippy && pnpm rust:test",
+		"check": "pnpm lint && pnpm test:unit && pnpm vite:build && pnpm rust:clippy && pnpm rust:test",
 		"tauri": "tauri"
 	},
 	"dependencies": {
@@ -52,6 +53,7 @@
 		"prettier": "^3.9.6",
 		"prettier-plugin-tailwindcss": "^0.8.1",
 		"typescript": "~5.8.3",
-		"vite": "^7.0.4"
+		"vite": "^7.0.4",
+		"vitest": "^4.1.12"
 	}
 }

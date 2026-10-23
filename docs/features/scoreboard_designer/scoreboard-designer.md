@@ -1,8 +1,9 @@
 # Scoreboard Designer - feature contract
 
-> **Status:** backend only. P1 definition contracts/validation and P2 persistent
-> library commands/backend publication events are implemented. No designer window,
-> custom-layout renderer or public publishing protocol is available yet.
+> **Status:** backend and pure engine only. P1 definition contracts/validation,
+> P2 persistent library commands/backend publication events and P3's pure
+> layout/binding engine are implemented. No designer window, custom-layout
+> renderer or public publishing protocol is available yet.
 >
 > The product decisions below, including the P0 defaults approved on 2026-10-20,
 > define the complete planned feature, not currently available end-user behaviour.

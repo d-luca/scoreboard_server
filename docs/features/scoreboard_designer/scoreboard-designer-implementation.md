@@ -2,9 +2,10 @@
 
 > **Status:** P0 approved on 2026-10-20; P1 completed on 2026-10-22;
 > P2 implemented and Linux-verified on 2026-10-23; Windows file-replacement
-> verification remains pending. P3-P9 not started. Rust contracts, validation,
-> persistent library commands and backend publication events exist; designer UI,
-> rendering and public wire synchronization remain planned.
+> verification remains pending. P3 completed on 2026-10-23; P4-P9 not started.
+> Rust contracts, validation, persistent library commands, backend publication
+> events and the pure layout/binding engine exist; designer UI, rendering and
+> public wire synchronization remain planned.
 > Approved requirements are
 > defined in the [feature contract](scoreboard-designer.md),
 > [editor design](scoreboard-designer-editor.md) and
@@ -12,9 +13,10 @@
 
 This plan defines reviewable implementation work packages, their actual
 prerequisites, concrete change locations and completion criteria. **P0 and P1 are
-complete; P2's backend is implemented.** P1 adds pure data contracts and validation.
-P2 adds durable library/publication storage and desktop commands without changing
-Classic rendering or match state.
+complete; P2's backend and P3's pure engine are implemented.** P1 adds pure data
+contracts and validation. P2 adds durable library/publication storage and desktop
+commands. P3 resolves geometry and dynamic bindings without changing Classic
+rendering or match state.
 
 The detailed-design gate is closed by the approvals recorded below. Follow the
 approved contracts for subsequent packages; do not treat remaining delivery
@@ -27,7 +29,7 @@ recommendations as existing application behaviour.
 | P0      | Approved detailed behaviour and technical contracts - complete                                 | None          |
 | P1      | Typed definition model, limits and validation - complete                                       | P0            |
 | P2      | Durable library operations and published snapshots - implemented; Windows verification pending | P1            |
-| P3      | Deterministic layout and binding engine                                                        | P1            |
+| P3      | Deterministic layout and binding engine - complete                                             | P1            |
 | P4      | Custom live/canvas renderers with representative parity proof                                  | P3            |
 | P5      | Designer window, library, draft editing and inspector                                          | P2, P4        |
 | P6      | Direct manipulation, history and guarded lifecycle                                             | P5            |
@@ -462,6 +464,7 @@ those remain their designated later packages.
 ### P3 - implement the pure layout and binding engine
 
 **Prerequisites:** P1. Does not depend on persistent storage or an editor window.
+**Status:** completed and Linux-verified on 2026-10-23.
 
 Tasks:
 
@@ -483,6 +486,41 @@ Tasks:
 
 **Exit gate:** the agreed fixtures resolve identically regardless of whether
 their values came from the live match, sample preview or a recording.
+
+Implementation evidence:
+
+- [Pure resolver](../../../src/lib/layouts/resolveLayout.ts) accepts a
+  P1-validated rendering root, with no match-state, editor, DOM or Tauri inputs.
+  It returns visible nodes in depth-first paint order with stable ids,
+  parent ids, global border/content boxes, effective border/radius geometry,
+  a single root clip and generated-contract diagnostics. Definitions are
+  immutable inputs; resolve again when the definition changes.
+- Free positioning and Row/Column flow follow the approved signed alignment,
+  fractional equal-Fill, gap, border and padding math. Hidden subtrees produce
+  neither geometry nor ordinary warnings. Overflowing fixed boxes remain in
+  the scene; empty content and exhausted Fill never introduce NaN or resizing.
+  Diagnostic JSON Pointers retain original tree indices after visibility filtering.
+- [Binding adapters](../../../src/lib/layouts/bindings.ts) map live state and
+  each recorded snapshot to `LayoutRenderInputs`; preview samples use that
+  same shape. Dynamic value/background/border/text/separator bindings retain
+  every resolved geometry object across ticks and frames. Period prefix and
+  number remain separate, and recorded identity/colour changes are not replaced
+  by current live data.
+- [Shared test fixtures](../../../src/lib/layouts/testFixtures.ts) and focused
+  [geometry](../../../src/lib/layouts/resolveLayout.test.ts) /
+  [binding](../../../src/lib/layouts/bindings.test.ts) tests cover Blank, the
+  exact 13-node starter, nested/hidden flow, every alignment in both axes,
+  overflow, degenerate content, full-frame/portrait output, paint order, style
+  alpha, static line breaks and live/sample/recorded parity.
+- Dev-only Vitest runs in Node through `pnpm test:unit`, separately from app
+  Vite/Tauri plugins, and is included in `pnpm check`. Its configuration is
+  covered by the Node TypeScript project.
+
+Timer bindings reuse the existing formatter: seconds stay in `MM:SS`, including
+`3600 -> 60:00`, not an hours format. No renderer, font measurement, text-overflow
+measurement, score animation playback or custom-layout activation is enabled by
+P3; these remain P4 and later package responsibilities. P2's Windows storage
+replacement verification remains outstanding independently of this package.
 
 ### P4 - implement both renderers and prove the scene model
 
@@ -678,9 +716,9 @@ Use the smallest checks covering each package while implementing it:
 
 Use existing commands (`pnpm bindings`, `pnpm lint`, `pnpm vite:build`,
 `pnpm rust:clippy`, `pnpm rust:test`, and final `pnpm check`) rather than adding
-another build pipeline. The approved dev-only Vitest runner and `test:unit` command are introduced in P3
-with the first pure-logic cases, and included in `pnpm check` then. They are not
-dependencies or commands in this documentation-only P0.
+another build pipeline. P3 introduced the approved dev-only Vitest runner and
+`test:unit` command with the first pure-logic cases, and included them in
+`pnpm check`. P0 itself added no dependency or command.
 
 ## Behavioural completion criteria
 
