@@ -1,4 +1,5 @@
 mod bindings;
+pub mod designer_lifecycle;
 pub mod layouts;
 mod menu;
 // `pub` so the `export_bindings` integration test (tests/export_bindings.rs)
@@ -675,6 +676,7 @@ pub fn run() {
             let shared = AppState::with_prefs(prefs, settings, presets, layouts);
             shared.attach_app(app.handle().clone());
             app.manage(shared);
+            app.manage(designer_lifecycle::DesignerCloseCoordinator::default());
 
             // Rebuild the native menu whenever a menu-rendered value changes:
             // the preset library or a timer loadout (debounced, main-thread
@@ -730,14 +732,7 @@ pub fn run() {
             Ok(())
         })
         .on_menu_event(menu::on_menu_event)
-        .on_window_event(|window, event| {
-            // Closing `main` closes everything and exits.
-            if window.label() == "main" {
-                if let tauri::WindowEvent::CloseRequested { .. } = event {
-                    windows::close_all(window.app_handle());
-                }
-            }
-        })
+        .on_window_event(designer_lifecycle::on_window_event)
         .invoke_handler(tauri::generate_handler![
             sb_get_state,
             sb_dispatch,
@@ -758,6 +753,9 @@ pub fn run() {
             layouts_delete,
             layouts_apply,
             layouts_recover,
+            designer_lifecycle::designer_ready,
+            designer_lifecycle::designer_close_prompt_opened,
+            designer_lifecycle::designer_resolve_close,
             team_preset_create,
             team_preset_update,
             team_preset_delete,
@@ -788,13 +786,5 @@ pub fn run() {
         .build(tauri::generate_context!())
         .expect("error while building tauri application");
 
-    app.run(|handle, event| {
-        // Flush-on-exit: an in-flight recording gets its trailer
-        // and a final flush before the process goes away, so a quit mid-match
-        // loses at most the last second.
-        if let tauri::RunEvent::ExitRequested { .. } = event {
-            handle.state::<Shared>().layouts.shutdown();
-            recording::flush_on_exit(handle.state::<Shared>().inner());
-        }
-    });
+    app.run(designer_lifecycle::on_run_event);
 }

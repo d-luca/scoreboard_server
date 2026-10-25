@@ -27,6 +27,7 @@ pub enum AppWindow {
     VideoGenerator,
     About,
     Presets,
+    ScoreboardDesigner,
 }
 
 impl AppWindow {
@@ -38,6 +39,7 @@ impl AppWindow {
             Self::VideoGenerator => "video-generator",
             Self::About => "about",
             Self::Presets => "presets",
+            Self::ScoreboardDesigner => "scoreboard-designer",
         }
     }
 
@@ -52,6 +54,7 @@ impl AppWindow {
             Self::VideoGenerator => "/pages/video-generator.html",
             Self::About => "/pages/about.html",
             Self::Presets => "/pages/presets.html",
+            Self::ScoreboardDesigner => "/pages/scoreboard-designer.html",
         }
     }
 
@@ -63,6 +66,7 @@ impl AppWindow {
             Self::VideoGenerator => "Video Generator",
             Self::About => "About Scoreboard Server",
             Self::Presets => "Presets",
+            Self::ScoreboardDesigner => "Scoreboard Designer",
         }
     }
 
@@ -75,6 +79,7 @@ impl AppWindow {
             Self::VideoGenerator => (900.0, 700.0),
             Self::About => (420.0, 320.0),
             Self::Presets => (820.0, 620.0),
+            Self::ScoreboardDesigner => (1280.0, 800.0),
         }
     }
 
@@ -84,6 +89,7 @@ impl AppWindow {
             Self::Outputs => (700.0, 520.0),
             // Master/detail needs the width.
             Self::Presets => (700.0, 520.0),
+            Self::ScoreboardDesigner => (1000.0, 640.0),
             other => other.size(),
         }
     }
@@ -117,6 +123,7 @@ impl AppWindow {
             "video-generator" => Some(Self::VideoGenerator),
             "about" => Some(Self::About),
             "presets" => Some(Self::Presets),
+            "scoreboard-designer" => Some(Self::ScoreboardDesigner),
             _ => None,
         }
     }
@@ -205,6 +212,7 @@ pub fn list_open(app: &AppHandle) -> Vec<AppWindow> {
         AppWindow::VideoGenerator,
         AppWindow::About,
         AppWindow::Presets,
+        AppWindow::ScoreboardDesigner,
     ]
     .into_iter()
     .filter(|which| app.get_webview_window(which.label()).is_some())
@@ -389,6 +397,22 @@ pub fn wire_main_window(app: &AppHandle, window: &WebviewWindow) {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn designer_window_contract() {
+        let which = AppWindow::ScoreboardDesigner;
+        assert_eq!(which.label(), "scoreboard-designer");
+        assert_eq!(AppWindow::from_label(which.label()), Some(which));
+        assert_eq!(which.url(), "/pages/scoreboard-designer.html");
+        assert_eq!(which.title(), "Scoreboard Designer");
+        assert_eq!(which.size(), (1280.0, 800.0));
+        assert_eq!(which.min_size(), (1000.0, 640.0));
+        assert!(which.enabled());
+        assert_eq!(
+            serde_json::to_string(&which).unwrap(),
+            "\"scoreboard-designer\""
+        );
+    }
 
     #[test]
     fn legacy_geometry_does_not_restore_unreliable_dimensions() {

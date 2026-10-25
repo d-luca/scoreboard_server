@@ -466,7 +466,7 @@ fn shutdown_drains_accepted_mutations_in_order() {
             .unwrap()
             .as_ref()
             .unwrap()
-            .send(Request {
+            .send(Request::Mutation {
                 mutation: Mutation::Create {
                     name: format!("Layout {number}"),
                     definition: definition(),
@@ -476,6 +476,7 @@ fn shutdown_drains_accepted_mutations_in_order() {
             .unwrap();
         responses.push(response);
     }
+
     fixture.service.shutdown();
     for (index, mut response) in responses.into_iter().enumerate() {
         assert_eq!(
@@ -491,6 +492,34 @@ fn shutdown_drains_accepted_mutations_in_order() {
     assert_eq!(fixture.disk().entries.len(), 10);
     assert_eq!(fixture.service.snapshot().entries, fixture.disk().entries);
     assert_eq!(fixture.drain_events().len(), 10);
+}
+
+#[tokio::test]
+async fn close_barrier_drains_accepted_writes_without_stopping_the_service() {
+    let fixture = Fixture::new(None);
+    for number in 0..10 {
+        let (reply, _) = oneshot::channel();
+        fixture
+            .service
+            .sender
+            .lock()
+            .unwrap()
+            .as_ref()
+            .unwrap()
+            .send(Request::Mutation {
+                mutation: Mutation::Create {
+                    name: format!("Layout {number}"),
+                    definition: definition(),
+                },
+                reply,
+            })
+            .unwrap();
+    }
+    fixture.service.drain().await.unwrap();
+    assert_eq!(fixture.disk().entries.len(), 10);
+    assert_eq!(fixture.service.snapshot().storage_revision, 10);
+    fixture.create().await;
+    assert_eq!(fixture.disk().entries.len(), 11);
 }
 
 #[tokio::test]

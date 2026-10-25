@@ -1,14 +1,15 @@
 # Scoreboard Designer - feature contract
 
-> **Status:** backend, pure engine and isolated renderers implemented. P1 definition contracts/validation,
+> **Status:** backend, pure engine, isolated renderers and P5/P6 designer implemented. P1 definition contracts/validation,
 > P2 persistent library commands/backend publication events and P3's pure
 > layout/binding engine exist. P4's custom live/canvas renderers have Linux
-> Chromium parity evidence; native-webview verification remains pending.
-> No designer window, runtime custom-layout activation or public publishing
-> protocol is available yet.
+> Chromium parity evidence; Windows WebView2/Linux WebKitGTK verification was
+> user-confirmed on 2026-10-25. The designer supports private drafts, tree/numeric
+> editing, direct manipulation, history, viewport controls, explicit Save and native close guards;
+> Apply/runtime activation and public publishing remain P7/P8.
 >
 > The product decisions below, including the P0 defaults approved on 2026-10-20,
-> define the complete planned feature, not currently available end-user behaviour.
+> define the complete feature, including behaviour not yet available.
 > Package status and remaining verification are recorded in the implementation plan.
 
 This document defines the feature's scope, saved-definition lifecycle and external

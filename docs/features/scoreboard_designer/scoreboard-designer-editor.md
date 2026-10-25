@@ -1,8 +1,11 @@
 # Scoreboard Designer - editor design
 
-> **Status:** planned, not implemented. This document describes the agreed
-> interaction scope and P0 defaults approved on 2026-10-20. It does not describe
-> a currently available application window.
+> **Status:** P5 shell/library/numeric editing and P6 direct manipulation,
+> history, viewport controls and native close guards implemented on 2026-10-25.
+> Open **Broadcast → Scoreboard Designer…** for private drafts, tree/numeric
+> editing and explicit durable Save. Apply remains disabled until P7.
+> Native designer close, main close and Quit use Save/Discard/Cancel.
+> The scope below also describes future Apply/publication capabilities.
 
 See the [feature contract](scoreboard-designer.md) for scope and publishing, and
 the [implementation plan](scoreboard-designer-implementation.md) for architecture.
@@ -310,7 +313,7 @@ For Row use width as the main axis; Column transposes the calculation:
    `max(0, M - F - totalGap) / q` when `q > 0`.
 3. Let `used` be the sum of resolved main sizes plus total gap. The initial
    main offset is `a * (M - used)`, where `a` is 0, 0.5 or 1 for
-  start/center/end. This offset may be negative during overflow.
+   start/center/end. This offset may be negative during overflow.
 4. A cross-axis Fill occupies the full content cross length. A fixed cross size
    is unchanged. Cross offset is `aCross * (contentCross - childCross)`, again
    signed rather than clamped.

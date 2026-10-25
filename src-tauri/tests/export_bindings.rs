@@ -12,6 +12,9 @@
 //! comctl32 v6. This file also keeps the "package has a test target"
 //! validation for the build.rs directive satisfied.
 
+use scoreboard_server_lib::designer_lifecycle::{
+    DesignerCloseDecision, DesignerCloseError, DesignerCloseRequest,
+};
 use scoreboard_server_lib::layouts::{
     LayoutCommandError, LayoutDefinition, LayoutLibraryChanged, LayoutLibrarySnapshot,
     LayoutMutationResult, LayoutStorageDocument, SavedLayoutSelection,
@@ -41,6 +44,9 @@ fn export_bindings() {
     Action::export().expect("failed to export Action");
     TimerDirection::export().expect("failed to export TimerDirection");
     AppWindow::export().expect("failed to export AppWindow");
+    DesignerCloseRequest::export_all().expect("failed to export designer close request");
+    DesignerCloseDecision::export().expect("failed to export designer close decision");
+    DesignerCloseError::export().expect("failed to export designer close error");
     LanAddress::export().expect("failed to export LanAddress");
     ServerInfo::export().expect("failed to export ServerInfo");
     ServerStatus::export().expect("failed to export ServerStatus");

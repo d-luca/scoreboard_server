@@ -13,6 +13,7 @@ One Vite build ([`vite.config.ts`](../vite.config.ts)) with one HTML entry per p
 | `index.html` (main window)                                                                              | Tauri                     | [`src/main.tsx`](../src/main.tsx) → `App.tsx`                           |
 | `splash.html`                                                                                           | Tauri                     | static                                                                  |
 | `settings.html`, `outputs.html`, `presets.html`, `recording.html`, `video-generator.html`, `about.html` | Tauri                     | `src/entries/<Name>/`                                                   |
+| `scoreboard-designer.html`                                                                              | Tauri                     | [`entries/ScoreboardDesigner/`](../src/entries/ScoreboardDesigner/)     |
 | `scoreboard.html`                                                                                       | LAN (`/scoreboard`)       | [`entries/scoreboard.tsx`](../src/entries/scoreboard.tsx)               |
 | `value.html`                                                                                            | LAN (`/value/{property}`) | [`entries/value.tsx`](../src/entries/value.tsx)                         |
 | `control.html`                                                                                          | LAN (`/control`)          | [`entries/control.tsx`](../src/entries/control.tsx) → `features/remote` |
@@ -49,7 +50,7 @@ render identically on the desktop and over the LAN.
 ## Stores
 
 In [`src/lib/stores/`](../src/lib/stores/): `scoreboard`, `desktopScoreboard`, `settings`,
-`presets`, `server`, `buzzer`, `window`, `recording`, `video`.
+`presets`, `layouts`, `server`, `buzzer`, `window`, `recording`, `video`.
 
 Rules:
 
@@ -127,7 +128,45 @@ geometry or styling.
 
 The [P4 proof page and parity checks](testing.md#custom-layout-renderer-proof-p4)
 cover all bundled faces, explicit line breaks/spaces, alignment, alpha, overflow
-and portrait/full-frame output. Native-webview verification remains outstanding.
+and portrait/full-frame output. Windows WebView2/Linux WebKitGTK checks were
+user-confirmed on 2026-10-25 (engine versions/display scales were not supplied).
+
+## Scoreboard Designer (P5/P6)
+
+**Broadcast → Scoreboard Designer…** opens the desktop-only singleton.
+The [shell](../src/entries/ScoreboardDesigner/ScoreboardDesignerWindow.tsx)
+keeps private drafts, selection and pending field edits in React. The
+[draft reducer](../src/features/scoreboardDesigner/draft.ts) applies atomic tree,
+geometry and style edits; production Blank/starter defaults are shared
+[templates](../src/lib/layouts/templates.ts), not a Classic-tree conversion.
+
+The [layouts store](../src/lib/stores/layoutsStore.ts) subscribes to library and
+storage notifications before reading, rejects older snapshots and performs
+revision-checked durable mutations without optimistic updates or conflict retries.
+External saved changes never silently rebase the draft; Reload is explicit.
+New/duplicate remains private until Save. Save never publishes.
+
+Layers and Properties flank a Fit/checkerboard workspace. The shared
+renderer loads exact bundled fonts before showing custom output. Sample edits
+are preview-only; Live reads desktop state without dispatching actions.
+Save/Discard/Cancel guards include pending invalid fields, and modal dialogs
+isolate keyboard focus. Classic is protected.
+
+The [workspace](../src/features/scoreboardDesigner/Preview.tsx) adds Free move/
+eight-handle resize, flow-subtree insertion, pointer cancellation, logical
+1/10-pixel nudges, zoom/pan/Fit, grid and snapping. Editor overlays never enter
+renderer output. [History](../src/features/scoreboardDesigner/history.ts)
+records gestures and committed edits, preserves the saved baseline across
+Undo/Redo and survives Save; preview/selection/viewport changes are excluded.
+Inputs retain native text editing and undo.
+
+The [lifecycle connection](../src/features/scoreboardDesigner/lifecycle.ts)
+installs request/error listeners before the native readiness command.
+Designer close, main close and Quit share one native request/prompt with
+Save/Discard/Cancel. Save awaits durable completion; failure keeps the draft
+and window open. Native authorization waits for the layout queue to drain.
+Initialization/timeout failures are visible and never authorize close.
+Apply remains disabled (P7); scoreboard/Outputs/video routes are unaffected.
 
 ## Main window
 

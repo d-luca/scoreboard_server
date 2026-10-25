@@ -151,11 +151,16 @@ pub fn spawn_menu_rebuilder(app: &AppHandle, shared: Shared) {
 /// Broadcast is assembled conditionally: items for features compiled out are
 /// never added; the menu entries appear with their Cargo features.
 fn build_broadcast_menu(app: &AppHandle) -> tauri::Result<Submenu<Wry>> {
-    let builder = SubmenuBuilder::new(app, "Broadcast").item(
-        &MenuItemBuilder::with_id("open:outputs", "Outputs & Sharing…")
-            .accelerator("CmdOrCtrl+O")
-            .build(app)?,
-    );
+    let builder = SubmenuBuilder::new(app, "Broadcast")
+        .item(
+            &MenuItemBuilder::with_id("open:outputs", "Outputs & Sharing…")
+                .accelerator("CmdOrCtrl+O")
+                .build(app)?,
+        )
+        .item(
+            &MenuItemBuilder::with_id("open:scoreboard-designer", "Scoreboard Designer…")
+                .build(app)?,
+        );
     #[cfg(feature = "overlay")]
     let builder = {
         builder.separator().item(
@@ -202,6 +207,11 @@ pub fn on_menu_event(app: &AppHandle, event: tauri::menu::MenuEvent) {
         }
         "open:presets" => {
             let _ = windows::open(app, AppWindow::Presets);
+        }
+        "open:scoreboard-designer" => {
+            if let Err(error) = windows::open(app, AppWindow::ScoreboardDesigner) {
+                tracing::error!(?error, "failed to open Scoreboard Designer");
+            }
         }
         id if id.starts_with("preset:load:") => {
             let preset_id = id.trim_start_matches("preset:load:").to_string();

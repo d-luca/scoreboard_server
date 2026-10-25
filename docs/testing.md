@@ -49,7 +49,8 @@ after disk replacement, drain queued work at shutdown, and verify that publishin
 revision 1 survives saving revision 2 and restarting. They also cover blocked
 storage/recovery identity checks, bounded file reads and separation from match
 state/public library exposure. Linux replacement of an existing file is covered;
-Windows execution of the replacement/failure cases remains a platform check.
+the user confirmed the Windows tests/checks passed on 2026-10-25, closing
+the previously outstanding replacement/failure platform gate.
 
 ### Pure TypeScript layout coverage
 
@@ -135,10 +136,137 @@ rasterization differences. Rapid/directional/independent Rolling, reduced
 motion, immediate static canvas changes and blocked font initialization also
 passed.
 
-**Outstanding platform gate:** repeat these checks in Windows WebView2 and
-Linux WebKitGTK, and record engine versions/display scale. Chromium evidence
-does not prove native-webview parity. P4 is implemented but that exit gate
-must close before proceeding with P5.
+**Platform gate closed by user confirmation on 2026-10-25:** Windows checks and
+Linux WebKitGTK verification passed. This is user-reported native evidence,
+separate from the agent-run Chromium checks above. Engine versions and display
+scale were not supplied. Re-run native checks when changing renderer behaviour;
+Chromium alone does not prove native-webview parity.
+
+### Designer workflows (P5)
+
+```bash
+pnpm test:unit src/features/scoreboardDesigner src/lib/stores/layoutsStore.test.ts
+cargo test --manifest-path src-tauri/Cargo.toml --lib windows::tests
+```
+
+The [draft tests](../src/features/scoreboardDesigner/draft.test.ts) cover private
+new/duplicate ids, saved baselines, tree mutations/locks, hidden binding uniqueness,
+limits, Free/flow conversions, actual Fill-to-Fixed sizes, zero-size rejection,
+reparenting and appearance-only comparison.
+The [store tests](../src/lib/stores/layoutsStore.test.ts) cover subscribe-before-read,
+concurrent snapshot ordering, notifications, conflicts, durable results and failures.
+
+For browser UI proof with an existing Playwright `page` and Vite running:
+
+```js
+const { checkDesignerWorkflow } = await import("./scripts/designer-smoke.mjs");
+await checkDesignerWorkflow(page, "http://localhost:1420/pages/scoreboard-designer.html");
+```
+
+The [helper](../scripts/designer-smoke.mjs) installs a revisioned **IPC double**
+before navigation; it is not a production fallback or proof of native persistence.
+It uses isolated browser storage key `__scoreboard_designer_p5_smoke__`.
+It checks pending/invalid inputs, guards, durable-response Save/reopen,
+private duplication with fresh ids, Rename/Delete, Sample/Live isolation,
+failed Save/retry, stale revisions/explicit Reload and tree reparent/hide/lock/add/remove.
+Its command log spans reloads and rejects match dispatch or Apply.
+Actual file transaction/recovery semantics are covered by the P2 Rust tests.
+
+Evidence on 2026-10-25: the browser workflow helper passed against the production
+Vite build, including exact
+numeric/style/text persistence in the double, modal focus/Escape, guarded Save/Discard/Cancel and
+no match/publication mutation. Both CSS sidebar handles resized independently
+by 60 pixels. Validation passed with 143 TypeScript tests and all enabled Rust
+tests; the existing graphical geometry test is opt-in. Binding export was
+separately executed successfully. This does not replace native P5 interaction checks.
+
+Native P5 manual checks (distinct from the already confirmed P2/P4 gates):
+
+- Open **Broadcast → Scoreboard Designer…** twice: one window should focus;
+  resize it and both sidebars, close/reopen after saving, and check geometry.
+- Create Blank/starter, edit numeric geometry/styles/colours, Save and reopen;
+  Duplicate is private until Save and Classic stays protected.
+- Invalid pending input survives Cancel; Escape restores its committed value.
+  Test Save/Discard/Cancel, failed Save and modal keyboard focus isolation.
+- Run the real timer while changing Sample values and switching to Live:
+  the match, live output and publication must stay unchanged.
+- Check recovery warnings against an isolated test configuration, not a live
+  operator's library. No automatic retry/overwrite is permitted after conflicts.
+- Apply stays disabled. P6 interaction and native lifecycle checks follow.
+
+### Designer interactions and lifecycle (P6)
+
+```bash
+pnpm test:unit src/features/scoreboardDesigner src/lib/stores/layoutsStore.test.ts
+cargo test --manifest-path src-tauri/Cargo.toml --lib designer_lifecycle::tests
+cargo test --manifest-path src-tauri/Cargo.toml --lib close_barrier
+```
+
+[Workspace tests](../src/features/scoreboardDesigner/workspace.test.ts) measure
+exact logical coordinates at 25/50/100/200/400% zoom, anchored zoom/Fit,
+nested content origins, all eight resize directions, positive minimum sizes,
+the inclusive `6 / zoom` snap threshold, active resize edges, edge/grid/tree
+ties, hidden/subtree exclusions, locks and flow-subtree insertion.
+[History tests](../src/features/scoreboardDesigner/history.test.ts) cover
+one-entry edits, no-ops, redo invalidation, Save baseline preservation and
+undo/redo dirtiness. [Lifecycle tests](../src/features/scoreboardDesigner/lifecycle.test.ts)
+verify listener-before-ready ordering and cleanup on handshake failure.
+Rust tests cover request coalescing/upgrades, timeout/acknowledgement, stale
+ids, one-shot authorization and an ordered queue barrier that leaves storage usable.
+
+With an existing Playwright `page` and a production Vite preview running:
+
+```js
+const { checkDesignerInteractions } = await import("./scripts/designer-interactions.mjs");
+await checkDesignerInteractions(page, "http://127.0.0.1:1423/pages/scoreboard-designer.html");
+```
+
+The [interaction helper](../scripts/designer-interactions.mjs) first runs the
+entire P5 workflow. It then checks actual pointer capture/drag/resize and
+Escape cancellation, one-step gesture Undo/Redo after Save, exact 50%/200%
+movement, 60 × 40 CSS-pixel middle-button pan, grid/viewport isolation, snapping
+guides, locks, whole flow-subtree reorder, exact nudges and native input undo.
+It also exercises clean close, repeat/upgraded requests, invalid pending input,
+failed close Save, Cancel, successful Save, Discard and timeout/error handling.
+Native close resolutions are an **IPC double**: the helper deliberately keeps
+the browser open. It does not prove OS close interception or actual Save storage.
+The helper passed against the production build on 2026-10-25; full checks passed
+with 172 TypeScript tests and all enabled Rust suites.
+
+The opt-in Linux native test uses **real Tauri windows and production event
+hooks**, with no browser mock. Run it separately from other graphical tests:
+
+```bash
+xvfb-run -a env -u GSETTINGS_SCHEMA_DIR GDK_BACKEND=x11 \
+  XDG_CURRENT_DESKTOP=XFCE GDK_SCALE=2 \
+  cargo test --manifest-path src-tauri/Cargo.toml --lib \
+  designer_lifecycle::tests::native_close_and_quit_wait_for_permission \
+  -- --ignored --test-threads=1
+```
+
+It passed on 2026-10-25: initialization blocks until ready; designer/main/Quit
+requests upgrade one id; Cancel preserves both windows and skips shutdown;
+authorized designer close destroys only that window, resets readiness and
+keeps storage usable; reopening then authorizing Quit exits and stops storage.
+The isolated X11 desktop environment avoids inherited desktop schema mismatch.
+This test calls the Rust response commands directly, not the real WebView UI.
+
+Remaining **interactive native checks on Windows and Linux**, distinct from the
+already user-confirmed P2/P4 renderer/storage gates:
+
+- Repeat drag/resize, flow reorder, snaps, cancellation and Undo/Redo at
+  multiple OS display scales and 25/50/100/200% workspace zoom. Verify overlays
+  do not appear in output and fields retain native selection/undo.
+- With dirty or invalid pending input, test designer title-bar close, main
+  close and normal Quit. Repeating/upgrading the request must keep one prompt.
+  Cancel preserves raw input and a running timer/recording; failed Save keeps
+  the window open; successful Save and Discard close only as requested.
+- Delay frontend readiness or leave the designer unresponsive: after 10 seconds,
+  close is cancelled with a native error. An acknowledged prompt may remain
+  open longer without automatic close.
+- Verify accepted Save/library writes complete before authorized shutdown,
+  and an active recording receives its final flush only after permission.
+  Crash, force-kill and power-loss draft recovery are not promised.
 
 ### Smoke scripts
 

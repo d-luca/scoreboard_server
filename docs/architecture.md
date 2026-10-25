@@ -216,16 +216,17 @@ synchronization; those integrations remain later packages.
 Only `main` is declared in [`tauri.conf.json`](../src-tauri/tauri.conf.json). Every other
 window is created on demand by [`windows.rs`](../src-tauri/src/windows.rs).
 
-| Label             | Size (min)         | Opened by                                      |
-| ----------------- | ------------------ | ---------------------------------------------- |
-| `main`            | 720×560 (640×480)  | Startup; starts hidden                         |
-| `splash`          | 300×180, frameless | `setup()`; closed by `startup_ready`           |
-| `settings`        | 760×620 (640×520)  | Scoreboard › Settings…, status bar badges      |
-| `outputs`         | 820×640 (700×520)  | Broadcast › Outputs & Sharing…, status bar     |
-| `presets`         | 820×620 (700×520)  | Presets › Manage Presets…                      |
-| `recording`       | 560×420            | Broadcast › Recording…, REC badge              |
-| `video-generator` | 900×700            | Broadcast › Video Generator…, recording window |
-| `about`           | 420×320            | Help › About                                   |
+| Label                 | Size (min)          | Opened by                                      |
+| --------------------- | ------------------- | ---------------------------------------------- |
+| `main`                | 720×560 (640×480)   | Startup; starts hidden                         |
+| `splash`              | 300×180, frameless  | `setup()`; closed by `startup_ready`           |
+| `settings`            | 760×620 (640×520)   | Scoreboard › Settings…, status bar badges      |
+| `outputs`             | 820×640 (700×520)   | Broadcast › Outputs & Sharing…, status bar     |
+| `presets`             | 820×620 (700×520)   | Presets › Manage Presets…                      |
+| `scoreboard-designer` | 1280×800 (1000×640) | Broadcast › Scoreboard Designer…               |
+| `recording`           | 560×420             | Broadcast › Recording…, REC badge              |
+| `video-generator`     | 900×700             | Broadcast › Video Generator…, recording window |
+| `about`               | 420×320             | Help › About                                   |
 
 **Startup handshake.** `main` is `visible: false`. `setup()` builds an always-on-top
 `splash` window to cover WebView initialization. When the main React shell mounts it
@@ -239,10 +240,20 @@ Rules:
 - Geometry and zoom are restored on open (clamped to a visible monitor) and saved on
   move/resize, debounced. Sizes are stored physical with the scale factor and restored
   logical.
-- Closing `main` exits the app.
+- Closing `main` exits the app after any designer Save/Discard/Cancel guard.
 - <kbd>Esc</kbd> closes `settings`, `outputs` and `about`. The Presets window discards a
   dirty draft first. `recording` and `video-generator` ignore Esc so it cannot interrupt
   work.
+- The designer uses Esc to revert pending fields, cancel a pointer gesture or
+  cancel its modal dialog, not close the window.
+  The [native coordinator](../src-tauri/src/designer_lifecycle.rs) intercepts
+  designer/main close and normal Quit before closing windows or flushing a
+  recording. Frontend listeners register before readiness; repeated/upgraded
+  requests share one id and one Save/Discard/Cancel prompt. Unacknowledged
+  requests cancel visibly after 10 seconds; an active prompt has no timeout.
+  Cancel leaves windows, queued writes and recordings running. Authorization
+  drains accepted layout writes first; only application exit then shuts down
+  the layout service and flushes recording once.
 - Webviews open windows with `invoke("window_open", { which })`; the menu calls the same
   function, so a menu item and a button cannot diverge.
 - Every window using `invoke` must be listed in

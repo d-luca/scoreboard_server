@@ -3,10 +3,12 @@
 > **Status:** P0 approved on 2026-10-20; P1 contracts and validation implemented
 > on 2026-10-22 with generated ts-rs bindings. P2 persistence, desktop commands
 > and backend publication events implemented on 2026-10-23 (Linux verified;
-> Windows replacement verification pending). P3's pure layout/binding engine is
+> Windows checks user-confirmed on 2026-10-25). P3's pure layout/binding engine is
 > implemented on 2026-10-23. P4's isolated renderers are implemented with Linux
-> Chromium parity evidence; native-webview checks remain pending. Editor,
-> runtime activation and public wire synchronization remain planned.
+> Chromium parity evidence; Windows WebView2/Linux WebKitGTK checks user-confirmed
+> on 2026-10-25. P5 shell/library/numeric editing and P6 direct manipulation,
+> history and native-close coordination are implemented.
+> Runtime activation and public wire synchronization remain planned.
 > Rust remains the authoritative type
 > source; do not create hand-maintained TypeScript copies.
 
@@ -14,7 +16,8 @@ The [feature contract](scoreboard-designer.md) defines product behaviour.
 The [editor design](scoreboard-designer-editor.md#approved-p0-editor-contract)
 defines geometry, interactions and fixtures. The
 [implementation plan](scoreboard-designer-implementation.md) defines delivery
-dependencies. All three remain subject to the P4 renderer-parity stop gate.
+dependencies. The P4 renderer-parity prerequisite gate was closed by the user's
+Windows/Linux confirmation on 2026-10-25.
 
 ## Contract conventions
 

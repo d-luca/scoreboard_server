@@ -46,9 +46,9 @@ enum Mutation {
     },
 }
 
-struct Request {
-    mutation: Mutation,
-    reply: Reply,
+enum Request {
+    Mutation { mutation: Mutation, reply: Reply },
+    Drain(oneshot::Sender<()>),
 }
 
 /// A single owned worker finishes accepted transactions even if the requester disappears.
@@ -93,16 +93,22 @@ impl LayoutService {
             .spawn(move || {
                 let mut loaded = loaded;
                 for request in receiver {
+                    let Request::Mutation { mutation, reply } = request else {
+                        if let Request::Drain(reply) = request {
+                            let _ = reply.send(());
+                        }
+                        continue;
+                    };
                     let result = transact(
                         &worker_storage,
                         &mut loaded,
                         &session_id,
-                        request.mutation,
+                        mutation,
                         &worker_snapshot,
                         &worker_notifier,
                     );
                     // A closed receiver does not cancel or roll back a committed transaction.
-                    let _ = request.reply.send(result);
+                    let _ = reply.send(result);
                 }
             })
             .expect("cannot start layout storage worker");
@@ -217,11 +223,26 @@ impl LayoutService {
             .expect("layout queue lock poisoned")
             .as_ref()
             .ok_or_else(|| storage_error("Layout service is shutting down."))?
-            .send(Request { mutation, reply })
+            .send(Request::Mutation { mutation, reply })
             .map_err(|_| storage_error("Layout storage worker is unavailable."))?;
         response.await.map_err(|_| {
             storage_error("Layout storage worker stopped before completing the request.")
         })?
+    }
+
+    /// Await previously accepted writes without shutting down the shared service.
+    pub async fn drain(&self) -> Result<(), LayoutCommandError> {
+        let (reply, response) = oneshot::channel();
+        self.sender
+            .lock()
+            .expect("layout queue lock poisoned")
+            .as_ref()
+            .ok_or_else(|| storage_error("Layout service is shutting down."))?
+            .send(Request::Drain(reply))
+            .map_err(|_| storage_error("Layout storage worker is unavailable."))?;
+        response
+            .await
+            .map_err(|_| storage_error("Layout storage drain was interrupted."))
     }
 
     /// Stop accepting work, drain every accepted request, then join the worker.

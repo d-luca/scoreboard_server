@@ -1,0 +1,225 @@
+.designer-window {
+	display: flex;
+	flex-direction: column;
+	height: 100vh;
+	min-width: 960px;
+	font-size: 12px;
+	background: var(--color-background-primary);
+}
+.designer-window h1 {
+	font-size: 18px;
+	font-weight: 600;
+}
+.designer-window h2 {
+	font-size: 14px;
+	font-weight: 600;
+	margin-bottom: 8px;
+}
+.designer-window select,
+.designer-window textarea {
+	border: 1px solid var(--color-border-primary);
+	border-radius: 4px;
+	padding: 5px;
+	background: var(--color-background-secondary);
+	color: inherit;
+	max-width: 100%;
+}
+.designer-window button:disabled,
+.designer-window fieldset:disabled {
+	opacity: 0.6;
+}
+.designer-header,
+.designer-footer {
+	padding: 10px 14px;
+	flex-shrink: 0;
+}
+.designer-header {
+	border-bottom: 1px solid var(--color-border-tertiary);
+}
+.designer-footer {
+	border-top: 1px solid var(--color-border-tertiary);
+}
+.designer-title,
+.designer-actions {
+	display: flex;
+	align-items: center;
+	flex-wrap: wrap;
+	gap: 8px;
+}
+.designer-title {
+	margin-bottom: 8px;
+}
+.designer-title span {
+	border: 1px solid var(--color-border-tertiary);
+	border-radius: 4px;
+	padding: 2px 6px;
+}
+.designer-body {
+	display: flex;
+	min-height: 0;
+	flex: 1;
+}
+.designer-sidebar {
+	padding: 12px;
+	overflow: auto;
+	resize: horizontal;
+	flex-shrink: 0;
+	min-width: 180px;
+	max-width: 40vw;
+}
+.designer-left {
+	width: 240px;
+	border-right: 1px solid var(--color-border-tertiary);
+}
+.designer-right {
+	width: 300px;
+	border-left: 1px solid var(--color-border-tertiary);
+	direction: rtl;
+}
+.designer-right > fieldset {
+	direction: ltr;
+}
+.designer-field {
+	display: flex;
+	flex-direction: column;
+	gap: 3px;
+	margin: 6px 0;
+	min-width: 0;
+}
+.designer-field input {
+	width: 100%;
+	min-width: 0;
+	font-size: 12px;
+}
+.designer-field small,
+.designer-alert {
+	color: #fca5a5;
+	white-space: pre-wrap;
+}
+.designer-field [aria-invalid="true"] {
+	outline: 1px solid #f87171;
+}
+.designer-inspector fieldset fieldset,
+.designer-layers > fieldset {
+	border-top: 1px solid var(--color-border-tertiary);
+	margin-top: 10px;
+	padding-top: 4px;
+}
+.designer-tree ul {
+	padding-left: 12px;
+}
+.designer-tree {
+	margin: 12px 0;
+}
+.designer-layer {
+	display: flex;
+	gap: 3px;
+	margin: 3px 0;
+}
+.designer-layer button {
+	padding: 3px;
+	border-radius: 3px;
+}
+.designer-layer button:first-child {
+	flex: 1;
+	text-align: left;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+.designer-layer button.selected {
+	background: #1d4ed8;
+	color: white;
+}
+.designer-layer button:not(:first-child) {
+	font-size: 10px;
+}
+.designer-workspace {
+	position: relative;
+	display: flex;
+	flex-direction: column;
+	flex: 1;
+	min-width: 0;
+	overflow: hidden;
+}
+.designer-stage {
+	position: relative;
+	flex: 1;
+	min-height: 80px;
+	overflow: hidden;
+	touch-action: none;
+	user-select: none;
+	background-color: #28282c;
+	background-image: conic-gradient(#34343a 25%, transparent 0 50%, #34343a 0 75%, transparent 0);
+	background-size: 20px 20px;
+}
+.designer-viewport-tools {
+	display: flex;
+	align-items: center;
+	flex-wrap: wrap;
+	gap: 8px;
+	padding: 8px;
+}
+.designer-viewport-tools button {
+	padding: 3px 6px;
+	border: 1px solid var(--color-border-tertiary);
+	border-radius: 4px;
+}
+.designer-viewport-tools button[aria-pressed="true"] {
+	background: #1d4ed8;
+	color: white;
+}
+.designer-scene {
+	position: absolute;
+	pointer-events: none;
+	outline: 1px solid #6b7280;
+}
+.designer-overlay {
+	position: absolute;
+	inset: 0;
+	overflow: visible;
+	pointer-events: none;
+}
+.designer-diagnostics {
+	flex-shrink: 0;
+	max-height: 120px;
+	overflow: auto;
+	color: white;
+	font-size: 12px;
+	background: #171717;
+	padding: 8px;
+}
+.designer-samples {
+	display: grid;
+	grid-template-columns: repeat(5, minmax(90px, 1fr));
+	gap: 6px 12px;
+	max-height: 180px;
+	overflow: auto;
+}
+.designer-alert {
+	background: #450a0a;
+	padding: 8px 14px;
+	max-height: 100px;
+	overflow: auto;
+}
+.designer-loading {
+	flex: 1;
+	padding: 24px;
+}
+.designer-modal::backdrop {
+	background: #0009;
+}
+.designer-modal {
+	margin: auto;
+	color: inherit;
+	background: var(--color-background-primary);
+	padding: 24px;
+	max-width: 560px;
+	width: 90%;
+	border: 1px solid #6b7280;
+	border-radius: 8px;
+}
+.designer-modal p,
+.designer-modal .designer-actions {
+	margin-top: 12px;
+}

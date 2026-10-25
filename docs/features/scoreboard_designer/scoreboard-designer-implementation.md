@@ -1,13 +1,15 @@
 # Scoreboard Designer - proposed implementation plan
 
 > **Status:** P0 approved on 2026-10-20; P1 completed on 2026-10-22;
-> P2 implemented and Linux-verified on 2026-10-23; Windows file-replacement
-> verification remains pending. P3 completed on 2026-10-23. P4 renderers are
-> implemented and Linux Chromium-verified; native-webview parity remains pending.
-> P5-P9 not started.
+> P2 implemented and Linux-verified on 2026-10-23; Windows checks user-confirmed
+> on 2026-10-25. P3 completed on 2026-10-23. P4 renderers are implemented,
+> with Windows WebView2/Linux WebKitGTK checks user-confirmed on 2026-10-25.
+> P5 shell, library and numeric editing, and P6 direct manipulation/history/
+> guarded lifecycle implemented on 2026-10-25. P7-P9 not started.
 > Rust contracts, validation, persistent library commands, backend publication
 > events, the pure layout/binding engine and isolated live/canvas renderers exist;
-> designer UI, runtime activation and public wire synchronization remain planned.
+> a private-draft designer UI includes workspace editing and native close guards.
+> Runtime activation and public wire synchronization remain planned.
 > Approved requirements are
 > defined in the [feature contract](scoreboard-designer.md),
 > [editor design](scoreboard-designer-editor.md) and
@@ -15,12 +17,14 @@
 
 This plan defines reviewable implementation work packages, their actual
 prerequisites, concrete change locations and completion criteria. **P0 and P1 are
-complete; P2's backend, P3's pure engine and P4's renderers are implemented.** P1 adds pure data
+complete; P2-P6 are implemented.** P1 adds pure data
 contracts and validation. P2 adds durable library/publication storage and desktop
 commands. P3 resolves geometry and dynamic bindings without changing Classic
 rendering or match state.
 P4 adds presentation-only rendering APIs and a development proof page; it does
 not activate custom layouts in live output or video.
+P5 adds a desktop-only draft editor with durable Save, not publication.
+P6 adds workspace manipulation, undo/redo and guarded native close/Quit.
 
 The detailed-design gate is closed by the approvals recorded below. Follow the
 approved contracts for subsequent packages; do not treat remaining delivery
@@ -28,18 +32,18 @@ recommendations as existing application behaviour.
 
 ## Roadmap and dependencies
 
-| Package | Deliverable                                                                                    | Prerequisites |
-| ------- | ---------------------------------------------------------------------------------------------- | ------------- |
-| P0      | Approved detailed behaviour and technical contracts - complete                                 | None          |
-| P1      | Typed definition model, limits and validation - complete                                       | P0            |
-| P2      | Durable library operations and published snapshots - implemented; Windows verification pending | P1            |
-| P3      | Deterministic layout and binding engine - complete                                             | P1            |
-| P4      | Custom live/canvas renderers - implemented; native-webview parity pending                       | P3            |
-| P5      | Designer window, library, draft editing and inspector                                          | P2, P4        |
-| P6      | Direct manipulation, history and guarded lifecycle                                             | P5            |
-| P7      | Live publication, reconnect synchronization and Outputs integration                            | P2, P4, P5    |
-| P8      | Frozen-layout video export with bounded memory                                                 | P2, P4        |
-| P9      | Integrated completion and release readiness                                                    | P6, P7, P8    |
+| Package | Deliverable                                                                                 | Prerequisites |
+| ------- | ------------------------------------------------------------------------------------------- | ------------- |
+| P0      | Approved detailed behaviour and technical contracts - complete                              | None          |
+| P1      | Typed definition model, limits and validation - complete                                    | P0            |
+| P2      | Durable library operations and published snapshots - implemented; platform checks confirmed | P1            |
+| P3      | Deterministic layout and binding engine - complete                                          | P1            |
+| P4      | Custom live/canvas renderers - implemented; platform checks confirmed                       | P3            |
+| P5      | Designer window, library, draft editing and inspector - implemented                         | P2, P4        |
+| P6      | Direct manipulation, history and guarded lifecycle                                          | P5            |
+| P7      | Live publication, reconnect synchronization and Outputs integration                         | P2, P4, P5    |
+| P8      | Frozen-layout video export with bounded memory                                              | P2, P4        |
+| P9      | Integrated completion and release readiness                                                 | P6, P7, P8    |
 
 ```text
 P0 -> P1 -> P2 --------------------+-------------------+
@@ -344,8 +348,8 @@ Completion evidence:
 
 P0 was documentation-only. No dependency, generated binding, application module
 or runtime behaviour changed as part of P0. P1's later completion is recorded
-below. P4 parity and P9 platform/memory evidence remain future
-implementation gates, not missing P0 approvals.
+below. P4 parity (subsequently user-confirmed) and P9 platform/memory evidence
+are implementation gates, not missing P0 approvals.
 
 ### P1 - implement definition contracts and validation
 
@@ -397,8 +401,8 @@ remain P2; invalid input is never silently repaired by the decoders.
 ### P2 - implement the persistent library and publication service
 
 **Prerequisites:** P1.
-**Status:** implemented and Linux-verified on 2026-10-23; Windows atomic
-replacement verification pending.
+**Status:** implemented and Linux-verified on 2026-10-23; Windows checks,
+including the previously outstanding replacement gate, user-confirmed on 2026-10-25.
 
 Tasks:
 
@@ -461,7 +465,7 @@ Implementation evidence:
   and settings unchanged.
 
 Linux tests exercise replacing an existing file and preserving it on failure.
-The same replacement path still needs execution on Windows. No designer window,
+The user confirmed the Windows checks passed on 2026-10-25. No designer window,
 custom renderer, HTTP/WS layout frame or frontend transport is enabled by P2;
 those remain their designated later packages.
 
@@ -523,14 +527,14 @@ Implementation evidence:
 Timer bindings reuse the existing formatter: seconds stay in `MM:SS`, including
 `3600 -> 60:00`, not an hours format. No renderer, font measurement, text-overflow
 measurement, score animation playback or custom-layout activation is enabled by
-P3; these remain P4 and later package responsibilities. P2's Windows storage
-replacement verification remains outstanding independently of this package.
+P3; these remain P4 and later package responsibilities. P2's independent Windows
+storage replacement gate was subsequently user-confirmed on 2026-10-25.
 
 ### P4 - implement both renderers and prove the scene model
 
 **Prerequisites:** P3.
 **Status:** implemented and Linux Chromium-verified on 2026-10-23.
-The Windows WebView2/Linux WebKitGTK exit-gate checks remain pending.
+Windows WebView2/Linux WebKitGTK exit-gate checks user-confirmed on 2026-10-25.
 
 Tasks:
 
@@ -599,14 +603,19 @@ Implementation evidence:
   motion, immediate static canvas scores and blocked font initialization were
   also exercised. See [reproduction and platform checks](../../testing.md#custom-layout-renderer-proof-p4).
 
-This is not a claim of native-webview conformance. Windows WebView2 and Linux
-WebKitGTK still need the same fixture/animation/font checks before P5's parity
-gate closes. Classic, runtime publication and the existing export route remain
+The Chromium evidence alone does not establish native-webview conformance.
+On 2026-10-25 the user confirmed the Windows checks and Linux WebKitGTK
+verification passed, closing P5's prerequisite gate. Engine versions and display
+scales were not supplied; this is user-reported evidence, not an additional
+agent-run native test. Classic, runtime publication and the existing export route remain
 unchanged; production activation is still P7/P8.
 
 ### P5 - implement the designer shell, library and numeric editing
 
 **Prerequisites:** P2, P4.
+
+**Status:** implemented on 2026-10-25. P2/P4 platform prerequisites were
+explicitly confirmed by the user before implementation.
 
 Tasks:
 
@@ -632,7 +641,53 @@ window/menu/capability/build registration and generated bindings.
 **Exit gate:** a user can create, numerically edit, save, reopen and duplicate a
 custom layout without changing live output or the real match via sample data.
 
+Implementation and verification:
+
+- [Native singleton](../../../src-tauri/src/windows.rs), Broadcast menu,
+  capability, generated binding and production HTML/Vite entry are wired.
+  The window starts at 1280 × 800, minimum 1000 × 640, with independently
+  resizable 240/300-pixel sidebars and an automatic Fit preview.
+- The [draft reducer](../../../src/features/scoreboardDesigner/draft.ts) owns
+  private Blank/starter/duplicate definitions, fresh node ids, saved baselines,
+  tree changes and numeric validation. Mode/reparent conversions freeze resolved
+  geometry; Fill-to-Fixed freezes its actual size and rejects zero-size
+  conversion atomically. Rust validates every durable mutation.
+- The [desktop library store](../../../src/lib/stores/layoutsStore.ts)
+  subscribes before reading, orders snapshots by session/revision, reports
+  structured failures and never automatically retries conflicts.
+  External changes preserve the draft and require explicit Reload.
+- The [shell](../../../src/entries/ScoreboardDesigner/ScoreboardDesignerWindow.tsx)
+  supports protected Classic, New, Rename, private Duplicate, confirmed Delete,
+  explicit Save, recovery and Save/Discard/Cancel navigation guards. Pending
+  invalid fields remain visible and count as unsaved work. Dialogs use native
+  modal focus isolation. Failed Save preserves the draft.
+- The inspector exposes numeric Free/flow geometry, container layout, bundled
+  fonts, colours/alpha/bindings, box styles, text and independent score animation.
+  Shared-renderer preview uses editable Sample or read-only Live values; sample
+  changes do not dirty the definition or dispatch match actions.
+- [Reducer tests](../../../src/features/scoreboardDesigner/draft.test.ts) and
+  [store tests](../../../src/lib/stores/layoutsStore.test.ts) cover private
+  identity/baselines, limits, locks, conversions, subscription ordering,
+  revision conflicts and durable mutation responses.
+  The [browser workflow proof](../../../scripts/designer-smoke.mjs) exercises
+  create/edit/Save/reopen/duplicate, pending invalid input, guards, errors,
+  stale revisions and tree operations using a revisioned IPC double.
+  The final workflow passed against the production Vite build. This is browser
+  UI evidence, not native interactive P5 verification.
+- Linux validation: `pnpm check` and final checks passed (143 TypeScript tests, production build,
+  lint, clippy and Rust suites); binding regeneration and Tauri-free LAN bundle
+  checks passed. The existing graphical window-geometry test remains opt-in.
+  Browser checks also verified both sidebar resize handles and modal focus
+  isolation. Native P5 manual checks are listed in [testing](../../testing.md#designer-workflows-p5).
+- At the P5 boundary, direct manipulation, history, viewport controls and native
+  close guards were deferred to P6, implemented below. Apply remains visibly
+  disabled (P7). Live output, Outputs, match state and video remain unchanged.
+
 ### P6 - implement direct manipulation and guarded lifecycle
+
+**Status:** implemented on 2026-10-25. Production-build browser interaction proof
+and Linux native close/Quit integration test passed. Interactive Windows/Linux
+platform checks remain in [testing](../../testing.md#designer-interactions-and-lifecycle-p6).
 
 **Prerequisites:** P5.
 
@@ -659,6 +714,49 @@ Tasks:
 **Exit gate:** interaction is predictable at different zoom/display scales;
 one drag is one undo step; all normal dirty-close paths can be cancelled without
 losing the draft or changing the running match.
+
+Implementation and verification:
+
+- The [workspace](../../../src/features/scoreboardDesigner/Preview.tsx) keeps
+  its viewport and SVG selection/handle/guide overlay separate from rendered
+  output. It supports Free dragging/eight resize handles, Row/Column subtree
+  insertion, pointer capture and cancellation, exact logical nudges, Fit,
+  anchored zoom, pan, an optional 8-pixel grid and edge/center snapping.
+  Locks inherited from ancestors prevent manipulation; hidden nodes stay
+  accessible through Layers. Root dimensions remain numeric-only.
+- [Pure workspace math](../../../src/features/scoreboardDesigner/workspace.ts)
+  converts viewport coordinates and snaps within `6 / zoom` logical pixels.
+  Active-edge-only resize snapping, edge/grid/tree-order ties, nested content
+  origins and flow insertion with hidden siblings have exact unit tests.
+- [History](../../../src/features/scoreboardDesigner/history.ts) records one
+  completed gesture or committed field/tree change per entry. Escape/pointer
+  cancellation restores the starting draft. Save retains history and advances
+  the saved baseline; Undo/Redo recompute dirtiness against it. Selection,
+  preview data, grid and viewport changes are excluded. Native text editing
+  retains its own undo and keyboard shortcuts.
+- The [native coordinator](../../../src-tauri/src/designer_lifecycle.rs)
+  owns request ids, readiness, acknowledgements, upgrades, timeout and close
+  authorization. Shared production window/exit hooks guard designer close,
+  main close and Quit before closing windows or flushing recordings.
+  The frontend installs both listeners before declaring readiness, shows one
+  Save/Discard/Cancel prompt, and never authorizes a failed Save.
+- The [layout queue](../../../src-tauri/src/layouts/service.rs) has a drain
+  barrier: accepted writes finish before authorized close without stopping the
+  service when only the designer closes. Normal application exit then shuts
+  down the service and flushes recording once. Cancel authorizes neither.
+- Validation passed with 172 TypeScript tests, production build, lint and Rust
+  checks. The [browser interaction proof](../../../scripts/designer-interactions.mjs)
+  runs the full P5 regression and verifies real pointer/keyboard interaction,
+  one-step gesture history, zoom-scaled movement, pan/grid isolation, snapping,
+  locks, subtree reorder and close-prompt failure/retry/Cancel/Discard behavior
+  against the built UI using a revisioned IPC double.
+- The opt-in Linux native test uses real Tauri windows and the production
+  event hooks under Xvfb at `GDK_SCALE=2`. It verifies initialization readiness,
+  close/main-close/Quit upgrades, cancellation without shutdown, designer-only
+  destruction, reopening and authorized Quit. This is distinct from browser
+  evidence and does not replace Windows or interactive native-platform checks.
+- Apply/publication, selected custom live output and custom video are still
+  deferred to P7/P8. No designer action dispatches match mutations.
 
 ### P7 - wire publication into live output and Outputs
 
