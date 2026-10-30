@@ -8,8 +8,11 @@ import { CardTitle } from "@/components/ui/Card/CardTitle";
 import { Input } from "@/components/ui/Input";
 import { Label } from "@/components/ui/Label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/Select";
+import type { SavedLayoutSelection } from "@/bindings/SavedLayoutSelection";
 import { formatTimer } from "@/lib/format";
+import { useLayoutsStore } from "@/lib/stores/layoutsStore";
 import { useVideoStore } from "@/lib/stores/videoStore";
+import { calculateVideoDimensions, layoutDimensions } from "@/lib/videoDimensions";
 
 const SCALE_OPTIONS = [0.5, 1, 2, 3];
 
@@ -35,6 +38,8 @@ export function VideoGeneratorWindow(): React.JSX.Element {
 	const loadError = useVideoStore((store) => store.loadError);
 	const frameRate = useVideoStore((store) => store.frameRate);
 	const scale = useVideoStore((store) => store.scale);
+	const layoutSelection = useVideoStore((store) => store.layoutSelection);
+	const activeLayout = useVideoStore((store) => store.activeLayout);
 	const progress = useVideoStore((store) => store.progress);
 	const generating = useVideoStore((store) => store.generating);
 	const init = useVideoStore((store) => store.init);
@@ -42,9 +47,12 @@ export function VideoGeneratorWindow(): React.JSX.Element {
 	const browseOutput = useVideoStore((store) => store.browseOutput);
 	const setFrameRate = useVideoStore((store) => store.setFrameRate);
 	const setScale = useVideoStore((store) => store.setScale);
+	const setLayoutSelection = useVideoStore((store) => store.setLayoutSelection);
 	const generate = useVideoStore((store) => store.generate);
 	const cancel = useVideoStore((store) => store.cancel);
 	const reset = useVideoStore((store) => store.reset);
+	const library = useLayoutsStore((store) => store.library);
+	const libraryError = useLayoutsStore((store) => store.error);
 
 	const [browseBusy, setBrowseBusy] = React.useState(false);
 	const [actionError, setActionError] = React.useState<string | null>(null);
@@ -61,8 +69,56 @@ export function VideoGeneratorWindow(): React.JSX.Element {
 			.finally(() => setBrowseBusy(false));
 	};
 
-	const ready = metadata !== null && outputPath !== null && !generating;
+	const selectedEntry =
+		layoutSelection.kind === "custom"
+			? library?.entries.find((entry) => entry.id === layoutSelection.id)
+			: undefined;
+	const selectedLayoutCurrent =
+		layoutSelection.kind === "classic" ||
+		(library?.storageStatus.state === "ready" &&
+			selectedEntry?.revision === layoutSelection.expectedRevision);
+	const selectedRoot =
+		layoutSelection.kind === "custom" && selectedEntry?.revision === layoutSelection.expectedRevision
+			? selectedEntry.definition.root
+			: undefined;
+	const selectedDimensions = layoutDimensions(layoutSelection, selectedRoot);
+	const dimensions = calculateVideoDimensions(
+		selectedDimensions ?? { kind: "custom", width: 0, height: 0 },
+		scale,
+	);
+	const incompatibleScales = selectedDimensions
+		? SCALE_OPTIONS.filter((option) => calculateVideoDimensions(selectedDimensions, option) === null)
+		: [];
+	const ready =
+		metadata !== null && outputPath !== null && !generating && selectedLayoutCurrent && dimensions !== null;
 	const done = progress.step === "complete";
+	const layoutValue = (selection: SavedLayoutSelection): string =>
+		selection.kind === "classic" ? "classic" : `${selection.id}:${selection.expectedRevision}`;
+	const selectedLayoutName =
+		layoutSelection.kind === "classic"
+			? "Classic"
+			: selectedEntry?.revision === layoutSelection.expectedRevision
+				? selectedEntry.name
+				: `Unavailable layout (revision ${layoutSelection.expectedRevision})`;
+	const selectionProblem =
+		layoutSelection.kind !== "custom"
+			? null
+			: library?.storageStatus.state === "blocked"
+				? "The layout library is blocked; select Classic or restore the library before exporting."
+				: !selectedEntry
+					? "The selected layout was deleted. Select another layout before exporting."
+					: selectedEntry.revision !== layoutSelection.expectedRevision
+						? "The selected layout changed. Select its current revision before exporting."
+						: null;
+	const selectableLayouts = library?.storageStatus.state === "ready" ? library.entries : [];
+	const selectLayout = (value: string): void => {
+		if (value === "classic") {
+			setLayoutSelection({ kind: "classic" });
+			return;
+		}
+		const entry = selectableLayouts.find((candidate) => `${candidate.id}:${candidate.revision}` === value);
+		if (entry) setLayoutSelection({ kind: "custom", id: entry.id, expectedRevision: entry.revision });
+	};
 
 	return (
 		<div className="bg-app-primary flex min-h-screen w-screen flex-col gap-4 overflow-auto p-4">
@@ -173,6 +229,66 @@ export function VideoGeneratorWindow(): React.JSX.Element {
 						</div>
 
 						<div className="grid grid-cols-[auto_1fr] items-center gap-3">
+							<Label htmlFor="video-layout">Layout</Label>
+							<Select value={layoutValue(layoutSelection)} onValueChange={selectLayout} disabled={generating}>
+								<SelectTrigger id="video-layout">
+									<SelectValue />
+								</SelectTrigger>
+								<SelectContent>
+									<SelectItem value="classic">Classic</SelectItem>
+									{selectableLayouts.map((entry) => (
+										<SelectItem key={entry.id} value={`${entry.id}:${entry.revision}`}>
+											{entry.name} · revision {entry.revision}
+										</SelectItem>
+									))}
+									{layoutSelection.kind === "custom" && !selectedLayoutCurrent ? (
+										<SelectItem value={layoutValue(layoutSelection)} disabled>
+											{selectedLayoutName}
+										</SelectItem>
+									) : null}
+								</SelectContent>
+							</Select>
+						</div>
+
+						{library?.storageStatus.state === "blocked" ? (
+							<p className="text-warning-400 text-xs" role="status">
+								{library.storageStatus.message ??
+									"The saved layout library is blocked. Classic export remains available."}
+							</p>
+						) : null}
+						{libraryError ? (
+							<p className="text-error-400 text-xs" role="alert">
+								Could not refresh saved layouts: {libraryError}
+							</p>
+						) : null}
+						{selectionProblem ? (
+							<p className="text-error-400 text-xs" role="alert">
+								{selectionProblem}
+							</p>
+						) : null}
+
+						<div className="flex items-center justify-between gap-3 text-xs">
+							<span className="text-app-tertiary">
+								{generating && activeLayout
+									? activeLayout.kind === "classic"
+										? "Exporting Classic"
+										: `Exporting ${activeLayout.sourceName} · revision ${activeLayout.sourceRevision}`
+									: `Selected: ${selectedLayoutName}`}
+							</span>
+							<span>
+								{dimensions ? `${dimensions.width} × ${dimensions.height}` : "Unsupported dimensions"}
+							</span>
+						</div>
+						{dimensions &&
+						(dimensions.contentWidth !== dimensions.width ||
+							dimensions.contentHeight !== dimensions.height) ? (
+							<p className="text-app-tertiary text-xs">
+								Layout content {dimensions.contentWidth} × {dimensions.contentHeight}; transparent padding is
+								added on the right and bottom.
+							</p>
+						) : null}
+
+						<div className="grid grid-cols-[auto_1fr] items-center gap-3">
 							<Label>Scoreboard scale</Label>
 							<Select
 								value={String(scale)}
@@ -184,13 +300,31 @@ export function VideoGeneratorWindow(): React.JSX.Element {
 								</SelectTrigger>
 								<SelectContent>
 									{SCALE_OPTIONS.map((option) => (
-										<SelectItem key={option} value={String(option)}>
+										<SelectItem
+											key={option}
+											value={String(option)}
+											disabled={
+												!selectedDimensions || calculateVideoDimensions(selectedDimensions, option) === null
+											}
+										>
 											{option}×
 										</SelectItem>
 									))}
 								</SelectContent>
 							</Select>
 						</div>
+						{selectedLayoutCurrent && dimensions === null ? (
+							<p className="text-warning-400 text-xs" role="status">
+								This scale exceeds the supported landscape or portrait 4K output bounds. Choose a smaller
+								scale.
+							</p>
+						) : null}
+						{selectedLayoutCurrent && incompatibleScales.length > 0 ? (
+							<p className="text-app-tertiary text-xs" role="status">
+								Scale {incompatibleScales.map((option) => `${option}×`).join(", ")} is disabled because it
+								would exceed the supported output bounds. Scale is never reduced automatically.
+							</p>
+						) : null}
 					</CardContent>
 				</Card>
 			</div>

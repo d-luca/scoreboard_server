@@ -76,7 +76,8 @@ post-production.
 ```mermaid
 graph LR
     A[".sbrec / .json"] --> B["Rust: parse"]
-    B -->|video_frames| C["video-generator webview:<br/>draw each snapshot on a canvas"]
+    B --> X["Rust: freeze selected saved layout<br/>and calculate output geometry"]
+    X -->|GenerationStarted + video_frames| C["video-generator webview:<br/>draw each snapshot on a canvas"]
     C -->|video_push_frames<br/>raw RGBA batches| D["Rust: write to ffmpeg stdin"]
     D --> E["WebM / VP9 / yuva420p"]
 ```
@@ -89,17 +90,31 @@ the component and the renderer import the constants from
 [`scoreboardGeometry.ts`](../../src/lib/scoreboardGeometry.ts). Fonts are awaited
 (`document.fonts.load` / `ready`) before the first frame.
 
-**Frame size.** 622 × 80 at scale 1 (the 600-wide board plus room for the −15° skew,
-identical to the OBS frame), multiplied by the scale (0.5 / 1 / 2 / 3) and rounded to
-**even** numbers for VP9.
+Custom selections use the shared layout resolver, recorded-snapshot bindings and
+Canvas2D renderer. The exact selected saved revision is copied into the Rust job and
+returned in `GenerationStarted`; later Save, Delete or live Apply cannot change it.
+Recorded names, team colours and period prefix are used for each frame. Scores remain
+static between snapshots. Existing Classic exports retain their original canvas path
+and geometry.
 
-**Frame transport.** The webview fetches snapshots in batches of 30 (`video_frames`),
-renders them, and sends one `Uint8Array` per batch as the **sole** invoke argument — Tauri
-then sends it as a raw `application/octet-stream` body. (A typed array nested in a JSON
-args object is expanded into a JSON number array, several times larger.) Layout:
+**Frame size.** Classic retains its existing 622 × 80 base frame and even rounding.
+Custom layouts scale uniformly from their root dimensions; output dimensions are
+rounded up to even values for VP9, adding transparent padding only at the right and
+bottom. The final output must fit within 3840 × 2160 landscape or 2160 × 3840 portrait.
+Unsupported sizes fail explicitly; export scale is never silently changed. The UI shows
+the exact output dimensions and disables incompatible scale choices.
+
+**Frame transport.** Raw RGBA payloads are capped at 32 MiB and 30 frames per batch:
+`min(30, floor(32 MiB / frameBytes))`; 4K batches contain one frame. A bounded reusable
+buffer and one awaited push preserve encoder backpressure. This is a raw-payload limit,
+not a total-process-memory claim. The webview sends one `Uint8Array` per batch as the
+**sole** invoke argument — Tauri then sends it as a raw `application/octet-stream` body.
+(A typed array nested in a JSON args object is expanded into a JSON number array,
+several times larger.) Layout:
 `[u32 LE start][u32 LE frame_count][frames…]`, each frame `width × height × 4` bytes.
 `video_push_frames` awaits the write into ffmpeg's stdin, so the webview throttles itself:
-one batch in flight, memory flat regardless of recording length.
+one batch in flight, memory bounded regardless of recording length. Rust validates the
+whole-frame payload, batch count, order, and remaining job frames before writing.
 
 ### ffmpeg
 
@@ -140,9 +155,12 @@ path via `video_open_with_recording` / `video_take_pending_recording`).
 - **Recording File** — path + Browse, load errors, metadata
   ([`RecordingMetadata`](../../src/bindings/RecordingMetadata.ts): teams, snapshot count,
   start/end) and the first snapshots.
-- **Video Settings** — output path + Browse (must end in `.webm`), frame rate slider and
-  input (1–60), scale select, progress (status, bar, message, frame counter), Generate /
-  Generate Again, Reset, and Cancel while generating.
+- **Video Settings** — output path + Browse (must end in `.webm`), Classic or a saved
+  layout selector, frame rate slider and input (1–60), scale select with unsupported
+  options disabled, exact output/content dimensions, progress, Generate / Generate
+  Again, Reset, and Cancel while generating. The selector defaults to the current
+  published source only when that exact saved revision still exists; otherwise it
+  defaults to Classic. Selection is locked during generation.
 
 Config: [`VideoGenerationConfig`](../../src/bindings/VideoGenerationConfig.ts).
 
@@ -154,6 +172,12 @@ Config: [`VideoGenerationConfig`](../../src/bindings/VideoGenerationConfig.ts).
 - Cancelling halfway leaves no partial file and no ffmpeg process.
 - Generating twice in a row without restarting works.
 - A legacy v1 `.json` recording imports and generates correctly.
-- Peak memory stays flat regardless of recording length.
+- Custom export uses recorded names, colours and prefix; the same recording can be
+  exported again with another saved layout without changing live output.
+- Odd custom dimensions pad transparently on the right/bottom, and portrait/4K batch
+  sizes match the 32 MiB ceiling.
+- A Save, Delete or Apply after generation starts does not change the job's frozen
+  layout.
+- Raw frame payloads stay within 32 MiB regardless of recording length.
 - Closing the recording window mid-recording keeps recording; reopening it shows the
   correct elapsed time.

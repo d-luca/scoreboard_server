@@ -7,7 +7,9 @@
 > P5 shell, library and numeric editing, and P6 direct manipulation/history/
 > guarded lifecycle implemented on 2026-10-25. P7a (publication wire protocol
 > and transports), P7b (live renderer and Outputs sizing), and P7c (designer
-> Apply and standalone WS smoke) implemented on 2026-10-30; P8 and P9 not
+> Apply and standalone WS smoke) implemented on 2026-10-30. P8
+> completed on 2026-10-30: ffmpeg end-to-end verified and in-app Classic and
+> custom-layout exports user-confirmed. P9 not
 > started. P7's interactive OBS/native checks remain outstanding.
 > Rust contracts, validation, persistent library commands, backend publication
 > events, the pure layout/binding engine and isolated live/canvas renderers exist;
@@ -46,7 +48,7 @@ recommendations as existing application behaviour.
 | P5      | Designer window, library, draft editing and inspector - implemented                                      | P2, P4        |
 | P6      | Direct manipulation, history and guarded lifecycle                                                       | P5            |
 | P7      | Live publication, reconnect synchronization and Outputs integration - implemented; native checks pending | P2, P4, P5    |
-| P8      | Frozen-layout video export with bounded memory                                                           | P2, P4        |
+| P8      | Frozen-layout video export with bounded memory - completed (ffmpeg-verified, manual export confirmed)    | P2, P4        |
 | P9      | Integrated completion and release readiness                                                              | P6, P7, P8    |
 
 ```text
@@ -902,6 +904,51 @@ Tasks:
 layout, preserving alpha and duration. 4K uses bounded batches rather than
 30-frame allocations, and requests beyond the supported final bounds fail
 explicitly.
+
+**Delivery split** (agreed 2026-10-30; one reviewable session each):
+
+| Step | Scope                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              | Depends on |
+| ---- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---------- |
+| P8a  | Rust: `VideoGenerationConfig.layout` (serde/ts optional, omitted = Classic) and `scoreboardScale` as `f64`; pure export geometry (Classic `frame_dimensions`, custom `2·ceil(root·scale/2)`, final 4K landscape/portrait predicate, checked `frameBytes`, `batchFrames = min(30, ⌊32 MiB / frameBytes⌋) ≥ 1`); resolve and clone the saved root at job start (unknown id, stale revision, blocked storage or invalid root fail before ffmpeg); extended `GenerationStarted`; batch-count/length/remaining-frame ceiling in `push_frames`/`frames`; frontend loop uses `batchFrames`; Rust unit/e2e cases; bindings | P2         |
+| P8b  | Frontend: Tauri-free export-geometry mirror with the same table cases; validate the `GenerationStarted` response before allocation; custom loop resolves the frozen root once, gates on `loadLayoutFonts`, binds each recorded snapshot via `inputsFromSnapshot` and draws with `renderLayoutToCanvas` at the exact scale (transparent padding); reusable bounded batch buffer; Classic path unchanged; Vitest geometry/response tests and shared renderer tests                                                                                                                                                   | P8a, P4    |
+| P8c  | Video Generator: Classic/saved-layout selector defaulting to the published source when still saved at that revision (else Classic), live library/published updates, deleted/blocked handling, exact output/content size display, incompatible scale options disabled with an explanation (no silent override), selection locked and frozen source shown during a job; stale-revision error refresh; `recording-video.md`, `testing.md` manual cases and P8 evidence/status                                                                                                                                         | P8a, P8b   |
+
+P8 implementation (2026-10-30):
+
+- Rust accepts an optional saved-layout selection (omitted means Classic),
+  freezes the exact saved root and revision at job start, and returns it with
+  f64 scale, content/output dimensions and the derived batch count. Stale,
+  deleted, blocked or invalid custom selections fail before ffmpeg starts.
+- Custom output dimensions use exact uniform scale plus transparent even
+  padding; Classic keeps its existing renderer and even rounding. Final
+  landscape/portrait 4K bounds are checked before encoder startup. Rust enforces
+  frame order, whole-frame payload size, remaining job frames and the 32 MiB
+  raw batch ceiling before copying/writing payload bytes.
+- The custom render loop uses recorded snapshot bindings and the shared Canvas2D
+  renderer, loads required fonts before allocation, validates the backend job
+  response, and reuses one bounded batch buffer with one awaited push in flight.
+  A client-side render failure cancels the accepted backend job.
+- Video Generator defaults to the current published source only when the exact
+  saved revision is present, otherwise Classic. It follows library updates,
+  surfaces blocked/stale/deleted states, shows exact content/output dimensions,
+  explains disabled scales, and locks selection during generation.
+- Rust tests cover frozen revision resolution, omitted-selection compatibility,
+  odd/even sizing, landscape/portrait 4K bounds, batch counts and raw-batch
+  validation. Vitest covers matching geometry, dimension boundaries,
+  generation-response validation and published-layout defaults. `pnpm test:unit`
+  (209 tests), `pnpm rust:test` (147 passed, 2 ignored), `pnpm rust:clippy`,
+  `pnpm lint` and `pnpm vite:build` passed.
+- ffmpeg end-to-end (`cargo test --test video_generation`, real ffmpeg/ffprobe
+  with libvpx-vp9 on Linux): 6 passed. Classic export and cancellation, plus
+  custom cases: a 621×79 saved layout exports 622×80 frames (content
+  621×79, `batchFrames` 30) with ~3 s duration and alpha preserved; a Save
+  mid-job does not affect the frozen export and the old revision is then
+  rejected as stale; a 3840×2160 layout reports `batchFrames` 1, rejects a
+  two-frame batch and encodes 3840×2160; oversized scale, unknown id and
+  wrong revision fail before any session or output exists; custom cancel
+  deletes the partial file.
+- Manual (see `docs/testing.md`): in-app video generation with a custom saved
+  layout and with Classic was user-confirmed working on 2026-10-30.
 
 ### P9 - complete cross-surface conformance and release readiness
 

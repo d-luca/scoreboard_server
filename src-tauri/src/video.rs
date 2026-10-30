@@ -49,6 +49,9 @@ use serde::{Deserialize, Serialize};
 use tauri::{AppHandle, Manager};
 use ts_rs::TS;
 
+use crate::layouts::{
+    validate_root, LayoutStorageState, PublishedLayoutSelection, SavedLayoutSelection,
+};
 use crate::recording::{self, ParsedRecording, Snapshot};
 use crate::state::{AppState, Shared};
 
@@ -60,6 +63,8 @@ use crate::state::{AppState, Shared};
 /// the OBS source pixel-for-pixel.
 pub const FRAME_BASE_WIDTH: u32 = 622;
 pub const FRAME_BASE_HEIGHT: u32 = 80;
+pub const VIDEO_FRAME_BUDGET_BYTES: usize = 32 * 1024 * 1024;
+pub const VIDEO_MAX_BATCH_FRAMES: u32 = 30;
 
 /// `video:progress` is throttled to ~10 Hz; step transitions
 /// always emit immediately.
@@ -106,7 +111,11 @@ pub struct VideoGenerationConfig {
     /// 1..=60, default 30.
     pub frame_rate: u32,
     /// 0.5..=3.0, default 1.0.
-    pub scoreboard_scale: f32,
+    pub scoreboard_scale: f64,
+    /// Omitted by legacy callers; defaults to Classic.
+    #[serde(default)]
+    #[ts(optional)]
+    pub layout: Option<SavedLayoutSelection>,
 }
 
 /// Pipeline step.
@@ -188,8 +197,13 @@ impl GenerationProgress {
 pub struct GenerationStarted {
     #[ts(type = "number")]
     pub total_frames: u64,
+    pub layout: PublishedLayoutSelection,
+    pub scale: f64,
+    pub content_width: f64,
+    pub content_height: f64,
     pub width: u32,
     pub height: u32,
+    pub batch_frames: u32,
 }
 
 /// Parsed recording header + first snapshots, for the generator window's
@@ -219,8 +233,9 @@ pub struct VideoSession {
     stdin_closed: Arc<AtomicBool>,
     snapshots: Vec<Snapshot>,
     pushed: u64,
-    width: u32,
-    height: u32,
+    frame_bytes: usize,
+    batch_frames: u32,
+    _layout: PublishedLayoutSelection,
     stdin: Arc<Mutex<Option<ChildStdin>>>,
     child: Arc<Mutex<Child>>,
     last_emit: Instant,
@@ -230,16 +245,15 @@ fn lock_video(state: &AppState) -> MutexGuard<'_, Option<VideoSession>> {
     state.video.lock().unwrap_or_else(PoisonError::into_inner)
 }
 
-/// Output dimensions: `round(base × scale)`, each rounded to the nearest
-/// even number (VP9 wants even dimensions).
-pub fn frame_dimensions(scale: f32) -> (u32, u32) {
+/// Classic dimensions retain their original rounding behaviour.
+pub fn frame_dimensions(scale: f64) -> (u32, u32) {
     (
-        even_rounded(FRAME_BASE_WIDTH as f32 * scale),
-        even_rounded(FRAME_BASE_HEIGHT as f32 * scale),
+        even_rounded(FRAME_BASE_WIDTH as f64 * scale),
+        even_rounded(FRAME_BASE_HEIGHT as f64 * scale),
     )
 }
 
-fn even_rounded(value: f32) -> u32 {
+fn even_rounded(value: f64) -> u32 {
     let rounded = value.round().max(2.0) as u32;
     if rounded.is_multiple_of(2) {
         rounded
@@ -248,20 +262,166 @@ fn even_rounded(value: f32) -> u32 {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq)]
+struct VideoGeometry {
+    content_width: f64,
+    content_height: f64,
+    width: u32,
+    height: u32,
+    frame_bytes: usize,
+    batch_frames: u32,
+}
+
+fn video_geometry(layout: &PublishedLayoutSelection, scale: f64) -> Result<VideoGeometry, String> {
+    if !scale.is_finite() || !(0.5..=3.0).contains(&scale) {
+        return Err(format!("scoreboard scale must be 0.5..=3.0, got {scale}"));
+    }
+
+    let (content_width, content_height, width, height) = match layout {
+        PublishedLayoutSelection::Classic {} => {
+            let (width, height) = frame_dimensions(scale);
+            (f64::from(width), f64::from(height), width, height)
+        }
+        PublishedLayoutSelection::Custom { root, .. } => {
+            let content_width = f64::from(root.width) * scale;
+            let content_height = f64::from(root.height) * scale;
+            let width = even_ceil(content_width)?;
+            let height = even_ceil(content_height)?;
+            (content_width, content_height, width, height)
+        }
+    };
+
+    if !((width <= 3840 && height <= 2160) || (width <= 2160 && height <= 3840)) {
+        return Err(format!(
+            "final video dimensions {width}x{height} exceed the supported landscape or portrait 4K bounds"
+        ));
+    }
+    let frame_bytes = usize::try_from(width)
+        .ok()
+        .and_then(|width| {
+            usize::try_from(height)
+                .ok()
+                .and_then(|height| width.checked_mul(height))
+        })
+        .and_then(|pixels| pixels.checked_mul(4))
+        .ok_or_else(|| "video frame byte size overflow".to_string())?;
+    let batch_frames =
+        (VIDEO_FRAME_BUDGET_BYTES / frame_bytes).min(VIDEO_MAX_BATCH_FRAMES as usize);
+    if batch_frames == 0 {
+        return Err("a single video frame exceeds the 32 MiB raw-frame budget".into());
+    }
+    Ok(VideoGeometry {
+        content_width,
+        content_height,
+        width,
+        height,
+        frame_bytes,
+        batch_frames: batch_frames as u32,
+    })
+}
+
+fn even_ceil(value: f64) -> Result<u32, String> {
+    let even = (value / 2.0).ceil() * 2.0;
+    if !even.is_finite() || even < 2.0 || even > f64::from(u32::MAX) {
+        return Err("scaled video dimensions are outside the supported numeric range".into());
+    }
+    Ok(even as u32)
+}
+
+fn validate_batch(
+    payload_bytes: usize,
+    start: u64,
+    frame_count: u64,
+    frame_bytes: usize,
+    batch_frames: u32,
+    pushed: u64,
+    total_frames: u64,
+) -> Result<(usize, u64), String> {
+    if start != pushed {
+        return Err(format!(
+            "out-of-order batch: expected frame {pushed}, got {start}"
+        ));
+    }
+    if frame_count == 0 || frame_count > u64::from(batch_frames) {
+        return Err(format!(
+            "batch count must be 1..={batch_frames}, got {frame_count}"
+        ));
+    }
+    let end = start
+        .checked_add(frame_count)
+        .ok_or_else(|| "frame batch range overflow".to_string())?;
+    if end > total_frames {
+        return Err(format!(
+            "batch of {frame_count} frames at {start} exceeds {total_frames} total frames"
+        ));
+    }
+    let expected_bytes = usize::try_from(frame_count)
+        .ok()
+        .and_then(|count| count.checked_mul(frame_bytes))
+        .ok_or_else(|| "frame batch byte size overflow".to_string())?;
+    if expected_bytes > VIDEO_FRAME_BUDGET_BYTES {
+        return Err("frame batch exceeds the 32 MiB raw-frame budget".into());
+    }
+    if payload_bytes != expected_bytes {
+        return Err(format!(
+            "frame batch size mismatch: expected {expected_bytes} bytes, got {payload_bytes}"
+        ));
+    }
+    Ok((expected_bytes, end))
+}
+
+fn resolve_layout(
+    shared: &Shared,
+    requested: Option<SavedLayoutSelection>,
+) -> Result<PublishedLayoutSelection, String> {
+    let selection = requested.unwrap_or(SavedLayoutSelection::Classic {});
+    match selection {
+        SavedLayoutSelection::Classic {} => Ok(PublishedLayoutSelection::Classic {}),
+        SavedLayoutSelection::Custom {
+            id,
+            expected_revision,
+        } => {
+            let library = shared.layouts.snapshot();
+            if library.storage_status.state != LayoutStorageState::Ready {
+                return Err(library
+                    .storage_status
+                    .message
+                    .unwrap_or_else(|| "The layout library is blocked.".into()));
+            }
+            let saved = library
+                .entries
+                .iter()
+                .find(|entry| entry.id == id)
+                .ok_or_else(|| format!("Saved layout {id} no longer exists."))?;
+            if saved.revision != expected_revision {
+                return Err(format!(
+                    "Saved layout changed since selection (expected revision {expected_revision}, current revision {}). Refresh and select it again.",
+                    saved.revision
+                ));
+            }
+            validate_root(&saved.definition.root)
+                .map_err(|error| format!("Selected layout is invalid: {}", error.message))?;
+            Ok(PublishedLayoutSelection::Custom {
+                source_id: saved.id.clone(),
+                source_revision: saved.revision,
+                source_name: saved.name.clone(),
+                root: saved.definition.root.clone(),
+            })
+        }
+    }
+}
+
 /// Validate the config and parse the recording. The whole
 /// parse fits in memory — ~650 KB of lines for a 90-minute match, a few MB
 /// parsed; flat memory is about not accumulating *frames*.
-fn validate(config: &VideoGenerationConfig) -> Result<(ParsedRecording, u32, u32), String> {
+fn validate(
+    config: &VideoGenerationConfig,
+    layout: &PublishedLayoutSelection,
+) -> Result<(ParsedRecording, VideoGeometry), String> {
     if !(1..=60).contains(&config.frame_rate) {
         return Err(format!(
             "frame rate must be 1..=60, got {}",
             config.frame_rate
-        ));
-    }
-    if !(0.5..=3.0).contains(&config.scoreboard_scale) {
-        return Err(format!(
-            "scoreboard scale must be 0.5..=3.0, got {}",
-            config.scoreboard_scale
         ));
     }
     let output = config.output_path.trim();
@@ -272,8 +432,7 @@ fn validate(config: &VideoGenerationConfig) -> Result<(ParsedRecording, u32, u32
     if parsed.snapshots.is_empty() {
         return Err("recording has no snapshots".to_string());
     }
-    let (width, height) = frame_dimensions(config.scoreboard_scale);
-    Ok((parsed, width, height))
+    Ok((parsed, video_geometry(layout, config.scoreboard_scale)?))
 }
 
 /// ffmpeg CLI: raw RGBA in at 1 fps (one frame per recording
@@ -385,7 +544,14 @@ pub fn generate(
         0,
         "Parsing recording…".into(),
     ));
-    let (parsed, width, height) = match validate(&config) {
+    let layout = match resolve_layout(shared, config.layout.clone()) {
+        Ok(layout) => layout,
+        Err(error) => {
+            shared.emit_video_progress(GenerationProgress::failed(error.clone()));
+            return Err(error);
+        }
+    };
+    let (parsed, geometry) = match validate(&config, &layout) {
         Ok(ok) => ok,
         Err(error) => {
             shared.emit_video_progress(GenerationProgress::failed(error.clone()));
@@ -415,7 +581,12 @@ pub fn generate(
         }
     }
 
-    let args = ffmpeg_args(width, height, config.frame_rate, &output_path);
+    let args = ffmpeg_args(
+        geometry.width,
+        geometry.height,
+        config.frame_rate,
+        &output_path,
+    );
     let mut child = ffmpeg_command(&ffmpeg)
         .args(&args)
         .stdin(Stdio::piped())
@@ -445,8 +616,9 @@ pub fn generate(
         stdin_closed: Arc::new(AtomicBool::new(false)),
         snapshots: parsed.snapshots,
         pushed: 0,
-        width,
-        height,
+        frame_bytes: geometry.frame_bytes,
+        batch_frames: geometry.batch_frames,
+        _layout: layout.clone(),
         stdin: Arc::new(Mutex::new(Some(stdin))),
         child: Arc::new(Mutex::new(child)),
         last_emit: Instant::now(),
@@ -478,8 +650,13 @@ pub fn generate(
     });
     Ok(GenerationStarted {
         total_frames,
-        width,
-        height,
+        layout,
+        scale: config.scoreboard_scale,
+        content_width: geometry.content_width,
+        content_height: geometry.content_height,
+        width: geometry.width,
+        height: geometry.height,
+        batch_frames: geometry.batch_frames,
     })
 }
 
@@ -487,10 +664,17 @@ pub fn generate(
 pub fn frames(shared: &Shared, start: u64, count: u32) -> Result<Vec<Snapshot>, String> {
     let guard = lock_video(shared);
     let session = guard.as_ref().ok_or("No active generation")?;
+    if count == 0 || count > session.batch_frames {
+        return Err(format!(
+            "frame request count must be 1..={}, got {count}",
+            session.batch_frames
+        ));
+    }
+    let start = usize::try_from(start).map_err(|_| "frame start is out of range")?;
     Ok(session
         .snapshots
         .iter()
-        .skip(start as usize)
+        .skip(start)
         .take(count as usize)
         .cloned()
         .collect())
@@ -513,31 +697,22 @@ pub async fn push_frames(shared: &Shared, bytes: &[u8]) -> Result<(), String> {
         if session.cancel.load(Ordering::SeqCst) {
             return Err("Generation cancelled".into());
         }
-        if start != session.pushed {
-            return Err(format!(
-                "out-of-order batch: expected frame {}, got {start}",
-                session.pushed
-            ));
-        }
-        let frame_bytes = session.width as usize * session.height as usize * 4;
+        let frame_bytes = session.frame_bytes;
         let total = session.snapshots.len() as u64;
-        if frame_count == 0 || start + frame_count > total {
-            return Err(format!(
-                "batch of {frame_count} frames at {start} exceeds {total} total frames"
-            ));
-        }
-        if bytes.len() - 8 != frame_count as usize * frame_bytes {
-            return Err(format!(
-                "frame batch size mismatch: expected {} bytes, got {}",
-                frame_count as usize * frame_bytes,
-                bytes.len() - 8
-            ));
-        }
+        let (_, end) = validate_batch(
+            bytes.len() - 8,
+            start,
+            frame_count,
+            frame_bytes,
+            session.batch_frames,
+            session.pushed,
+            total,
+        )?;
         (
             Arc::clone(&session.stdin),
             Arc::clone(&session.cancel),
             Arc::clone(&session.stdin_closed),
-            session.pushed + frame_count,
+            end,
         )
     };
 
@@ -805,6 +980,8 @@ fn spawn_watcher(shared: &Shared, params: WatcherParams) {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::layouts::{LayoutColor, LayoutDefinition, LayoutRoot, LayoutRootKind};
+    use serde_json::json;
 
     fn config(recording: &str, output: &str) -> VideoGenerationConfig {
         VideoGenerationConfig {
@@ -812,7 +989,44 @@ mod tests {
             output_path: output.into(),
             frame_rate: 30,
             scoreboard_scale: 1.0,
+            layout: None,
         }
+    }
+
+    fn custom_layout(width: u32, height: u32) -> PublishedLayoutSelection {
+        PublishedLayoutSelection::Custom {
+            source_id: uuid::Uuid::new_v4().to_string(),
+            source_revision: 1,
+            source_name: "Test".into(),
+            root: LayoutRoot {
+                kind: LayoutRootKind::Root,
+                id: uuid::Uuid::new_v4().to_string(),
+                width,
+                height,
+                background: LayoutColor::Literal {
+                    hex: "#000000".into(),
+                    alpha: 0.0,
+                },
+                children: Vec::new(),
+            },
+        }
+    }
+
+    fn saved_definition(width: u32, height: u32, root_id: &str) -> LayoutDefinition {
+        serde_json::from_value(json!({
+                "root": {
+                    "kind": "root",
+                    "id": root_id,
+                    "width": width,
+                    "height": height,
+                    "background": { "kind": "literal", "hex": "#000000", "alpha": 0.0 },
+                    "children": []
+                },
+                "editor": {
+                    "layers": [{ "nodeId": root_id, "label": "Root", "locked": false }]
+                }
+        }))
+        .unwrap()
     }
 
     fn write_sbrec(dir: &Path, snapshots: usize) -> PathBuf {
@@ -840,6 +1054,134 @@ mod tests {
     }
 
     #[test]
+    fn custom_video_geometry_uses_even_padding_and_byte_budget() {
+        let geometry = video_geometry(&custom_layout(621, 79), 1.0).unwrap();
+        assert_eq!((geometry.width, geometry.height), (622, 80));
+        assert_eq!(
+            (geometry.content_width, geometry.content_height),
+            (621.0, 79.0)
+        );
+
+        let geometry = video_geometry(&custom_layout(621, 79), 1.5).unwrap();
+        assert_eq!((geometry.width, geometry.height), (932, 120));
+        assert_eq!(
+            (geometry.content_width, geometry.content_height),
+            (931.5, 118.5)
+        );
+
+        assert_eq!(
+            video_geometry(&custom_layout(622, 80), 1.0)
+                .unwrap()
+                .batch_frames,
+            30
+        );
+        assert_eq!(
+            video_geometry(&custom_layout(1920, 1080), 1.0)
+                .unwrap()
+                .batch_frames,
+            4
+        );
+        assert_eq!(
+            video_geometry(&custom_layout(3840, 2160), 1.0)
+                .unwrap()
+                .batch_frames,
+            1
+        );
+        assert_eq!(
+            video_geometry(&custom_layout(2160, 3840), 1.0)
+                .unwrap()
+                .batch_frames,
+            1
+        );
+        assert!(video_geometry(&custom_layout(3840, 2160), 1.01).is_err());
+        assert!(video_geometry(&custom_layout(2160, 2160), 1.01).is_err());
+    }
+
+    #[test]
+    fn raw_batch_validation_enforces_count_order_and_byte_budget() {
+        let frame_bytes = 622 * 80 * 4;
+        let (bytes, next) =
+            validate_batch(30 * frame_bytes, 0, 30, frame_bytes, 30, 0, 31).unwrap();
+        assert_eq!(bytes, 30 * frame_bytes);
+        assert_eq!(next, 30);
+        assert!(validate_batch(31 * frame_bytes, 0, 31, frame_bytes, 30, 0, 31).is_err());
+        assert!(validate_batch(frame_bytes, 1, 1, frame_bytes, 30, 0, 3)
+            .unwrap_err()
+            .contains("out-of-order"));
+        assert!(validate_batch(frame_bytes - 1, 0, 1, frame_bytes, 30, 0, 3)
+            .unwrap_err()
+            .contains("size mismatch"));
+        assert!(validate_batch(
+            VIDEO_FRAME_BUDGET_BYTES + 1,
+            0,
+            1,
+            VIDEO_FRAME_BUDGET_BYTES + 1,
+            1,
+            0,
+            1
+        )
+        .unwrap_err()
+        .contains("32 MiB"));
+    }
+
+    #[tokio::test]
+    async fn export_selection_is_revision_checked_and_frozen() {
+        let shared = crate::state::AppState::new();
+        let root_id = uuid::Uuid::new_v4().to_string();
+        let created = shared
+            .layouts
+            .create("Export fixture".into(), saved_definition(621, 79, &root_id))
+            .await
+            .unwrap();
+        let saved = created.library.entries.first().unwrap().clone();
+        let frozen = resolve_layout(
+            &shared,
+            Some(SavedLayoutSelection::Custom {
+                id: saved.id.clone(),
+                expected_revision: saved.revision,
+            }),
+        )
+        .unwrap();
+        let PublishedLayoutSelection::Custom { root, .. } = &frozen else {
+            panic!("expected custom layout");
+        };
+        assert_eq!((root.width, root.height), (621, 79));
+
+        let mut edited = saved.definition.clone();
+        edited.root.width = 700;
+        shared
+            .layouts
+            .save(saved.id.clone(), saved.revision, saved.name.clone(), edited)
+            .await
+            .unwrap();
+        let PublishedLayoutSelection::Custom { root, .. } = &frozen else {
+            panic!("expected custom layout");
+        };
+        assert_eq!((root.width, root.height), (621, 79));
+        assert!(resolve_layout(
+            &shared,
+            Some(SavedLayoutSelection::Custom {
+                id: saved.id,
+                expected_revision: saved.revision,
+            }),
+        )
+        .unwrap_err()
+        .contains("changed since selection"));
+    }
+
+    #[test]
+    fn omitted_layout_defaults_to_classic() {
+        let config: VideoGenerationConfig = serde_json::from_value(json!({
+            "recordingPath": "recording.sbrec",
+            "outputPath": "video.webm",
+            "frameRate": 30,
+            "scoreboardScale": 1.0
+        }))
+        .unwrap();
+        assert!(config.layout.is_none());
+    }
+
+    #[test]
     fn validate_rejects_bad_config() {
         let dir = std::env::temp_dir().join(format!("sb-video-test-{}", uuid::Uuid::new_v4()));
         std::fs::create_dir_all(&dir).unwrap();
@@ -849,30 +1191,33 @@ mod tests {
 
         let mut cfg = config(&recording, &output);
         cfg.output_path = "out.mp4".into();
-        assert!(validate(&cfg).unwrap_err().contains(".webm"));
+        let classic = PublishedLayoutSelection::Classic {};
+        assert!(validate(&cfg, &classic).unwrap_err().contains(".webm"));
 
         let mut cfg = config(&recording, &output);
         cfg.frame_rate = 0;
-        assert!(validate(&cfg).is_err());
+        assert!(validate(&cfg, &classic).is_err());
         let mut cfg = config(&recording, &output);
         cfg.frame_rate = 61;
-        assert!(validate(&cfg).is_err());
+        assert!(validate(&cfg, &classic).is_err());
 
         let mut cfg = config(&recording, &output);
         cfg.scoreboard_scale = 0.4;
-        assert!(validate(&cfg).is_err());
+        assert!(validate(&cfg, &classic).is_err());
         let mut cfg = config(&recording, &output);
         cfg.scoreboard_scale = 3.1;
-        assert!(validate(&cfg).is_err());
+        assert!(validate(&cfg, &classic).is_err());
 
         cfg = config(&recording, &output);
-        let (parsed, w, h) = validate(&cfg).unwrap();
+        let (parsed, geometry) = validate(&cfg, &classic).unwrap();
         assert_eq!(parsed.snapshots.len(), 3);
-        assert_eq!((w, h), (622, 80));
+        assert_eq!((geometry.width, geometry.height), (622, 80));
 
         let empty = write_sbrec(&dir, 0);
         let cfg = config(&empty.to_string_lossy(), &output);
-        assert!(validate(&cfg).unwrap_err().contains("no snapshots"));
+        assert!(validate(&cfg, &classic)
+            .unwrap_err()
+            .contains("no snapshots"));
 
         std::fs::remove_dir_all(&dir).ok();
     }

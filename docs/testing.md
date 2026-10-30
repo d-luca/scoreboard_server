@@ -386,7 +386,18 @@ Run before a release (see [build-release.md](build-release.md#release-checklist)
 
 - [ ] Recording starts at `t = 0` and writes a snapshot every second.
 - [ ] Stopping lists the recording under recent recordings.
-- [ ] Generated video is 622×80, keeps alpha in OBS, and matches the live scoreboard.
+- [ ] Classic video keeps the 622×80 scale-1 frame, alpha in OBS and existing appearance.
+- [ ] The Video Generator defaults to the published custom source only if that exact
+      saved revision still exists; otherwise it selects Classic.
+- [ ] Select a custom layout and verify recorded names, colours and period prefix are
+      used without changing live output.
+- [ ] Odd custom root dimensions scale uniformly and add only transparent right/bottom
+      padding; displayed dimensions match the final even output.
+- [ ] 1920×1080 uses four-frame batches; landscape/portrait 4K uses one frame per batch.
+- [ ] A layout Save, Delete or live Apply after generation starts does not change that
+      job's frozen definition.
+- [ ] Oversized final dimensions and stale/deleted saved revisions fail visibly rather
+      than silently changing scale or selection.
 - [ ] Cancelling a generation kills ffmpeg and removes the partial file.
 
 ### Windows
