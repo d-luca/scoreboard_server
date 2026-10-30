@@ -5,7 +5,9 @@ import type { LayoutDefinition } from "../../bindings/LayoutDefinition";
 import type { LayoutLibraryChanged } from "../../bindings/LayoutLibraryChanged";
 import type { LayoutLibrarySnapshot } from "../../bindings/LayoutLibrarySnapshot";
 import type { LayoutMutationResult } from "../../bindings/LayoutMutationResult";
+import type { PublishedLayoutSnapshot } from "../../bindings/PublishedLayoutSnapshot";
 import type { SavedLayout } from "../../bindings/SavedLayout";
+import type { SavedLayoutSelection } from "../../bindings/SavedLayoutSelection";
 import type { LayoutStorageStatus } from "../../bindings/LayoutStorageStatus";
 
 export function layoutErrorMessage(error: unknown): string {
@@ -39,6 +41,7 @@ export interface LayoutsApi {
 	save(saved: SavedLayout, name: string, definition: LayoutDefinition): Promise<LayoutMutationResult>;
 	rename(saved: SavedLayout, name: string): Promise<LayoutMutationResult>;
 	remove(saved: SavedLayout): Promise<LayoutMutationResult>;
+	apply(selection: SavedLayoutSelection, expectedPublishedRevision: number): Promise<LayoutMutationResult>;
 	recover(token: string): Promise<LayoutMutationResult>;
 }
 
@@ -50,6 +53,7 @@ export interface LayoutsStore {
 	save(saved: SavedLayout, name: string, definition: LayoutDefinition): Promise<SavedLayout>;
 	rename(saved: SavedLayout, name: string): Promise<SavedLayout>;
 	remove(saved: SavedLayout): Promise<void>;
+	apply(selection: SavedLayoutSelection, expectedPublishedRevision: number): Promise<PublishedLayoutSnapshot>;
 	recover(token: string): Promise<void>;
 	dispose(): void;
 }
@@ -127,6 +131,10 @@ export function createLayoutsStore(api: LayoutsApi): UseBoundStore<StoreApi<Layo
 			remove: async (saved) => {
 				await mutate(() => api.remove(saved));
 			},
+			apply: async (selection, expectedPublishedRevision) => {
+				const result = await mutate(() => api.apply(selection, expectedPublishedRevision));
+				return result.library.published;
+			},
 			recover: async (token) => {
 				await mutate(() => api.recover(token));
 			},
@@ -156,6 +164,8 @@ export const useLayoutsStore = createLayoutsStore({
 		invoke<LayoutMutationResult>("layouts_rename", { id: saved.id, expectedRevision: saved.revision, name }),
 	remove: (saved) =>
 		invoke<LayoutMutationResult>("layouts_delete", { id: saved.id, expectedRevision: saved.revision }),
+	apply: (selection, expectedPublishedRevision) =>
+		invoke<LayoutMutationResult>("layouts_apply", { selection, expectedPublishedRevision }),
 	recover: (expectedRecoveryToken) =>
 		invoke<LayoutMutationResult>("layouts_recover", { expectedRecoveryToken }),
 });

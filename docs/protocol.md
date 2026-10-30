@@ -65,6 +65,7 @@ All frames are JSON text with a `type` field. Implementation:
 { "type": "event", "event": "timer-finished" }
 { "type": "event", "event": "buzzer" }
 { "type": "event", "event": "score-animation", "enabled": false } // only when the setting flips
+{ "type": "layout", "data": { /* PublishedLayoutSnapshot */ } }  // after authorization on connect, on publication and lag resync
 { "type": "error", "code": "unauthorized" | "bad-request" | "rate-limited", "message": "..." }
 ```
 
@@ -88,6 +89,17 @@ Rules:
   sets it automatically inside an iframe). It is excluded from `ServerStatus.wsClients`.
 - `score-animation` is not sent on connect; pages get the initial value from the page
   bootstrap (`window.__SCOREBOARD__.scoreAnimationEnabled`).
+- `layout` carries the complete published layout (Classic or a frozen custom root) with
+  its runtime `sessionId` and publication `revision`, independent of match `revision`. It
+  is sent on every connection (even for Classic), after each publication change and on
+  lag resync. The server subscribes before reading, so a concurrent Apply is never lost;
+  queued duplicates are skipped by revision. Library contents, editor metadata and
+  storage status are never sent.
+- Clients compare publication revisions only within one session. The page bootstrap and
+  each socket's first valid `layout` frame establish the session; a new session replaces
+  the previous one even with a lower revision. Frames from retired sockets are ignored,
+  and invalid layout data is reported as a protocol error while the last valid
+  publication is retained ([publication.ts](../src/lib/layouts/publication.ts)).
 - Unparseable frame → `error: bad-request`, close `1003`.
 - Rate limit: 30 commands/s per connection (token bucket). Excess → `error: rate-limited`,
   close `1008`.
@@ -131,7 +143,10 @@ acceptable only because writes require the token.
 
 **Page bootstrap.** Page routes inject `window.__SCOREBOARD__` (runtime config such as the
 WS URL and `scoreAnimationEnabled`), so the same bundle works on any host and port
-([server/assets.rs](../src-tauri/src/server/assets.rs)).
+([server/assets.rs](../src-tauri/src/server/assets.rs)). `/scoreboard` also receives
+`publishedLayout` (the full `PublishedLayoutSnapshot`) as its cold-load baseline;
+`/value/*` and `/control` do not. Values are escaped so user-authored layout text
+cannot break out of the inline script.
 
 ## Control token
 
@@ -206,7 +221,9 @@ only session/storage ordering metadata, not definitions; the coherent read
 includes entries, frozen publication and storage status. Mutations complete only
 after durable replacement and memory installation. Publication events contain no
 editor metadata, library contents or recovery paths. They also enter the internal
-server event channel, but HTTP/WS layout frames and frontend consumers remain P7.
+server event channel and are forwarded to WebSocket clients as `layout` frames.
+Both transports expose `getPublishedLayout()` and `subscribePublishedLayout()`; the
+Tauri implementation listens to `layouts:published` before reading `layouts_get`.
 
 ## Settings
 

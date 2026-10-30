@@ -1,5 +1,7 @@
 import type { Action } from "../bindings/Action";
+import type { PublishedLayoutSnapshot } from "../bindings/PublishedLayoutSnapshot";
 import type { ScoreboardState } from "../bindings/ScoreboardState";
+import { parsePublishedLayout, PublishedLayoutTracker } from "./layouts/publication";
 import type { AuthorizationStatus, ConnectionStatus, Transport, TransportEvent } from "./transport";
 
 /**
@@ -9,7 +11,9 @@ import type { AuthorizationStatus, ConnectionStatus, Transport, TransportEvent }
  * Exponential backoff (250 ms → 5 s, jittered), a full-state resync on
  * every open, and an `onStatus` callback driving the connection indicator.
  * The server sends full states, so resync is just "wait for the next
- * frame".
+ * frame". The published layout follows the same approach: the page
+ * bootstrap is the cold baseline and every socket's initial `layout` frame
+ * re-establishes the runtime session.
  */
 
 const BACKOFF_MIN_MS = 250;
@@ -20,6 +24,8 @@ type StatusCallback = (status: ConnectionStatus) => void;
 type AuthorizationCallback = (status: AuthorizationStatus) => void;
 type EventCallback = () => void;
 type ScoreAnimationCallback = (enabled: boolean) => void;
+type LayoutCallback = (snapshot: PublishedLayoutSnapshot) => void;
+type LayoutErrorCallback = (error: Error) => void;
 
 /**
  * True when this page is rendered inside an iframe — the app's Outputs
@@ -43,6 +49,12 @@ export class WsTransport implements Transport {
 	private eventCallbacks = new Map<TransportEvent, Set<EventCallback>>();
 	private scoreAnimationCallbacks = new Set<ScoreAnimationCallback>();
 	private lastScoreAnimationEnabled = true;
+	private readonly layoutTracker = new PublishedLayoutTracker();
+	private layoutCallbacks = new Set<LayoutCallback>();
+	private layoutErrorCallbacks = new Set<LayoutErrorCallback>();
+	private layoutError: Error | null = null;
+	/** Whether the current socket has delivered its initial (session-establishing) layout frame. */
+	private socketLayoutBaseline = false;
 	private reconnectAttempts = 0;
 	private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
 	private closed = false;
@@ -57,6 +69,8 @@ export class WsTransport implements Transport {
 		// The server injects the current value into the page bootstrap, so a
 		// page opened with the toggle off starts static before WS frames flow.
 		this.lastScoreAnimationEnabled = window.__SCOREBOARD__?.scoreAnimationEnabled ?? true;
+		const bootstrapLayout = window.__SCOREBOARD__?.publishedLayout;
+		if (bootstrapLayout !== undefined) this.receiveLayout(bootstrapLayout, true);
 		this.open();
 	}
 
@@ -124,6 +138,29 @@ export class WsTransport implements Transport {
 		return () => this.scoreAnimationCallbacks.delete(callback);
 	}
 
+	getPublishedLayout(): Promise<PublishedLayoutSnapshot> {
+		const current = this.layoutTracker.current;
+		if (current) return Promise.resolve(current);
+		return new Promise((resolve) => {
+			const stop = this.subscribePublishedLayout((snapshot) => {
+				stop();
+				resolve(snapshot);
+			});
+		});
+	}
+
+	subscribePublishedLayout(callback: LayoutCallback, onError?: LayoutErrorCallback): () => void {
+		const current = this.layoutTracker.current;
+		if (current) callback(current);
+		if (this.layoutError && onError) onError(this.layoutError);
+		this.layoutCallbacks.add(callback);
+		if (onError) this.layoutErrorCallbacks.add(onError);
+		return () => {
+			this.layoutCallbacks.delete(callback);
+			if (onError) this.layoutErrorCallbacks.delete(onError);
+		};
+	}
+
 	/** Stop reconnecting and close the socket (page unload, tests). */
 	close(): void {
 		this.closed = true;
@@ -148,12 +185,15 @@ export class WsTransport implements Transport {
 			return;
 		}
 		this.socket = socket;
+		this.socketLayoutBaseline = false;
 
 		socket.onopen = () => {
 			this.reconnectAttempts = 0;
 			this.setStatus("connected");
 		};
 		socket.onmessage = (message: MessageEvent<string>) => {
+			// A retired socket must not override the current connection.
+			if (this.socket !== socket) return;
 			this.handleFrame(message.data);
 		};
 		socket.onclose = () => {
@@ -185,7 +225,8 @@ export class WsTransport implements Transport {
 	private handleFrame(raw: string): void {
 		let frame: {
 			type?: string;
-			data?: ScoreboardState;
+			/** `ScoreboardState` for `state` frames; `PublishedLayoutSnapshot` for `layout` frames. */
+			data?: unknown;
 			event?: string;
 			code?: string;
 			authorized?: boolean;
@@ -197,7 +238,10 @@ export class WsTransport implements Transport {
 			return;
 		}
 		if (frame.type === "state" && frame.data) {
-			for (const callback of this.stateCallbacks) callback(frame.data);
+			for (const callback of this.stateCallbacks) callback(frame.data as ScoreboardState);
+		} else if (frame.type === "layout") {
+			const baseline = !this.socketLayoutBaseline;
+			if (this.receiveLayout(frame.data, baseline)) this.socketLayoutBaseline = true;
 		} else if (frame.type === "event" && (frame.event === "timer-finished" || frame.event === "buzzer")) {
 			for (const callback of this.eventCallbacks.get(frame.event) ?? []) callback();
 		} else if (
@@ -214,6 +258,23 @@ export class WsTransport implements Transport {
 		} else if (frame.type === "authorized") {
 			this.setAuthorization("authorized");
 		}
+	}
+
+	/** Validates and orders a publication; returns false for protocol errors. */
+	private receiveLayout(raw: unknown, baseline: boolean): boolean {
+		let snapshot: PublishedLayoutSnapshot;
+		try {
+			snapshot = parsePublishedLayout(raw);
+		} catch (error) {
+			this.layoutError = error instanceof Error ? error : new Error(String(error));
+			for (const callback of this.layoutErrorCallbacks) callback(this.layoutError);
+			return false;
+		}
+		this.layoutError = null;
+		if (this.layoutTracker.accept(snapshot, baseline)) {
+			for (const callback of this.layoutCallbacks) callback(snapshot);
+		}
+		return true;
 	}
 
 	private setStatus(status: ConnectionStatus): void {

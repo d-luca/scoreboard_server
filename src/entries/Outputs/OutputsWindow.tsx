@@ -6,6 +6,8 @@ import { Label } from "@/components/ui/Label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/Select";
 import { useServerStore } from "@/lib/stores/serverStore";
 import { useEscapeToClose } from "@/lib/hooks/useEscapeToClose";
+import { publishedLayoutDimensions } from "@/lib/layouts/publication";
+import { useLayoutsStore } from "@/lib/stores/layoutsStore";
 import React from "react";
 import { UrlRow } from "./UrlRow";
 import { SmallButton } from "./SmallButton";
@@ -47,6 +49,8 @@ export function OutputsWindow(): React.JSX.Element {
 	const refresh = useServerStore((store) => store.refresh);
 	const regenerateToken = useServerStore((store) => store.regenerateToken);
 	const toggleShowAddresses = useServerStore((store) => store.toggleShowAddresses);
+	const layoutLibrary = useLayoutsStore((store) => store.library);
+	const layoutError = useLayoutsStore((store) => store.error);
 
 	const [scale, setScale] = React.useState<(typeof PREVIEW_SCALES)[number]>(100);
 	const [valueProperty, setValueProperty] = React.useState<string>("timer");
@@ -58,9 +62,23 @@ export function OutputsWindow(): React.JSX.Element {
 		void refresh();
 	}, [refresh]);
 
+	React.useEffect(() => {
+		void useLayoutsStore
+			.getState()
+			.refresh()
+			.catch((error: unknown) => console.error("Could not load the published output layout.", error));
+	}, []);
+
 	const port = status?.port ?? info?.port ?? 0;
 	const running = status?.running ?? info?.running ?? false;
 	const localScoreboardUrl = port ? `http://localhost:${port}/scoreboard` : null;
+	const published = layoutLibrary?.published ?? null;
+	const previewSize = published ? publishedLayoutDimensions(published) : null;
+	const previewName =
+		published?.selection.kind === "custom" ? published.selection.sourceName : published ? "Classic" : null;
+	const previewScale = scale / 100;
+	const scaledWidth = previewSize ? previewSize.width * previewScale : 0;
+	const scaledHeight = previewSize ? previewSize.height * previewScale : 0;
 	const valueUrl = port ? `http://localhost:${port}/value/${valueProperty}` : null;
 	const controlUrl = info?.controlUrl || null;
 
@@ -100,7 +118,16 @@ export function OutputsWindow(): React.JSX.Element {
 			{/* Preview */}
 			<Card>
 				<CardHeader className="flex-row items-center justify-between space-y-0 p-4 pb-2">
-					<CardTitle className="text-base">Preview</CardTitle>
+					<div className="flex flex-col gap-1">
+						<CardTitle className="text-base">Preview</CardTitle>
+						<p className="text-app-tertiary text-xs" aria-live="polite">
+							{published && previewSize
+								? `Published: ${previewName} · ${previewSize.width} × ${previewSize.height}`
+								: layoutError
+									? "Could not read the published scoreboard layout"
+									: "Loading published scoreboard layout…"}
+						</p>
+					</div>
 					<div className="flex items-center gap-2">
 						<Label htmlFor="preview-scale" className="text-app-tertiary text-xs">
 							Scale
@@ -120,26 +147,32 @@ export function OutputsWindow(): React.JSX.Element {
 					</div>
 				</CardHeader>
 				<CardContent className="overflow-auto p-4 pt-0">
-					<div className="checkerboard inline-block overflow-hidden rounded">
-						{localScoreboardUrl ? (
+					<div
+						className="checkerboard inline-block overflow-hidden rounded"
+						style={{
+							width: scaledWidth || undefined,
+							height: scaledHeight || undefined,
+							position: "relative",
+						}}
+					>
+						{localScoreboardUrl && previewSize ? (
 							<iframe
 								src={localScoreboardUrl}
 								title="Scoreboard preview"
-								width={622}
-								height={80}
+								width={previewSize.width}
+								height={previewSize.height}
 								className="block border-0"
 								style={{
-									transform: `scale(${scale / 100})`,
+									position: "absolute",
+									left: 0,
+									top: 0,
+									transform: `scale(${previewScale})`,
 									transformOrigin: "top left",
-									// Keep the layout box at the scaled size so the
-									// checkerboard wraps the visible board.
-									marginRight: 600 * (scale / 100 - 1),
-									marginBottom: 80 * (scale / 100 - 1),
 								}}
 							/>
 						) : (
-							<div className="text-app-tertiary flex h-20 w-150 items-center justify-center text-sm">
-								Waiting for the server…
+							<div className="text-app-tertiary flex h-20 w-150 items-center justify-center p-3 text-center text-sm">
+								{layoutError ?? "Waiting for the published layout…"}
 							</div>
 						)}
 					</div>
@@ -162,7 +195,8 @@ export function OutputsWindow(): React.JSX.Element {
 							In OBS, add a <em>Browser</em> source.
 						</li>
 						<li>
-							Paste the URL, set width <strong>622</strong> and height <strong>80</strong>.
+							Paste the URL, set width <strong>{previewSize?.width ?? "—"}</strong> and height{" "}
+							<strong>{previewSize?.height ?? "—"}</strong>.
 						</li>
 						<li>Scale or position the source in your scene.</li>
 					</ol>

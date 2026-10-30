@@ -2,7 +2,8 @@
 //!
 //! Every client gets a full `state` frame on connect and after every
 //! mutation — no deltas. A lagging broadcast receiver is resynced with a
-//! fresh full state. Commands are rate-limited per connection.
+//! fresh full state. The full published layout follows on connect, on every
+//! publication and on lag resync. Commands are rate-limited per connection.
 
 use std::time::{Duration, Instant};
 
@@ -15,6 +16,7 @@ use serde::Deserialize;
 use tokio::sync::broadcast::error::RecvError;
 
 use super::auth::{self, Authorization};
+use crate::layouts::PublishedLayoutSnapshot;
 use crate::state::{Action, ScoreboardState, ServerEvent, Shared};
 
 /// Server-side heartbeat interval.
@@ -111,6 +113,10 @@ async fn client_loop(
     // `score-animation` frame is re-sent only on an actual flip — a settings
     // edit to an unrelated field must not re-tick the LAN board.
     let mut last_score_animation_enabled = shared.settings_snapshot().await.score_animation_enabled;
+    // Read after subscribing: a concurrent Apply is either in this snapshot
+    // or still queued, and queued duplicates are skipped by revision below.
+    let published = shared.layouts.published();
+    let mut layout_revision = published.revision;
 
     // 1. Send the current state frame immediately after the upgrade.
     if send_state(&mut sink, &shared.current().await)
@@ -123,6 +129,9 @@ async fn client_loop(
         .await
         .is_err()
     {
+        return;
+    }
+    if send_layout(&mut sink, &published).await.is_err() {
         return;
     }
 
@@ -173,8 +182,15 @@ async fn client_loop(
                             }
                         }
                     }
-                    // Layout wire synchronization is wired with the custom renderer in P7.
-                    Ok(ServerEvent::Window(..) | ServerEvent::Presets(_) | ServerEvent::PublishedLayout(_)) => {}
+                    // The session id is fixed for this process, so revision
+                    // alone orders publications on one socket.
+                    Ok(ServerEvent::PublishedLayout(published)) => {
+                        if published.revision > layout_revision {
+                            layout_revision = published.revision;
+                            if send_layout(&mut sink, &published).await.is_err() { break; }
+                        }
+                    }
+                    Ok(ServerEvent::Window(..) | ServerEvent::Presets(_)) => {}
                     // A lagging client missed frames: resync with a fresh
                     // full state instead of replaying the backlog.
                     Err(RecvError::Lagged(skipped)) => {
@@ -184,6 +200,9 @@ async fn client_loop(
                             guard.downgrade().await;
                         }
                         if send_state(&mut sink, &shared.current().await).await.is_err() { break; }
+                        let published = shared.layouts.published();
+                        layout_revision = layout_revision.max(published.revision);
+                        if send_layout(&mut sink, &published).await.is_err() { break; }
                     }
                     Err(RecvError::Closed) => break,
                 }
@@ -286,6 +305,17 @@ async fn send_authorization(
     send_json(
         sink,
         &serde_json::json!({ "type": "authorization", "authorized": authorized }),
+    )
+    .await
+}
+
+async fn send_layout(
+    sink: &mut futures::stream::SplitSink<WebSocket, Message>,
+    published: &PublishedLayoutSnapshot,
+) -> Result<(), axum::Error> {
+    send_json(
+        sink,
+        &serde_json::json!({ "type": "layout", "data": published }),
     )
     .await
 }
@@ -434,6 +464,7 @@ mod tests {
         assert_eq!(initial["type"], "state");
         assert_eq!(initial["data"]["teamHomeScore"], 0);
         assert_eq!(receive_json(&mut read_only).await["authorized"], false);
+        assert_eq!(receive_json(&mut read_only).await["type"], "layout");
 
         read_only
             .send(ClientMessage::Text(
@@ -451,6 +482,7 @@ mod tests {
             .unwrap();
         assert_eq!(receive_json(&mut authorized).await["type"], "state");
         assert_eq!(receive_json(&mut authorized).await["authorized"], true);
+        assert_eq!(receive_json(&mut authorized).await["type"], "layout");
         assert_eq!(shared.server_status().ws_clients, 2);
         assert_eq!(shared.server_status().authorized_clients, 1);
 
@@ -491,6 +523,7 @@ mod tests {
             receive_json(&mut cookie_authorized).await["authorized"],
             true
         );
+        assert_eq!(receive_json(&mut cookie_authorized).await["type"], "layout");
         assert_eq!(shared.server_status().authorized_clients, 1);
 
         cookie_authorized
@@ -563,6 +596,7 @@ mod tests {
         let (mut socket, _) = connect_async(format!("ws://{address}/ws")).await.unwrap();
         assert_eq!(receive_json(&mut socket).await["type"], "state");
         assert_eq!(receive_json(&mut socket).await["type"], "authorization");
+        assert_eq!(receive_json(&mut socket).await["type"], "layout");
 
         // No flip yet: a settings change that leaves the animation on must
         // not produce a `score-animation` frame (the board would replay a
@@ -607,5 +641,107 @@ mod tests {
         );
 
         server.abort();
+    }
+
+    #[tokio::test]
+    async fn published_layout_reaches_connected_and_new_clients_without_state_changes() {
+        use crate::layouts::{LayoutDefinition, SavedLayoutSelection};
+        use tokio_tungstenite::connect_async;
+
+        let shared = crate::state::AppState::new();
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let address = listener.local_addr().unwrap();
+        let app = crate::server::router(shared.clone());
+        let server = tokio::spawn(async move {
+            axum::serve(listener, app).await.unwrap();
+        });
+
+        // Every connection gets the current publication, even for Classic.
+        let (mut early, _) = connect_async(format!("ws://{address}/ws")).await.unwrap();
+        assert_eq!(receive_json(&mut early).await["type"], "state");
+        assert_eq!(receive_json(&mut early).await["type"], "authorization");
+        let initial = receive_json(&mut early).await;
+        assert_eq!(initial["type"], "layout");
+        assert_eq!(initial["data"]["revision"], 0);
+        assert_eq!(initial["data"]["selection"]["kind"], "classic");
+        let session = initial["data"]["sessionId"].clone();
+        assert!(session.is_string());
+
+        let match_state = serde_json::to_value(shared.current().await).unwrap();
+        let root = "00000000-0000-4000-8000-000000000000";
+        let definition: LayoutDefinition = serde_json::from_value(serde_json::json!({
+            "root": {
+                "kind": "root", "id": root, "width": 320, "height": 120,
+                "background": {"kind": "literal", "hex": "#000000", "alpha": 0},
+                "children": []
+            },
+            "editor": {"layers": [{"nodeId": root, "label": "Root", "locked": false}]}
+        }))
+        .unwrap();
+        let created = shared
+            .layouts
+            .create("Wide".into(), definition)
+            .await
+            .unwrap();
+        let entry = &created.library.entries[0];
+        shared
+            .layouts
+            .apply(
+                SavedLayoutSelection::Custom {
+                    id: entry.id.clone(),
+                    expected_revision: entry.revision,
+                },
+                0,
+            )
+            .await
+            .unwrap();
+
+        // Saving the library alone publishes nothing; Apply sends one frame
+        // with the frozen root and no private editor/library content.
+        let applied = receive_json(&mut early).await;
+        assert_eq!(applied["type"], "layout");
+        assert_eq!(applied["data"]["sessionId"], session);
+        assert_eq!(applied["data"]["revision"], 1);
+        let selection = &applied["data"]["selection"];
+        assert_eq!(selection["kind"], "custom");
+        assert_eq!(selection["sourceName"], "Wide");
+        assert_eq!(selection["root"]["width"], 320);
+        assert!(selection.get("editor").is_none());
+        assert!(applied["data"].get("entries").is_none());
+
+        // A cold connection gets the new publication on connect.
+        let (mut late, _) = connect_async(format!("ws://{address}/ws")).await.unwrap();
+        assert_eq!(receive_json(&mut late).await["type"], "state");
+        assert_eq!(receive_json(&mut late).await["type"], "authorization");
+        let current = receive_json(&mut late).await;
+        assert_eq!(current["data"]["revision"], 1);
+        assert_eq!(current["data"]["selection"]["kind"], "custom");
+
+        shared
+            .layouts
+            .apply(SavedLayoutSelection::Classic {}, 1)
+            .await
+            .unwrap();
+        for socket in [&mut early, &mut late] {
+            let classic = receive_json(socket).await;
+            assert_eq!(classic["type"], "layout");
+            assert_eq!(classic["data"]["revision"], 2);
+            assert_eq!(classic["data"]["selection"]["kind"], "classic");
+        }
+
+        // Publication never mutates match state or emits a state frame.
+        assert_eq!(
+            serde_json::to_value(shared.current().await).unwrap(),
+            match_state
+        );
+        assert!(
+            tokio::time::timeout(Duration::from_millis(300), receive_json(&mut early))
+                .await
+                .is_err(),
+            "publication must not be followed by state or duplicate layout frames"
+        );
+
+        server.abort();
+        shared.layouts.shutdown();
     }
 }

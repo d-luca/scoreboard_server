@@ -2,7 +2,10 @@ import { invoke } from "@tauri-apps/api/core";
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 import type { Settings } from "../bindings/Settings";
 import type { Action } from "../bindings/Action";
+import type { LayoutLibrarySnapshot } from "../bindings/LayoutLibrarySnapshot";
+import type { PublishedLayoutSnapshot } from "../bindings/PublishedLayoutSnapshot";
 import type { ScoreboardState } from "../bindings/ScoreboardState";
+import { PublishedLayoutTracker } from "./layouts/publication";
 import type { Transport, TransportEvent } from "./transport";
 
 function subscribeToEvent<T>(event: string, callback: (payload: T) => void): () => void {
@@ -75,6 +78,42 @@ export class TauriTransport implements Transport {
 		});
 		void invoke<Settings>("settings_get").then((settings) => callback(settings.scoreAnimationEnabled));
 		return unlisten;
+	}
+
+	async getPublishedLayout(): Promise<PublishedLayoutSnapshot> {
+		return (await invoke<LayoutLibrarySnapshot>("layouts_get")).published;
+	}
+
+	/** Listens before reading so a concurrent Apply cannot fall between the two. */
+	subscribePublishedLayout(
+		callback: (snapshot: PublishedLayoutSnapshot) => void,
+		onError?: (error: Error) => void,
+	): () => void {
+		let active = true;
+		let unlisten: UnlistenFn | undefined;
+		const tracker = new PublishedLayoutTracker();
+		const deliver = (snapshot: PublishedLayoutSnapshot, baseline: boolean): void => {
+			if (active && tracker.accept(snapshot, baseline)) callback(snapshot);
+		};
+		const fail = (error: unknown): void => {
+			if (active) onError?.(error instanceof Error ? error : new Error(String(error)));
+		};
+
+		void listen<PublishedLayoutSnapshot>("layouts:published", ({ payload }) => deliver(payload, false))
+			.then(async (stopListening) => {
+				if (!active) {
+					stopListening();
+					return;
+				}
+				unlisten = stopListening;
+				deliver(await this.getPublishedLayout(), true);
+			})
+			.catch(fail);
+
+		return () => {
+			active = false;
+			unlisten?.();
+		};
 	}
 }
 

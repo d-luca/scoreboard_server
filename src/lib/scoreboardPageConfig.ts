@@ -17,6 +17,11 @@ export interface ScoreboardPageConfig {
 	 * setting is off, before the first WS frame arrives.
 	 */
 	scoreAnimationEnabled?: boolean;
+	/**
+	 * `/scoreboard` only: the full `PublishedLayoutSnapshot` at page load.
+	 * Untyped until validated by `parsePublishedLayout`.
+	 */
+	publishedLayout?: unknown;
 }
 
 declare global {

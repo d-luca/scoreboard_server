@@ -1,6 +1,6 @@
 /**
- * Browser-only P5 workflow proof with a revisioned IPC double. The production
- * window is unchanged; native persistence is covered separately by Rust tests.
+ * Browser workflow proof with a revisioned IPC double. Native persistence is
+ * covered separately by Rust tests.
  * Supply a Playwright Page and the Vite URL. No additional test runner required.
  */
 export async function checkDesignerWorkflow(page, url) {
@@ -119,6 +119,51 @@ export async function checkDesignerWorkflow(page, url) {
 					}
 					return;
 				}
+				if (command === "layouts_apply") {
+					if (library.published.revision !== args.expectedPublishedRevision)
+						throw {
+							code: "revision-conflict",
+							message: "Published layout changed",
+							expectedRevision: args.expectedPublishedRevision,
+							actualRevision: library.published.revision,
+						};
+					let selection;
+					let affectedId = null;
+					if (args.selection.kind === "classic") {
+						selection = { kind: "classic" };
+					} else {
+						const entry = library.entries.find((candidate) => candidate.id === args.selection.id);
+						if (!entry || entry.revision !== args.selection.expectedRevision)
+							throw {
+								code: "revision-conflict",
+								message: "Saved layout changed",
+								expectedRevision: args.selection.expectedRevision,
+								actualRevision: entry?.revision ?? null,
+							};
+						affectedId = entry.id;
+						selection = {
+							kind: "custom",
+							sourceId: entry.id,
+							sourceRevision: entry.revision,
+							sourceName: entry.name,
+							root: clone(entry.definition.root),
+						};
+					}
+					if (JSON.stringify(selection) !== JSON.stringify(library.published.selection)) {
+						library.published = {
+							sessionId: library.sessionId,
+							revision: library.published.revision + 1,
+							selection,
+						};
+						library.storageRevision++;
+						localStorage.setItem(key, JSON.stringify(library));
+						emit("layouts:library-changed", {
+							sessionId: library.sessionId,
+							storageRevision: library.storageRevision,
+						});
+					}
+					return { library: clone(library), affectedId };
+				}
 				if (!["layouts_create", "layouts_save", "layouts_rename", "layouts_delete"].includes(command))
 					throw new Error(`Unexpected IPC command: ${command}`);
 				if (test.failNext) {
@@ -175,8 +220,70 @@ export async function checkDesignerWorkflow(page, url) {
 	const first = await page.evaluate(() => window.__DESIGNER_SMOKE__.read().entries[0]);
 	if (first.name !== "Broadcast test" || first.definition.root.width !== 800)
 		throw new Error("Save did not commit pending name/geometry.");
-	if (!(await page.getByRole("button", { name: "Apply (P7)", exact: true }).isDisabled()))
-		throw new Error("Apply must remain unavailable.");
+	const applyButton = page.getByRole("button", { name: "Apply", exact: true });
+	if (await applyButton.isDisabled()) throw new Error("A clean saved layout should be applicable.");
+	await applyButton.click();
+	const applyDialog = page.getByRole("dialog");
+	const applyDetails = await applyDialog.textContent();
+	if (
+		!applyDetails.includes("Published: Classic") ||
+		!applyDetails.includes("Broadcast test") ||
+		!applyDetails.includes("800 × 80") ||
+		!applyDetails.includes("OBS browser source dimensions will change")
+	)
+		throw new Error("Apply confirmation omitted the source, dimensions or OBS warning.");
+	await page.evaluate(() => window.__DESIGNER_SMOKE__.externalChange());
+	await applyDialog.getByRole("button", { name: "Confirm and apply", exact: true }).click();
+	await applyDialog.waitFor({ state: "hidden" });
+	if (
+		(await page.evaluate(
+			() => window.__DESIGNER_SMOKE__.calls.filter((command) => command === "layouts_apply").length,
+		)) !== 0
+	)
+		throw new Error("A stale saved revision was published after confirmation.");
+	await page
+		.getByRole("alert")
+		.filter({ hasText: "saved layout changed while you were confirming" })
+		.waitFor();
+	await page.getByRole("button", { name: "Reload", exact: true }).click();
+
+	await applyButton.click();
+	await page.getByRole("dialog").getByRole("button", { name: "Cancel", exact: true }).click();
+	if ((await page.evaluate(() => window.__DESIGNER_SMOKE__.read().published.selection.kind)) !== "classic")
+		throw new Error("Cancelling Apply changed the publication.");
+	await applyButton.click();
+	await page.getByRole("dialog").getByRole("button", { name: "Confirm and apply", exact: true }).click();
+	await page.waitForFunction(() => window.__DESIGNER_SMOKE__.read().published.selection.kind === "custom");
+	await page.getByRole("dialog").waitFor({ state: "hidden" });
+	const afterApply = await page.evaluate(() => window.__DESIGNER_SMOKE__.read().published);
+	if (
+		afterApply.selection.sourceName !== "Broadcast test" ||
+		afterApply.selection.root.width !== 800 ||
+		afterApply.revision !== 1
+	)
+		throw new Error("Apply did not publish the exact saved snapshot.");
+
+	await page.getByRole("button", { name: "Rename", exact: true }).click();
+	await page.getByRole("dialog").getByLabel("Layout name", { exact: true }).fill("Broadcast renamed");
+	await page.getByRole("dialog").getByRole("button", { name: "Rename", exact: true }).click();
+	await page.waitForFunction(() => window.__DESIGNER_SMOKE__.read().entries[0].name === "Broadcast renamed");
+	const applyCount = await page.evaluate(
+		() => window.__DESIGNER_SMOKE__.calls.filter((command) => command === "layouts_apply").length,
+	);
+	await applyButton.click();
+	if (await page.getByRole("dialog").isVisible())
+		throw new Error("Metadata-only publication unexpectedly opened an appearance confirmation.");
+	await page.waitForFunction(
+		() => window.__DESIGNER_SMOKE__.read().published.selection.sourceName === "Broadcast renamed",
+	);
+	await applyButton.click();
+	if (
+		(await page.evaluate(
+			() => window.__DESIGNER_SMOKE__.calls.filter((command) => command === "layouts_apply").length,
+		)) !==
+		applyCount + 1
+	)
+		throw new Error("Identical Apply was not a no-op.");
 
 	await page.getByLabel("Output width", { exact: true }).fill("");
 	await page.getByRole("button", { name: "New Blank", exact: true }).click();
@@ -232,6 +339,7 @@ export async function checkDesignerWorkflow(page, url) {
 	await page.getByLabel("Layout", { exact: true }).selectOption(first.id);
 	await page.getByLabel("Output height", { exact: true }).fill("100");
 	await page.getByLabel("Output height", { exact: true }).press("Enter");
+	if (!(await applyButton.isDisabled())) throw new Error("Apply remained enabled for an unsaved draft.");
 	await page.evaluate(() => {
 		window.__DESIGNER_SMOKE__.failNext = { code: "storage-io", message: "Injected disk failure" };
 	});
@@ -367,18 +475,47 @@ export async function checkDesignerWorkflow(page, url) {
 	await page.getByRole("dialog").getByRole("button", { name: "Discard", exact: true }).click();
 	await page.waitForFunction(() => document.querySelector(".designer-title")?.textContent.includes("Saved"));
 
+	await applyButton.click();
+	await page.getByRole("dialog").getByRole("button", { name: "Confirm and apply", exact: true }).click();
+	await page.waitForFunction(() => {
+		const library = window.__DESIGNER_SMOKE__.read();
+		const published = library.published.selection;
+		return (
+			published.kind === "custom" &&
+			published.sourceId === library.entries[0].id &&
+			published.sourceRevision === library.entries[0].revision &&
+			published.root.width === library.entries[0].definition.root.width
+		);
+	});
+	const beforeNoOp = await page.evaluate(
+		() => window.__DESIGNER_SMOKE__.calls.filter((command) => command === "layouts_apply").length,
+	);
+	await applyButton.click();
+	if (
+		(await page.evaluate(
+			() => window.__DESIGNER_SMOKE__.calls.filter((command) => command === "layouts_apply").length,
+		)) !== beforeNoOp
+	)
+		throw new Error("Reapplying the identical saved selection was not a no-op.");
+	await page.getByLabel("Layout", { exact: true }).selectOption("classic");
+	await applyButton.click();
+	const classicConfirmation = await page.getByRole("dialog").textContent();
+	if (!classicConfirmation.includes("Broadcast renamed") || !classicConfirmation.includes("622 × 80"))
+		throw new Error("Classic Apply did not confirm the prior source and output dimensions.");
+	await page.getByRole("dialog").getByRole("button", { name: "Confirm and apply", exact: true }).click();
+	await page.waitForFunction(() => window.__DESIGNER_SMOKE__.read().published.selection.kind === "classic");
+
 	const result = await page.evaluate(() => ({
 		entries: window.__DESIGNER_SMOKE__.read().entries.length,
 		publication: window.__DESIGNER_SMOKE__.read().published.selection.kind,
-		unexpectedMutations: window.__DESIGNER_SMOKE__.calls.filter(
-			(command) => command === "sb_dispatch" || command === "layouts_apply",
-		),
+		applyCommands: window.__DESIGNER_SMOKE__.calls.filter((command) => command === "layouts_apply").length,
+		matchMutations: window.__DESIGNER_SMOKE__.calls.filter((command) => command === "sb_dispatch"),
 	}));
-	if (result.publication !== "classic" || result.unexpectedMutations.length !== 0)
-		throw new Error("Designer modified authoritative match/publication state.");
+	if (result.publication !== "classic" || result.applyCommands < 4 || result.matchMutations.length !== 0)
+		throw new Error("Apply workflow did not publish layouts safely or changed authoritative match state.");
 	return {
 		...result,
 		workflows:
-			"pending/invalid input; Save/Discard/Cancel; field/modal Escape; modal focus; Sample/Live isolation; private Duplicate; Rename/Delete; failed Save; stale revision; Reload; tree operations; numeric/flow/style/text inspector; reopen",
+			"pending/invalid input; Save/Discard/Cancel; field/modal Escape; modal focus; Sample/Live isolation; private Duplicate; Rename/Delete; failed Save; stale revision; Reload; Apply confirmation/cancel/stale revision/metadata-only/no-op/Classic; tree operations; numeric/flow/style/text inspector; reopen",
 	};
 }

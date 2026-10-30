@@ -140,11 +140,11 @@ export function ScoreboardTab(): React.JSX.Element {
 							void set({ scoreAnimationEnabled: event.target.checked }).catch(() => undefined)
 						}
 					/>
-					Score animation
+					Classic score animation
 				</label>
 				<p className="text-app-tertiary text-xs">
-					When on, the digits roll to the new score. When off the score updates instantly (no roll animation)
-					on the board and in OBS.
+					Controls rolling digits on the Classic board and single-value outputs. Custom scoreboard layouts use
+					the independent animation choice configured for each score in the designer.
 				</p>
 			</section>
 		</div>

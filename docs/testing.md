@@ -80,7 +80,8 @@ The isolated [proof page](../scripts/layout-parity.html) uses the actual
 [React renderer](../src/components/ScoreboardLayout/ScoreboardLayout.tsx) and
 [Canvas2D renderer](../src/lib/layouts/renderLayoutToCanvas.ts) with the same
 resolved/bound frame. It has no Tauri, match-state or editor dependencies and is
-not a production Vite entry. Classic remains the production default.
+not a production Vite entry. Production selection follows the published layout;
+Apply is available in the designer after saving a custom layout.
 
 ```bash
 pnpm test:unit src/lib/layouts
@@ -142,6 +143,35 @@ separate from the agent-run Chromium checks above. Engine versions and display
 scale were not supplied. Re-run native checks when changing renderer behaviour;
 Chromium alone does not prove native-webview parity.
 
+### Live publication and Outputs (P7)
+
+Focused publication and transport coverage:
+
+```bash
+pnpm test:unit src/lib/layouts/publication.test.ts src/lib/wsTransport.test.ts
+cargo test --manifest-path src-tauri/Cargo.toml --lib server::
+```
+
+These tests cover Classic/custom dimensions, publication validation and ordering,
+the connect-time layout snapshot, Apply fan-out, cold connections and protocol
+errors. The scoreboard entry must remain Tauri-free; `pnpm lint` and the
+production bundle check are part of `pnpm check`.
+
+Interactive OBS/native checks (automated P7 evidence does not replace these):
+
+- Confirm Classic remains 622 × 80, retains its skew padding and appearance, and
+  still receives timer/score updates.
+- Apply a custom fixture with different dimensions. Confirm the already-open
+  scoreboard changes without refresh, loads its bundled font before swapping,
+  and responds to live timer, score, team name and colour changes.
+- Confirm Outputs identifies the published source, scales the preview without
+  clipping, and shows the exact source dimensions for OBS. Reopen Outputs and
+  reconnect the preview after Apply.
+- Apply Classic again and confirm the iframe bounds/instructions return to
+  622 × 80. Verify `/value/*` and phone `/control` remain independent of layout.
+- In a custom layout, compare its per-score animation setting with the global
+  Classic/single-value animation setting.
+
 ### Designer workflows (P5)
 
 ```bash
@@ -168,9 +198,11 @@ before navigation; it is not a production fallback or proof of native persistenc
 It uses isolated browser storage key `__scoreboard_designer_p5_smoke__`.
 It checks pending/invalid inputs, guards, durable-response Save/reopen,
 private duplication with fresh ids, Rename/Delete, Sample/Live isolation,
-failed Save/retry, stale revisions/explicit Reload and tree reparent/hide/lock/add/remove.
-Its command log spans reloads and rejects match dispatch or Apply.
-Actual file transaction/recovery semantics are covered by the P2 Rust tests.
+failed Save/retry, stale revisions/explicit Reload, Apply confirmation/cancel,
+stale confirmation, metadata-only publication, no-op Apply, Classic transition,
+and tree reparent/hide/lock/add/remove. Its command log spans reloads and rejects
+match dispatch. Actual file transaction/recovery semantics are covered by P2
+Rust tests.
 
 Evidence on 2026-10-25: the browser workflow helper passed against the production
 Vite build, including exact
@@ -192,7 +224,9 @@ Native P5 manual checks (distinct from the already confirmed P2/P4 gates):
   the match, live output and publication must stay unchanged.
 - Check recovery warnings against an isolated test configuration, not a live
   operator's library. No automatic retry/overwrite is permitted after conflicts.
-- Apply stays disabled. P6 interaction and native lifecycle checks follow.
+- Apply is explicit and never saves a draft implicitly. Check confirmation,
+  cancellation, stale revision refusal and OBS size guidance with an isolated
+  library before applying to an operator's live output.
 
 ### Designer interactions and lifecycle (P6)
 
@@ -283,6 +317,18 @@ The scripts accept the control URL or the bare token (also via `SB_TOKEN`); the 
 taken from the URL, else `SB_PORT`, else 3001. Both exit non-zero on failure. The token
 changes on every `serve` start.
 
+Run the layout publication smoke independently; it starts and stops its own
+standalone server, uses a temporary layout library and does not require a token:
+
+```bash
+node scripts/ws-layout-smoke.mjs
+```
+
+It checks Classic bootstrap parity, Apply fan-out, the custom bootstrap/cold
+connection, reconnect synchronization and return-to-Classic fan-out. The example
+accepts `apply smoke`, `apply classic`, and `apply id <saved-id>` on stdin, plus
+`quit` for clean shutdown.
+
 The standalone server initializes layout persistence from `SB_LAYOUTS_PATH`, or
 `scoreboard-server-smoke/layouts.json` under the system temporary directory by
 default. It does not read the desktop app's private layout library implicitly.
@@ -315,7 +361,8 @@ Run before a release (see [build-release.md](build-release.md#release-checklist)
 
 ### Outputs
 
-- [ ] `/scoreboard` renders at 600×80 and updates live in OBS.
+- [ ] Classic `/scoreboard` renders within its 622×80 output frame and updates
+      live in OBS. P7 custom-layout cases are listed above.
 - [ ] `/value?property=timer` returns `MM:SS`; unknown properties return 404.
 - [ ] CORS headers are present on `/value` and the API.
 - [ ] LAN addresses are hidden by default.

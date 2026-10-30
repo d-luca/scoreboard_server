@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type JSX, type React
 import { Button } from "../../components/ui/Button/Button";
 import { Input } from "../../components/ui/Input/Input";
 import type { SavedLayout } from "../../bindings/SavedLayout";
+import type { SavedLayoutSelection } from "../../bindings/SavedLayoutSelection";
 import type { DesignerCloseRequest } from "../../bindings/DesignerCloseRequest";
 import type { DesignerCloseDecision } from "../../bindings/DesignerCloseDecision";
 import type { LayoutRenderInputs } from "../../lib/layouts/bindings";
@@ -29,14 +30,34 @@ import { Layers } from "../../features/scoreboardDesigner/Layers";
 import { Preview } from "../../features/scoreboardDesigner/Preview";
 import { emptyHistory, remember, travel, type DraftHistory } from "../../features/scoreboardDesigner/history";
 import { connectDesignerLifecycle, designerLifecycle } from "../../features/scoreboardDesigner/lifecycle";
+import { FRAME_HEIGHT, FRAME_WIDTH } from "../../lib/scoreboardGeometry";
 import { resolveLayout } from "../../lib/layouts/resolveLayout";
 import "./designer.css";
+
+type ApplyConfirmation = {
+	selection: SavedLayoutSelection;
+	sessionId: string;
+	expectedPublishedRevision: number;
+	expectedSavedRevision: number | null;
+	layoutId: string | null;
+	publishedName: string;
+	publishedWidth: number;
+	publishedHeight: number;
+	targetName: string;
+	targetWidth: number;
+	targetHeight: number;
+};
 
 type Modal =
 	| { kind: "guard"; proceed(): void }
 	| { kind: "close"; request: DesignerCloseRequest }
 	| { kind: "rename"; saved: SavedLayout }
+	| { kind: "apply"; confirmation: ApplyConfirmation }
 	| { kind: "confirm"; title: string; message: string; proceed(): void };
+
+function isRevisionConflict(error: unknown): boolean {
+	return typeof error === "object" && error !== null && "code" in error && error.code === "revision-conflict";
+}
 
 function DesignerDialog({
 	children,
@@ -292,6 +313,123 @@ export function ScoreboardDesignerWindow(): JSX.Element {
 				});
 			},
 		});
+	};
+	const publish = async (confirmation: ApplyConfirmation, revalidate: boolean): Promise<void> => {
+		if (inFlight.current) return;
+		inFlight.current = true;
+		setBusy(true);
+		try {
+			const store = useLayoutsStore.getState();
+			if (revalidate) {
+				await store.refresh();
+				const latest = useLayoutsStore.getState().library;
+				if (
+					!latest ||
+					latest.sessionId !== confirmation.sessionId ||
+					latest.published.sessionId !== confirmation.sessionId ||
+					latest.published.revision !== confirmation.expectedPublishedRevision
+				) {
+					setModal(null);
+					setError(
+						"The published layout changed while you were confirming. Review the current selection and apply again.",
+					);
+					return;
+				}
+				const latestSaved = confirmation.layoutId
+					? latest.entries.find((entry) => entry.id === confirmation.layoutId)
+					: null;
+				if (
+					confirmation.layoutId &&
+					(!latestSaved || latestSaved.revision !== confirmation.expectedSavedRevision)
+				) {
+					setModal(null);
+					setError(
+						"The saved layout changed while you were confirming. Reload it, then review and apply again.",
+					);
+					return;
+				}
+			}
+			await useLayoutsStore.getState().apply(confirmation.selection, confirmation.expectedPublishedRevision);
+			setModal(null);
+			setError(null);
+		} catch (error) {
+			report(error);
+			if (isRevisionConflict(error)) {
+				setModal(null);
+				setError(
+					"A layout revision changed before Apply completed. Reload the library, then review and confirm Apply again.",
+				);
+			}
+		} finally {
+			inFlight.current = false;
+			setBusy(false);
+		}
+	};
+	const startApply = (): void => {
+		if (inFlight.current) return;
+		const library = useLayoutsStore.getState().library;
+		if (!library) {
+			report(new Error("Load the layout library before applying."));
+			return;
+		}
+		if (library.storageStatus.state === "blocked") {
+			report(new Error(library.storageStatus.message ?? "Layout storage is blocked."));
+			return;
+		}
+		const draft = current.current;
+		if (pending.size > 0 || (draft && isDirty(draft))) {
+			report(new Error("Save or discard the current draft before applying it."));
+			return;
+		}
+
+		const saved = draft?.saved ?? null;
+		const latestSaved = saved ? library.entries.find((entry) => entry.id === saved.id) : null;
+		if (saved && (!latestSaved || latestSaved.revision !== saved.revision)) {
+			report(new Error("The saved layout is stale or was removed. Reload it before applying."));
+			return;
+		}
+
+		const selection: SavedLayoutSelection = latestSaved
+			? { kind: "custom", id: latestSaved.id, expectedRevision: latestSaved.revision }
+			: { kind: "classic" };
+		const publication = library.published;
+		if (
+			selection.kind === "classic"
+				? publication.selection.kind === "classic"
+				: publication.selection.kind === "custom" &&
+					publication.selection.sourceId === latestSaved?.id &&
+					publication.selection.sourceRevision === latestSaved?.revision &&
+					publication.selection.sourceName === latestSaved?.name &&
+					JSON.stringify(publication.selection.root) === JSON.stringify(latestSaved?.definition.root)
+		) {
+			setError(null);
+			return;
+		}
+
+		const target = latestSaved;
+		const confirmation: ApplyConfirmation = {
+			selection,
+			sessionId: library.sessionId,
+			expectedPublishedRevision: publication.revision,
+			expectedSavedRevision: target?.revision ?? null,
+			layoutId: target?.id ?? null,
+			publishedName: publication.selection.kind === "custom" ? publication.selection.sourceName : "Classic",
+			publishedWidth:
+				publication.selection.kind === "custom" ? publication.selection.root.width : FRAME_WIDTH,
+			publishedHeight:
+				publication.selection.kind === "custom" ? publication.selection.root.height : FRAME_HEIGHT,
+			targetName: target?.name ?? "Classic",
+			targetWidth: target?.definition.root.width ?? FRAME_WIDTH,
+			targetHeight: target?.definition.root.height ?? FRAME_HEIGHT,
+		};
+		const changesAppearance = target
+			? hasUnappliedAppearance(target, publication.selection)
+			: publication.selection.kind !== "classic";
+		if (changesAppearance) {
+			setModal({ kind: "apply", confirmation });
+			return;
+		}
+		void publish(confirmation, false);
 	};
 	const remove = (id: string): void =>
 		attempt(() => {
@@ -578,8 +716,18 @@ export function ScoreboardDesignerWindow(): JSX.Element {
 							>
 								Save
 							</Button>
-							<Button type="button" size="sm" disabled title="Live publication is introduced in P7">
-								Apply (P7)
+							<Button
+								type="button"
+								size="sm"
+								disabled={busy || (draft !== null && dirty) || pendingCount > 0 || blocked || Boolean(stale)}
+								onClick={startApply}
+								title={
+									draft !== null && dirty
+										? "Save the current draft before applying it."
+										: "Publish the selected saved layout to live output."
+								}
+							>
+								Apply
 							</Button>
 							<Button
 								type="button"
@@ -733,7 +881,8 @@ export function ScoreboardDesignerWindow(): JSX.Element {
 							</Button>
 						)}
 						<span>
-							Preview only. Save never publishes or changes the match. Apply is unavailable until P7.
+							Preview only. Save never publishes or changes the match. Apply publishes the selected saved
+							layout without changing match state.
 						</span>
 					</div>
 					{mode === "Live" && <p>Read-only match values{liveError ? ` · ${liveError}` : ""}</p>}
@@ -844,6 +993,41 @@ export function ScoreboardDesignerWindow(): JSX.Element {
 									});
 								}}
 							/>
+						) : modal.kind === "apply" ? (
+							<>
+								<h2 id="designer-dialog-title">Apply layout to live output?</h2>
+								<p>
+									Published: <strong>{modal.confirmation.publishedName}</strong> ·{" "}
+									{modal.confirmation.publishedWidth} × {modal.confirmation.publishedHeight}
+								</p>
+								<p>
+									New selection: <strong>{modal.confirmation.targetName}</strong> ·{" "}
+									{modal.confirmation.targetWidth} × {modal.confirmation.targetHeight}
+								</p>
+								<p>
+									{modal.confirmation.publishedWidth !== modal.confirmation.targetWidth ||
+									modal.confirmation.publishedHeight !== modal.confirmation.targetHeight
+										? "The OBS browser source dimensions will change. Update its width and height to match the new selection."
+										: "The OBS browser source dimensions will stay the same."}
+								</p>
+								<p>
+									Confirming publishes saved revision {modal.confirmation.expectedSavedRevision ?? "—"}{" "}
+									against published revision {modal.confirmation.expectedPublishedRevision}. If either changes
+									while you confirm, nothing will be published and you must review again.
+								</p>
+								<div className="designer-actions">
+									<Button
+										type="button"
+										disabled={busy}
+										onClick={() => void publish(modal.confirmation, true)}
+									>
+										Confirm and apply
+									</Button>
+									<Button type="button" disabled={busy} onClick={() => setModal(null)}>
+										Cancel
+									</Button>
+								</div>
+							</>
 						) : (
 							<>
 								<h2 id="designer-dialog-title">{modal.title}</h2>

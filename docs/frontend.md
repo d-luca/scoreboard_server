@@ -92,8 +92,9 @@ re-implements this spec; change both together.
 
 ## Custom layout renderers
 
-P4 adds isolated, Tauri-free renderer APIs; it does **not** change the live
-scoreboard, Outputs or video renderer selection. P7/P8 own that activation.
+P4 adds isolated, Tauri-free renderer APIs. P7 activates the published
+definition in `/scoreboard` and sizes the Outputs preview from the current
+publication; P8 owns video selection and rendering.
 
 Resolve a validated definition once with
 [`resolveLayout`](../src/lib/layouts/resolveLayout.ts), then await
@@ -125,6 +126,18 @@ has its own vertical transition mask, removed when settled. Canvas scores stay
 static. Classic and custom Rolling share
 [`useRollingScore`](../src/components/Scoreboard/useRollingScore.ts), not layout
 geometry or styling.
+
+The LAN `/scoreboard` page uses the full published snapshot from its bootstrap
+as the cold-load baseline and follows complete `layout` WebSocket frames.
+Custom fonts must finish loading before a publication replaces the current
+scene. If the publication cannot be resolved or its fonts fail, the last valid
+scene remains visible; when no valid scene has loaded, the page shows an
+explicit unavailable state rather than treating Classic as an implicit fallback.
+Classic continues through its existing renderer at 622 × 80. The Outputs window
+uses the published Classic/custom dimensions for its iframe, preview wrapper
+and OBS instructions. The global score-animation setting affects Classic and
+single-value outputs; custom live values use their independent configured
+animation choices.
 
 The [P4 proof page and parity checks](testing.md#custom-layout-renderer-proof-p4)
 cover all bundled faces, explicit line breaks/spaces, alignment, alpha, overflow

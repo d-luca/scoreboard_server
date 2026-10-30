@@ -14,6 +14,7 @@ use axum::response::{Html, IntoResponse};
 use rust_embed::RustEmbed;
 
 use super::{auth, routes};
+use crate::layouts::PublishedLayoutSnapshot;
 use crate::state::Shared;
 
 #[derive(RustEmbed)]
@@ -142,26 +143,23 @@ async fn serve_page(
         .and_then(|value| value.to_str().ok())
         .map(str::to_owned)
         .unwrap_or_else(|| format!("localhost:{}", shared.server_status().port));
-    let property = match property {
-        Some(property) => format!(
-            ", property: {}",
-            serde_json::to_string(property).unwrap_or_default()
-        ),
-        None => String::new(),
-    };
     // The score-roll presentation flag is injected for the pages that render
     // digits (`/scoreboard`, `/value/*`); it lets the board start
     // static when the setting is off, before the first WS frame arrives.
     let score_animation = if matches!(mode, "scoreboard" | "value") {
-        let enabled = shared.settings_snapshot().await.score_animation_enabled;
-        format!(", scoreAnimationEnabled: {enabled}")
+        Some(shared.settings_snapshot().await.score_animation_enabled)
     } else {
-        String::new()
+        None
     };
-    let bootstrap = format!(
-        "<script>window.__SCOREBOARD__ = {{ wsUrl: {}, token: null, mode: {}{property}{score_animation} }};</script>",
-        serde_json::to_string(&format!("ws://{host}/ws")).unwrap_or_default(),
-        serde_json::to_string(mode).unwrap_or_default(),
+    // Only the layout-rendering page needs the publication; `/value/*` and
+    // `/control` stay independent of layout selection.
+    let published = (mode == "scoreboard").then(|| shared.layouts.published());
+    let bootstrap = bootstrap_script(
+        &format!("ws://{host}/ws"),
+        mode,
+        property,
+        score_animation,
+        published.as_ref(),
     );
     let html = if html.contains("</head>") {
         html.replacen("</head>", &format!("{bootstrap}</head>"), 1)
@@ -169,4 +167,114 @@ async fn serve_page(
         format!("{bootstrap}{html}")
     };
     Html(html).into_response()
+}
+
+/// Builds the inline `window.__SCOREBOARD__` script.
+fn bootstrap_script(
+    ws_url: &str,
+    mode: &str,
+    property: Option<&str>,
+    score_animation: Option<bool>,
+    published: Option<&PublishedLayoutSnapshot>,
+) -> String {
+    let mut config = serde_json::json!({ "wsUrl": ws_url, "token": null, "mode": mode });
+    if let Some(property) = property {
+        config["property"] = property.into();
+    }
+    if let Some(enabled) = score_animation {
+        config["scoreAnimationEnabled"] = enabled.into();
+    }
+    if let Some(published) = published {
+        config["publishedLayout"] = serde_json::to_value(published).unwrap_or_default();
+    }
+    format!(
+        "<script>window.__SCOREBOARD__ = {};</script>",
+        script_safe_json(&config)
+    )
+}
+
+/// JSON safe to inline in a `<script>` element: user-authored layout text
+/// cannot close the element or open an HTML comment, and U+2028/U+2029 are
+/// escaped for older JavaScript parsers.
+fn script_safe_json(value: &serde_json::Value) -> String {
+    let json = value.to_string();
+    let mut escaped = String::with_capacity(json.len());
+    for character in json.chars() {
+        match character {
+            '<' => escaped.push_str("\\u003c"),
+            '>' => escaped.push_str("\\u003e"),
+            '&' => escaped.push_str("\\u0026"),
+            '\u{2028}' => escaped.push_str("\\u2028"),
+            '\u{2029}' => escaped.push_str("\\u2029"),
+            other => escaped.push(other),
+        }
+    }
+    escaped
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::layouts::PublishedLayoutSelection;
+
+    fn config(script: &str) -> serde_json::Value {
+        let json = script
+            .strip_prefix("<script>window.__SCOREBOARD__ = ")
+            .and_then(|rest| rest.strip_suffix(";</script>"))
+            .expect("bootstrap script shape");
+        serde_json::from_str(json).unwrap()
+    }
+
+    #[test]
+    fn scoreboard_bootstrap_carries_the_full_publication() {
+        let published = PublishedLayoutSnapshot {
+            session_id: "session-a".into(),
+            revision: 3,
+            selection: PublishedLayoutSelection::Classic {},
+        };
+        let script = bootstrap_script(
+            "ws://host:3001/ws",
+            "scoreboard",
+            None,
+            Some(false),
+            Some(&published),
+        );
+        let config = config(&script);
+        assert_eq!(config["wsUrl"], "ws://host:3001/ws");
+        assert_eq!(config["mode"], "scoreboard");
+        assert_eq!(config["token"], serde_json::Value::Null);
+        assert_eq!(config["scoreAnimationEnabled"], false);
+        assert_eq!(
+            config["publishedLayout"],
+            serde_json::to_value(&published).unwrap()
+        );
+    }
+
+    #[test]
+    fn value_and_control_bootstraps_omit_layout_state() {
+        let value = config(&bootstrap_script(
+            "ws://h/ws",
+            "value",
+            Some("timer"),
+            Some(true),
+            None,
+        ));
+        assert_eq!(value["property"], "timer");
+        assert!(value.get("publishedLayout").is_none());
+        let control = config(&bootstrap_script("ws://h/ws", "control", None, None, None));
+        assert!(control.get("publishedLayout").is_none());
+        assert!(control.get("scoreAnimationEnabled").is_none());
+    }
+
+    #[test]
+    fn bootstrap_escapes_markup_in_user_authored_strings() {
+        let value = serde_json::json!({ "name": "</script><!--x\u{2028}&" });
+        let escaped = script_safe_json(&value);
+        assert!(!escaped.contains('<') && !escaped.contains('>') && !escaped.contains('&'));
+        assert!(!escaped.contains('\u{2028}'));
+        assert_eq!(
+            serde_json::from_str::<serde_json::Value>(&escaped).unwrap(),
+            value
+        );
+    }
 }

@@ -5,11 +5,15 @@
 > on 2026-10-25. P3 completed on 2026-10-23. P4 renderers are implemented,
 > with Windows WebView2/Linux WebKitGTK checks user-confirmed on 2026-10-25.
 > P5 shell, library and numeric editing, and P6 direct manipulation/history/
-> guarded lifecycle implemented on 2026-10-25. P7-P9 not started.
+> guarded lifecycle implemented on 2026-10-25. P7a (publication wire protocol
+> and transports), P7b (live renderer and Outputs sizing), and P7c (designer
+> Apply and standalone WS smoke) implemented on 2026-10-30; P8 and P9 not
+> started. P7's interactive OBS/native checks remain outstanding.
 > Rust contracts, validation, persistent library commands, backend publication
 > events, the pure layout/binding engine and isolated live/canvas renderers exist;
 > a private-draft designer UI includes workspace editing and native close guards.
-> Runtime activation and public wire synchronization remain planned.
+> Public wire synchronization, live rendering and guarded designer Apply are
+> implemented.
 > Approved requirements are
 > defined in the [feature contract](scoreboard-designer.md),
 > [editor design](scoreboard-designer-editor.md) and
@@ -32,18 +36,18 @@ recommendations as existing application behaviour.
 
 ## Roadmap and dependencies
 
-| Package | Deliverable                                                                                 | Prerequisites |
-| ------- | ------------------------------------------------------------------------------------------- | ------------- |
-| P0      | Approved detailed behaviour and technical contracts - complete                              | None          |
-| P1      | Typed definition model, limits and validation - complete                                    | P0            |
-| P2      | Durable library operations and published snapshots - implemented; platform checks confirmed | P1            |
-| P3      | Deterministic layout and binding engine - complete                                          | P1            |
-| P4      | Custom live/canvas renderers - implemented; platform checks confirmed                       | P3            |
-| P5      | Designer window, library, draft editing and inspector - implemented                         | P2, P4        |
-| P6      | Direct manipulation, history and guarded lifecycle                                          | P5            |
-| P7      | Live publication, reconnect synchronization and Outputs integration                         | P2, P4, P5    |
-| P8      | Frozen-layout video export with bounded memory                                              | P2, P4        |
-| P9      | Integrated completion and release readiness                                                 | P6, P7, P8    |
+| Package | Deliverable                                                                                              | Prerequisites |
+| ------- | -------------------------------------------------------------------------------------------------------- | ------------- |
+| P0      | Approved detailed behaviour and technical contracts - complete                                           | None          |
+| P1      | Typed definition model, limits and validation - complete                                                 | P0            |
+| P2      | Durable library operations and published snapshots - implemented; platform checks confirmed              | P1            |
+| P3      | Deterministic layout and binding engine - complete                                                       | P1            |
+| P4      | Custom live/canvas renderers - implemented; platform checks confirmed                                    | P3            |
+| P5      | Designer window, library, draft editing and inspector - implemented                                      | P2, P4        |
+| P6      | Direct manipulation, history and guarded lifecycle                                                       | P5            |
+| P7      | Live publication, reconnect synchronization and Outputs integration - implemented; native checks pending | P2, P4, P5    |
+| P8      | Frozen-layout video export with bounded memory                                                           | P2, P4        |
+| P9      | Integrated completion and release readiness                                                              | P6, P7, P8    |
 
 ```text
 P0 -> P1 -> P2 --------------------+-------------------+
@@ -789,6 +793,80 @@ Tasks:
 **Exit gate:** applying a saved layout updates connected and newly connected
 outputs without refreshing or restarting; a running timer and omitted fields
 continue operating normally. Failed/cancelled Apply changes nothing.
+
+**Delivery split** (agreed 2026-10-30; one reviewable session each):
+
+| Step | Scope                                                                                                                                                                                                                                                                                                                                      | Depends on |
+| ---- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---------- |
+| P7a  | `/scoreboard` bootstrap `publishedLayout`; WS `layout` frame on connect/publication/lag with subscribe-then-read duplicate suppression; required `getPublishedLayout`/`subscribePublishedLayout` on both transports; pure session/revision ordering and wire validation; Rust WS/bootstrap and Vitest cases; `protocol.md`                 | P2         |
+| P7b  | Classic/custom selection in `/scoreboard`, dynamic page/root bounds, font-gated atomic swap and explicit unavailable state; Outputs iframe/wrapper bounds, published-layout identification and OBS size; animation-setting wording; LAN-bundle isolation                                                                                   | P7a, P4    |
+| P7c  | `layoutsStore.apply`; designer Apply with Save-before-Apply, in-flight guard, appearance confirmation (names, dimensions, OBS warning, captured revisions), conflict re-confirmation, metadata-only updates and Classic; dev-only stdin Apply in `examples/serve.rs` plus a WS layout smoke for fan-out/cold/reconnect; exit gate and docs | P5, P7a/b  |
+
+P7a implementation (2026-10-30):
+
+- [Bootstrap](../../../src-tauri/src/server/assets.rs) builds `window.__SCOREBOARD__`
+  from one script-safe JSON object; `/scoreboard` alone carries `publishedLayout`.
+- [WebSocket](../../../src-tauri/src/server/ws.rs) reads the publication after
+  subscribing and sends `layout` after `authorization` on connect, on each newer
+  publication revision and on lag resync. Match frames never wait on it.
+- [Publication helpers](../../../src/lib/layouts/publication.ts) validate the
+  envelope and rendering-root shape and order by session plus revision. Deep tree
+  failures surface when P7b resolves the root and must also be protocol errors.
+- [WsTransport](../../../src/lib/wsTransport.ts) uses the bootstrap as cold
+  baseline, lets each socket's first valid frame establish the session, ignores
+  retired sockets and keeps the last valid snapshot on protocol errors.
+  [TauriTransport](../../../src/lib/tauriTransport.ts) listens before reading.
+- Evidence: Rust bootstrap/escaping tests and a WS test covering Classic connect
+  frames, Apply fan-out, cold connections and absence of state frames; Vitest
+  [publication](../../../src/lib/layouts/publication.test.ts) and
+  [transport](../../../src/lib/wsTransport.test.ts) cases cover duplicates, new
+  sessions at lower revisions, retired sockets and invalid frames/bootstrap.
+
+P7b implementation (2026-10-30):
+
+- The LAN-safe [scoreboard entry](../../../src/entries/scoreboard.tsx) validates
+  and resolves each published root, loads all required bundled fonts before
+  swapping scenes, and keeps the previous valid output if preparation fails.
+  Custom roots use live state bindings and their own dimensions; Classic retains
+  the existing compatibility renderer and 622 × 80 skew frame. Invalid cold
+  output shows an explicit unavailable state instead of silently choosing Classic.
+- The [page](../../../pages/scoreboard.html) and root bounds follow the active
+  frame. The [Outputs window](../../../src/entries/Outputs/OutputsWindow.tsx)
+  reads the publication, sizes the iframe and scaled checkerboard from the
+  current selection, identifies the published source and gives its OBS dimensions.
+- [Score animation wording](../../../src/entries/Settings/Tabs/ScoreboardTab.tsx)
+  now distinguishes the Classic/single-value global toggle from per-score custom
+  layout choices.
+- [Published dimension tests](../../../src/lib/layouts/publication.test.ts)
+  cover Classic compatibility and custom root sizes. LAN entry import isolation
+  is enforced by lint and the production build.
+- Automated Linux checks passed with 197 Vitest tests, lint, production build,
+  clippy and Rust tests. P7's actual OBS rendering/size and native-webview checks
+  remain manual release evidence; they have not been claimed as complete.
+
+P7c implementation (2026-10-30):
+
+- [Layouts store](../../../src/lib/stores/layoutsStore.ts) exposes Apply as a
+  revision-checked mutation and returns the committed publication. The designer
+  keeps Apply disabled for dirty, pending, stale or blocked drafts; it does not
+  implicitly Save.
+- Appearance-changing Apply presents the prior/target source and dimensions,
+  OBS size guidance and captured publication/saved revisions. Confirmation
+  refreshes and revalidates both revisions before the backend's authoritative
+  check; conflicts require explicit review and are never retried. Metadata-only
+  changes publish without an appearance prompt, and an identical selection is
+  a no-op. Classic transitions use the same flow.
+- The [designer browser proof](../../../scripts/designer-smoke.mjs) exercises
+  cancellation, stale confirmation, custom and Classic Apply, dirty-state
+  disabling, metadata-only publication and no-op behavior using an IPC double.
+- The standalone [serve example](../../../src-tauri/examples/serve.rs) accepts
+  dev-only stdin Apply commands, with a reusable validated 320 × 120 fixture.
+  The [WS smoke](../../../scripts/ws-layout-smoke.mjs) launches it against an
+  isolated library and verifies connected-client fan-out, bootstrap parity,
+  cold connection, reconnect and a return to Classic.
+- Automated checks cover the Apply store contract and standalone WS workflow.
+  Actual OBS source updates, Outputs sizing and native-webview behavior remain
+  manual platform evidence.
 
 ### P8 - integrate video selection, dimensions and bounded batches
 

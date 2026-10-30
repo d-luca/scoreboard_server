@@ -1,6 +1,8 @@
 import { describe, expect, it, vi } from "vitest";
 import type { LayoutLibrarySnapshot } from "../../bindings/LayoutLibrarySnapshot";
 import type { LayoutLibraryChanged } from "../../bindings/LayoutLibraryChanged";
+import type { PublishedLayoutSnapshot } from "../../bindings/PublishedLayoutSnapshot";
+import type { SavedLayoutSelection } from "../../bindings/SavedLayoutSelection";
 import { newDraft } from "../../features/scoreboardDesigner/draft";
 import { createLayoutsStore, layoutErrorMessage, type LayoutsApi } from "./layoutsStore";
 
@@ -31,6 +33,7 @@ function api(): LayoutsApi & {
 		save: vi.fn(),
 		rename: vi.fn(),
 		remove: vi.fn(),
+		apply: vi.fn(),
 		recover: vi.fn(),
 		notify: (change) => changed(change),
 		stops,
@@ -144,6 +147,48 @@ describe("desktop layout library ordering", () => {
 		});
 		expect(await store.getState().create(entry.name, entry.definition)).toEqual(entry);
 		expect(store.getState().library?.published.selection.kind).toBe("classic");
+	});
+
+	it("applies with expected publication ordering and returns the committed snapshot", async () => {
+		const backend = api();
+		const store = createLayoutsStore(backend);
+		await store.getState().refresh();
+		const selection: SavedLayoutSelection = { kind: "classic" };
+		const published: PublishedLayoutSnapshot = {
+			sessionId: "session-a",
+			revision: 1,
+			selection,
+		};
+		vi.mocked(backend.apply).mockResolvedValueOnce({
+			affectedId: null,
+			library: { ...snapshot(1), published },
+		});
+
+		await expect(store.getState().apply(selection, 0)).resolves.toEqual(published);
+		expect(backend.apply).toHaveBeenCalledOnce();
+		expect(backend.apply).toHaveBeenCalledWith(selection, 0);
+		expect(store.getState().library?.published).toEqual(published);
+	});
+
+	it("surfaces Apply conflicts without retrying", async () => {
+		const backend = api();
+		const store = createLayoutsStore(backend);
+		await store.getState().refresh();
+		const selection: SavedLayoutSelection = { kind: "classic" };
+		const conflict = {
+			code: "revision-conflict",
+			message: "Published layout changed",
+			expectedRevision: 0,
+			actualRevision: 1,
+			diagnostics: [],
+		};
+		vi.mocked(backend.apply).mockRejectedValueOnce(conflict);
+
+		await expect(store.getState().apply(selection, 0)).rejects.toEqual(conflict);
+		expect(backend.apply).toHaveBeenCalledOnce();
+		expect(store.getState().error).toBe(
+			"Published layout changed Expected revision 0; current revision 1. Reload explicitly before retrying.",
+		);
 	});
 
 	it("surfaces listener/read errors and releases subscriptions", async () => {
