@@ -94,7 +94,7 @@ re-implements this spec; change both together.
 
 P4 adds isolated, Tauri-free renderer APIs. P7 activates the published
 definition in `/scoreboard` and sizes the Outputs preview from the current
-publication; P8 owns video selection and rendering.
+publication; P8 uses the canvas renderer for video selection and export.
 
 Resolve a validated definition once with
 [`resolveLayout`](../src/lib/layouts/resolveLayout.ts), then await
@@ -118,7 +118,8 @@ Pass the same frame to:
   draws into a caller-owned, unclipped Canvas2D context at an explicit uniform
   scale (default 1). The canvas must already contain the scaled root. Extra
   right/bottom pixels are cleared to transparent, not used to stretch the scene.
-  Final allocation limits, padding and export integration remain P8.
+  Export padding, final bounds and bounded batches are handled by
+  [`videoGeneration.ts`](../src/lib/videoGeneration.ts) (P8).
 
 Only the output root clips. Rounded backgrounds do not mask overflowing text or
 descendants. Custom score None/Rolling choices are independent; an active roll
@@ -179,7 +180,8 @@ Designer close, main close and Quit share one native request/prompt with
 Save/Discard/Cancel. Save awaits durable completion; failure keeps the draft
 and window open. Native authorization waits for the layout queue to drain.
 Initialization/timeout failures are visible and never authorize close.
-Apply remains disabled (P7); scoreboard/Outputs/video routes are unaffected.
+Apply publishes the saved revision after confirmation and is disabled while the
+draft is dirty; scoreboard/Outputs/video routes only follow the published layout.
 
 ## Main window
 

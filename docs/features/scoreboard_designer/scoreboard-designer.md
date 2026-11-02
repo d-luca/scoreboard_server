@@ -1,12 +1,14 @@
 # Scoreboard Designer - feature contract
 
-> **Status:** backend, pure engine, isolated renderers and P5/P6 designer implemented. P1 definition contracts/validation,
-> P2 persistent library commands/backend publication events and P3's pure
-> layout/binding engine exist. P4's custom live/canvas renderers have Linux
-> Chromium parity evidence; Windows WebView2/Linux WebKitGTK verification was
-> user-confirmed on 2026-10-25. The designer supports private drafts, tree/numeric
-> editing, direct manipulation, history, viewport controls, explicit Save and native close guards;
-> Apply/runtime activation and public publishing remain P7/P8.
+> **Status:** P1-P8 implemented. Definitions/validation (P1), the persistent
+> library and publication (P2), the pure layout/binding engine (P3), live/canvas
+> renderers (P4, Windows WebView2/Linux WebKitGTK user-confirmed on 2026-10-25),
+> the designer with drafts, direct manipulation, history and native close guards
+> (P5/P6), explicit Apply to live output with Outputs sizing (P7) and custom-layout
+> video export (P8, user-confirmed 2026-10-30) are available. P9 cross-surface
+> automated conformance and export-memory evidence exist; its Windows/Linux
+> manual release checks (HiDPI, OBS, native interactions) are still pending.
+> Layout import/export remains deferred.
 >
 > The product decisions below, including the P0 defaults approved on 2026-10-20,
 > define the complete feature, including behaviour not yet available.

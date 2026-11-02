@@ -3,9 +3,9 @@
 > **Status:** P5 shell/library/numeric editing and P6 direct manipulation,
 > history, viewport controls and native close guards implemented on 2026-10-25.
 > Open **Broadcast → Scoreboard Designer…** for private drafts, tree/numeric
-> editing and explicit durable Save. Apply remains disabled until P7.
+> editing and explicit durable Save. Apply (P7) publishes a saved, clean
+> revision to live output after confirmation.
 > Native designer close, main close and Quit use Save/Discard/Cancel.
-> The scope below also describes future Apply/publication capabilities.
 
 See the [feature contract](scoreboard-designer.md) for scope and publishing, and
 the [implementation plan](scoreboard-designer-implementation.md) for architecture.

@@ -33,6 +33,8 @@ CI (`.github/workflows/build.yml`) additionally fails when:
 | WS auth, revocation, rate limit                               | `src/server/ws.rs`                                          |
 | Binding export                                                | `tests/export_bindings.rs`                                  |
 | Video generation end to end                                   | `tests/video_generation.rs` (skips when no ffmpeg is found) |
+| Cross-surface designer conformance (real server + WS)         | `tests/designer_conformance.rs`                             |
+| Export memory across lengths/sizes (opt-in, Linux, ffmpeg)    | `tests/video_memory.rs` (`--ignored`)                       |
 
 The integration tests live in `tests/` so that the Windows manifest from `build.rs` is
 linked in; see [pitfalls.md](pitfalls.md#platform).
@@ -302,6 +304,109 @@ already user-confirmed P2/P4 renderer/storage gates:
   and an active recording receives its final flush only after permission.
   Crash, force-kill and power-loss draft recovery are not promised.
 
+### Cross-surface conformance and release readiness (P9)
+
+```bash
+cargo test --manifest-path src-tauri/Cargo.toml --test designer_conformance
+cargo test --manifest-path src-tauri/Cargo.toml --test video_generation
+pnpm test:unit src/lib/videoGeneration.test.ts
+```
+
+Automated evidence for the
+[feature scenarios](features/scoreboard_designer/scoreboard-designer.md#behavioural-examples):
+
+| Scenario                              | Automated evidence                                                                                                                                                 |
+| ------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Away score omitted                    | `designer_conformance`: remote `score-away-inc` and name patches reach WS state and `/api/scoreboard/*` under a partial custom layout; the recording captures them |
+| Save an edited published source       | `service_tests.rs` revision tests; designer smoke script (IPC double)                                                                                              |
+| Restart after that Save without Apply | `published_revision_one_survives_saved_revision_two_and_restart`, `p2_exit_gate_restores_published_one_while_saved_revision_is_exactly_two`                        |
+| Cancel Apply                          | `scripts/designer-smoke.mjs` (Apply confirmation/cancel, no publication or match mutation)                                                                         |
+| Apply while timer runs                | `designer_conformance`: countdown and count-up keep running and ticking through a custom Apply over a real server and read-only WS                                 |
+| Hide a Row child                      | `resolveLayout.test.ts` visibility/gap cases; bindings stay in match state                                                                                         |
+| Long text extends beyond a container  | `resolveLayout.test.ts` root-only clipping; P4 renderer parity fixtures                                                                                            |
+| Choose a different export layout      | `custom_layout_exports_padded_frozen_frames_end_to_end`: a different live layout is Applied first and `published()` is unchanged by the export                     |
+| Save or Apply during video generation | Same test: a mid-job Save **and** live Apply of the new revision leave the frozen 622×80 job intact                                                                |
+| Request oversized scaled video        | `custom_layout_rejections_happen_before_ffmpeg`                                                                                                                    |
+
+Also covered: layout changes are not written into recordings
+(`recording_captures_omitted_fields_and_ignores_layout_changes`), persistence
+failure/recovery/shutdown drain (`service_tests.rs`), reconnect/cold connect
+(`scripts/ws-layout-smoke.mjs`) and per-score animation choices
+(`bindings.test.ts`). [videoGeneration.test.ts](../src/lib/videoGeneration.test.ts)
+proves the frontend loop reuses one buffer of at most 32 MiB, keeps exactly one
+push in flight, requests frames in order (FHD batches of 4, 4K/portrait batches
+of 1) and stops on cancellation.
+
+**Export memory.** The opt-in Linux test drives the real encoder with the
+frontend's batch sizes and samples VmRSS of the process and its ffmpeg child:
+
+```bash
+cargo test --manifest-path src-tauri/Cargo.toml --release --test video_memory \
+  -- --ignored --nocapture --test-threads=1
+# optional: SB_MEMORY_SECONDS=10,60,300 SB_MEMORY_SIZES=full-hd,4k-landscape,4k-portrait SB_MEMORY_FPS=1
+```
+
+It asserts that process growth stays within two raw batches plus 48 MiB, that
+it does not vary with recording length by more than one batch (allocator arena
+retention), and that the ffmpeg peak plateaus. Measured on Linux on 2026-10-31
+(release, 1 fps, 10 / 60 / 300 s recordings):
+
+| Output              | Process peak above start | ffmpeg peak RSS        |
+| ------------------- | ------------------------ | ---------------------- |
+| 1920×1080 (4/batch) | +64 MiB at every length  | 734 / 887 / 938 MiB    |
+| 3840×2160 (1/batch) | +64 MiB at every length  | 2279 / 3033 / 3170 MiB |
+| 2160×3840 (1/batch) | +64 MiB at every length  | 2284 / 3069 / 3238 MiB |
+
+Long Full HD recordings (300 / 1200 / 2700 s): process +64 / +65 / +96 MiB,
+ffmpeg 946 / 953 / 954 MiB. The occasional extra 32 MiB is one retained
+batch-sized block, not growth.
+
+The app's own buffering is bounded (one reused frontend buffer plus the
+backend copy). The VP9-with-alpha encoder dominates total memory: plan for
+roughly 1 GB at Full HD and 3.3 GB at 4K. The 32 MiB budget is not a total
+memory claim.
+
+**Manual release checks (P9).** Run on **Windows and Linux**, each at 100% and
+at a HiDPI display scale (150% or 200%). Use an isolated configuration, not an
+operator's live library, for recovery and failure cases. Layout import is not
+available, so build each fixture in the designer:
+
+- _Full-frame_: Blank, root 1920×1080; _portrait_: Blank, root 1080×1920. Add a
+  Row with the clock and both scores, and a Free label near the bottom-right.
+- _Long text_: a fixed 120-pixel container holding a team-name value and a
+  long static label; set a long team name in the main window.
+- _Hidden flow child_: a Row with home name, home score and away score; hide
+  the middle child.
+- _Independent animations_: home score Rolling, away score None.
+
+Checks:
+
+- [ ] Each fixture looks the same in the designer preview, the OBS browser
+      source and an exported video. Text overflows its container but is
+      clipped only at the root edge; a hidden Row child leaves no gap and its
+      field still updates elsewhere (e.g. `/value/teamHomeScore`).
+- [ ] Home and away scores animate independently; Classic still uses the
+      global animation setting.
+- [ ] Save an edit to the published layout without Apply: live output does
+      not change. Restart the app: the older published snapshot is restored.
+- [ ] Cancel the Apply confirmation: output and all match values are
+      unchanged. Apply with the countdown running, then again counting up: the
+      appearance changes and the timer never stops or jumps.
+- [ ] With a layout that omits away fields, phone `/control` and hotkeys still
+      change those values; they appear in `/value/*` and in a recording.
+- [ ] Reconnect OBS (refresh the source) and restart the app while a custom
+      layout is published: the source shows the custom layout at its size.
+- [ ] Corrupt `layouts.json` in the isolated config: the designer shows the
+      blocked/recovery state, Classic output still works, and backup-and-reset
+      recovers without touching match state.
+- [ ] Quit during an active recording: after any designer close prompt is
+      resolved, the recording receives its final flush. Quit during an export: no
+      ffmpeg process remains afterwards (Quit does not explicitly cancel the
+      job, so note whether a partial file is left).
+- [ ] Export Full HD and 4K (landscape and portrait) of a long (≥ 20 min)
+      recording; watch memory in the OS monitor and check alpha in OBS.
+- [ ] The open P6 interactive native checks and P7 OBS/Outputs checks above.
+
 ### Smoke scripts
 
 Run the axum stack without the Tauri shell, then the scripts against it:
@@ -363,7 +468,7 @@ Run before a release (see [build-release.md](build-release.md#release-checklist)
 
 - [ ] Classic `/scoreboard` renders within its 622×80 output frame and updates
       live in OBS. P7 custom-layout cases are listed above.
-- [ ] `/value?property=timer` returns `MM:SS`; unknown properties return 404.
+- [ ] `/value/timer` shows `MM:SS`; unknown properties return 404.
 - [ ] CORS headers are present on `/value` and the API.
 - [ ] LAN addresses are hidden by default.
 

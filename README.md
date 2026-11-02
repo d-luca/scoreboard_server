@@ -112,7 +112,8 @@ The AppImage requires the system WebKitGTK 4.1 runtime
 2. Open **Settings → Scoreboard** to set team names, colors, the period label
    and timer durations.
 3. Open **Broadcast → Outputs & Sharing** and copy the scoreboard URL into an
-   OBS Browser Source. Set its size to **600 × 80**.
+   OBS Browser Source. Set its size to the one shown there: **622 × 80** for
+   the Classic scoreboard, or the size of your published custom layout.
 4. Use the main window's score buttons, period controls and timer to run the
    match. OBS updates automatically.
 5. To control the match from a phone, connect it to the same network and scan
@@ -137,7 +138,9 @@ The AppImage requires the system WebKitGTK 4.1 runtime
 1. In OBS, add a **Browser Source**.
 2. Paste the scoreboard URL from **Broadcast → Outputs & Sharing**:
    `http://<pc-ip>:<port>/scoreboard`.
-3. Set width to **600** and height to **80**. The background is transparent.
+3. Set the width and height shown in **Outputs & Sharing**: **622 × 80** for
+   Classic, or the published custom layout's size. The background is
+   transparent.
 4. Leave **Shutdown source when not visible** off to keep it connected between
    scenes. The page reconnects automatically if the connection drops.
 
@@ -150,6 +153,19 @@ can be changed in **Settings → Server**. Always copy the exact URL from
 For a custom layout, use an individual value instead of the whole scoreboard:
 `http://<pc-ip>:<port>/value/timer`. Other fields include `teamHomeScore`,
 `teamAwayScore`, `half` and `teamHomeName`.
+
+### Custom scoreboard layouts
+
+Open **Broadcast → Scoreboard Designer…** to build your own scoreboard from
+rows, columns, labels and match values, at any size up to 4K.
+
+- **Save** stores the layout in your library; it does not change what OBS shows.
+- **Apply** publishes a saved layout to the `/scoreboard` source. Open scoreboards
+  switch without a refresh, and the match keeps running. Apply Classic to go back.
+- After applying a layout with a different size, update the Browser Source size
+  to the one shown in **Outputs & Sharing**.
+- The published layout is restored after a restart, even if you saved later
+  edits without applying them.
 
 ## Phone remote
 
@@ -181,10 +197,13 @@ scoreboard state once per second, not your camera feed or audio.
 
 Open **Broadcast → Video Generator…**, or choose
 **Generate Video from Recording…** in the recording window. Select a recording,
-choose the frame rate and scoreboard scale, then generate the video.
+the scoreboard layout (Classic or a saved custom layout), the frame rate and
+scale, then generate the video. Choosing a layout here does not change your
+live output. The final size is shown before you start, up to 4K.
 
 The output is a transparent WebM that you can place over match footage in OBS
 or a compatible video editor. Packaged releases include the video encoder.
+4K exports need several GB of free memory for the encoder.
 
 ## Troubleshooting
 

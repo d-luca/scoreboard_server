@@ -9,8 +9,10 @@
 > and transports), P7b (live renderer and Outputs sizing), and P7c (designer
 > Apply and standalone WS smoke) implemented on 2026-10-30. P8
 > completed on 2026-10-30: ffmpeg end-to-end verified and in-app Classic and
-> custom-layout exports user-confirmed. P9 not
-> started. P7's interactive OBS/native checks remain outstanding.
+> custom-layout exports user-confirmed. P9a/b/d (automated cross-surface
+> conformance, export-memory measurement, docs and gates) done on 2026-10-31;
+> P9c Windows/Linux manual release checks (including P6/P7 interactive OBS/native
+> checks) remain outstanding, so P9 is not closed.
 > Rust contracts, validation, persistent library commands, backend publication
 > events, the pure layout/binding engine and isolated live/canvas renderers exist;
 > a private-draft designer UI includes workspace editing and native close guards.
@@ -974,6 +976,48 @@ Tasks:
 
 **Exit gate:** all three output surfaces are complete, regression expectations
 hold, and no planned capability is presented as implemented prematurely.
+
+**Delivery split** (agreed 2026-10-31):
+
+| Step | Scope                                                                                                                                                                                                                                           | Owner / status     |
+| ---- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------ |
+| P9a  | Automated cross-surface conformance: real server + WS Apply while each timer direction runs, omitted fields via remote/API, recordings unaffected by layout changes, export unaffected by live Apply; map every behavioural example to evidence | Agent — done       |
+| P9b  | Export memory: frontend loop proof (one reused ≤ 32 MiB buffer, one push in flight) and an opt-in real-ffmpeg RSS measurement at Full HD and 4K landscape/portrait across recording lengths                                                     | Agent — done       |
+| P9c  | Manual Windows/Linux release checks at 100% and HiDPI: fixtures, OBS, restart, recovery, shutdown, open P6/P7 native checks (`docs/testing.md`)                                                                                                 | **User — pending** |
+| P9d  | Status/usage documentation, release checklist, full gates (`pnpm check`, bindings, LAN-bundle isolation)                                                                                                                                        | Agent — done       |
+
+P9 implementation (2026-10-31):
+
+- `tests/designer_conformance.rs` starts the real HTTP/WS server on an ephemeral
+  port with an isolated library. While a countdown or count-up runs, it Saves
+  and Applies a layout that omits away fields; the layout frame arrives, the
+  timer keeps ticking in its direction and scores are unchanged. Remote
+  `score-away-inc` and an away-name patch still reach WS state and
+  `/api/scoreboard/*`. A recording spanning custom and Classic Apply captures the
+  omitted fields and contains no layout data.
+- The custom video e2e test now Applies a different live layout before export
+  and Applies the mid-job saved revision; `published()` is untouched by the
+  export, and the frozen job completes.
+- `videoGeneration.test.ts` proves the frontend loop reuses one buffer of
+  `8 + batchFrames × frameBytes` bytes, never has more than one push in flight,
+  requests frames in order (FHD 4/4/2, 4K and portrait 1 per batch), stops on
+  cancellation and rejects short snapshot batches.
+- `tests/video_memory.rs` (opt-in, Linux) measures process and ffmpeg VmRSS.
+  App-side growth is +64 MiB (frontend-equivalent buffer plus the backend copy)
+  at 10/60/300 s for every size, and at most one extra retained batch for 45 min
+  Full HD. ffmpeg's VP9-with-alpha encoder dominates: about 0.7-0.95 GB at Full
+  HD (flat at ~953 MiB from 20 to 45 min) and 2.3-3.2 GB at 4K, rising with
+  look-ahead fill and then flattening. See `docs/testing.md` for the table.
+  `pnpm check` (214 Vitest, all Rust suites), binding regeneration (no diff),
+  LAN-bundle isolation and `scripts/ws-layout-smoke.mjs` passed.
+- Every behavioural example is mapped to automated evidence in
+  `docs/testing.md`; native/OBS/HiDPI parity remains manual.
+- Status docs (README, feature/editor/contracts docs, `frontend.md`,
+  `docs/README.md`) and the release checklist were updated; the README now
+  documents Classic as 622 × 80 and custom sizes from Outputs.
+
+**P9 exit gate status:** automated evidence complete; **not closed** until the
+P9c manual checks pass on Windows and Linux (including HiDPI and OBS).
 
 ## Review and verification strategy
 

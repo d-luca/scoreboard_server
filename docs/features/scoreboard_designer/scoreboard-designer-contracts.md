@@ -7,8 +7,9 @@
 > implemented on 2026-10-23. P4's isolated renderers are implemented with Linux
 > Chromium parity evidence; Windows WebView2/Linux WebKitGTK checks user-confirmed
 > on 2026-10-25. P5 shell/library/numeric editing and P6 direct manipulation,
-> history and native-close coordination are implemented.
-> Runtime activation and public wire synchronization remain planned.
+> history and native-close coordination are implemented. P7 forwards publication
+> to WebSocket clients and activates it in `/scoreboard`; P8 freezes a selected
+> saved revision for video export.
 > Rust remains the authoritative type
 > source; do not create hand-maintained TypeScript copies.
 
@@ -165,14 +166,14 @@ is identical is a no-op and returns the current revision. Rename to the same
 name is likewise a no-op. Reject stale revisions even for a would-be no-op.
 Deleting an absent id is `not-found`, not success.
 
-Desktop events (implemented in P2; public wire forwarding remains P7):
+Desktop events (implemented in P2; public wire forwarding implemented in P7):
 
 - `layouts:library-changed`: `{sessionId, storageRevision}` after any committed
   layout-storage change, including Apply/recovery. Receivers subscribe before
   `layouts_get`; use storage ordering to reject stale read results.
 - `layouts:published`: the full `PublishedLayoutSnapshot`, only after a committed
-  publication change. Also forwarded through the public server event channel;
-  P7 will serialize it to WebSocket clients.
+  publication change. Also forwarded through the public server event channel
+  and serialized to WebSocket clients (P7).
 - `layouts:storage-warning`: the current `LayoutStorageStatus`, desktop-only;
   `layouts_get` also carries it so a late-opening designer cannot miss a warning.
 

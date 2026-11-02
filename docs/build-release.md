@@ -137,4 +137,8 @@ Release named `Scoreboard Server <tag>`.
 6. Timer accuracy: 10 minutes against a stopwatch, drift < 1 s. Count-up too.
 7. Presets: create, load from the menu, restart — the fixture is still loaded.
 8. Recording + generation: a short match end-to-end; the WebM has alpha in OBS.
-9. Run through the [manual regression checklist](testing.md#manual-regression-checklist).
+   Repeat with a saved custom layout selected.
+9. Scoreboard Designer: Save, Apply a custom layout while the timer runs, restart
+   (the published layout returns), Apply Classic back; OBS uses the size shown in
+   Outputs. See the [P9 release checks](testing.md#cross-surface-conformance-and-release-readiness-p9).
+10. Run through the [manual regression checklist](testing.md#manual-regression-checklist).

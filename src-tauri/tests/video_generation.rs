@@ -370,6 +370,21 @@ async fn custom_layout_exports_padded_frozen_frames_end_to_end() {
     let output = dir.join("custom.webm");
     let shared = shared();
     let (id, revision) = save_layout(&shared, "Odd fixture", 621, 79).await;
+    // Live output uses a different layout; exporting must not change it.
+    let (live_id, live_revision) = save_layout(&shared, "Live fixture", 320, 120).await;
+    let live = shared
+        .layouts
+        .apply(
+            SavedLayoutSelection::Custom {
+                id: live_id.clone(),
+                expected_revision: live_revision,
+            },
+            0,
+        )
+        .await
+        .unwrap()
+        .library
+        .published;
 
     let started = video::generate(
         &shared,
@@ -397,6 +412,11 @@ async fn custom_layout_exports_padded_frozen_frames_end_to_end() {
         (id.as_str(), revision)
     );
     assert_eq!((root.width, root.height), (621, 79));
+    assert_eq!(
+        shared.layouts.published(),
+        live,
+        "export changed live output"
+    );
 
     // Saving a new revision mid-job must not affect the running export.
     let snapshot = shared.layouts.snapshot();
@@ -408,9 +428,28 @@ async fn custom_layout_exports_padded_frozen_frames_end_to_end() {
         .clone();
     let mut edited = entry.definition.clone();
     edited.root.width = 700;
-    shared
+    let saved = shared
         .layouts
         .save(id.clone(), revision, entry.name.clone(), edited)
+        .await
+        .unwrap();
+    // …and neither may a live Apply of that newer revision.
+    let new_revision = saved
+        .library
+        .entries
+        .iter()
+        .find(|e| e.id == id)
+        .unwrap()
+        .revision;
+    shared
+        .layouts
+        .apply(
+            SavedLayoutSelection::Custom {
+                id: id.clone(),
+                expected_revision: new_revision,
+            },
+            live.revision,
+        )
         .await
         .unwrap();
 
